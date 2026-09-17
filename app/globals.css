@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light dark;
+  }
+
+  body {
+    @apply bg-areia text-marinho font-sans antialiased;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    body {
+      @apply bg-marinho text-areia;
+    }
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-laranja ring-offset-2 ring-offset-areia;
+  }
+}
+
+@layer utilities {
+  /* Números tabulares: obrigatório em horímetro, litros e reais. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 16mm;
+  }
+  aside,
+  header,
+  .print\:hidden {
+    display: none !important;
+  }
+  html,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  main {
+    padding: 0 !important;
+  }
+  tr {
+    break-inside: avoid;
+  }
+  thead {
+    display: table-header-group;
+  }
+}

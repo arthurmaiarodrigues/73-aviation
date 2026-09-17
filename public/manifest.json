@@ -1,0 +1,16 @@
+{
+  "name": "73 Aviation – PP-ZNM",
+  "short_name": "73 Aviation",
+  "description": "Diário de bordo, despesas e agenda do RV-10 PP-ZNM",
+  "lang": "pt-BR",
+  "start_url": "/inicio",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F3EFE8",
+  "theme_color": "#0E2846",
+  "icons": [
+    { "src": "/icones/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icones/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icones/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

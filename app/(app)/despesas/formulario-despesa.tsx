@@ -1,0 +1,282 @@
+"use client";
+
+import { useActionState, useEffect, useMemo, useState } from "react";
+import { useFormStatus } from "react-dom";
+import { Loader2, Paperclip, Save, Trash2 } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, Textarea } from "@/components/ui/select";
+import { Alerta } from "@/components/ui/alerta";
+import { enviarArquivo } from "@/lib/upload-cliente";
+import { CRITERIOS, ROTULO_CRITERIO, type CriterioRateio } from "@/lib/tipos";
+import { data as fmtData } from "@/lib/formato";
+import type { DespesaLinha } from "@/lib/dados/financeiro";
+import { apagarDespesa, criarFornecedor, editarDespesa, salvarDespesa, type Resultado } from "./acoes";
+
+const INICIAL: Resultado = { ok: true, mensagem: "" };
+
+export type VooResumo = { id: string; data: string; socio_id: string | null; socio: string | null; origem: string | null; destino: string | null };
+
+/** Categorias em que o custo é de quem estava com o avião naquele dia. */
+const CATEGORIAS_DO_VOO = ["TAXAS DE POUSO E NAVEGAÇÃO", "HANGAR"];
+
+function Botao({ edicao }: { edicao: boolean }) {
+  const { pending } = useFormStatus();
+  return (
+    <Button type="submit" size={edicao ? "padrao" : "campo"} disabled={pending}>
+      {pending ? <Loader2 className="animate-spin" /> : <Save />}
+      {pending ? "Salvando…" : edicao ? "Salvar alterações" : "Lançar despesa"}
+    </Button>
+  );
+}
+
+export function FormularioDespesa({
+  despesa,
+  socios,
+  categorias,
+  fornecedores,
+  voosRecentes,
+  hoje,
+  socioLogadoId,
+  podeApagar,
+}: {
+  despesa?: DespesaLinha;
+  socios: { id: string; apelido: string; cota: number }[];
+  categorias: { id: number; nome: string }[];
+  fornecedores: { id: string; nome: string }[];
+  voosRecentes: VooResumo[];
+  hoje: string;
+  socioLogadoId: string | null;
+  podeApagar: boolean;
+}) {
+  const edicao = Boolean(despesa);
+  const [estado, acao] = useActionState(edicao ? editarDespesa : salvarDespesa, INICIAL);
+
+  const [data, setData] = useState(despesa?.data ?? hoje);
+  const [categoriaId, setCategoriaId] = useState(String(despesa?.categoria_id ?? categorias[0]?.id ?? ""));
+  const [criterio, setCriterio] = useState<CriterioRateio>(despesa?.criterio ?? "IGUAL");
+  const [socioDireto, setSocioDireto] = useState(despesa?.socio_direto_id ?? "");
+  const [pagador, setPagador] = useState(despesa?.pagador_socio_id ?? socioLogadoId ?? "CAIXA");
+  const [comprovante, setComprovante] = useState<string | null>(despesa?.comprovante_path ?? null);
+  const [enviando, setEnviando] = useState(false);
+  const [erroArquivo, setErroArquivo] = useState<string | null>(null);
+  const [listaFornecedores, setListaFornecedores] = useState(fornecedores);
+  const [fornecedorId, setFornecedorId] = useState(despesa?.fornecedor_id ?? "");
+  const [novoFornecedor, setNovoFornecedor] = useState("");
+  const [confirmarApagar, setConfirmarApagar] = useState(false);
+  const [sugestao, setSugestao] = useState<string | null>(null);
+
+  const categoriaNome = categorias.find((c) => String(c.id) === categoriaId)?.nome ?? "";
+
+  // Custo de pouso / hangar: cruza com o voo daquele dia (± 1) e sugere DIRETO.
+  const vooDoDia = useMemo(() => {
+    if (!CATEGORIAS_DO_VOO.includes(categoriaNome)) return null;
+    const alvo = new Date(`${data}T00:00:00Z`).getTime();
+    const candidatos = voosRecentes
+      .map((v) => ({ v, dist: Math.abs(new Date(`${v.data}T00:00:00Z`).getTime() - alvo) }))
+      .filter((c) => c.dist <= 86_400_000)
+      .sort((a, b) => a.dist - b.dist);
+    return candidatos[0]?.v ?? null;
+  }, [categoriaNome, data, voosRecentes]);
+
+  useEffect(() => {
+    if (edicao) return;
+    if (!vooDoDia) {
+      setSugestao(null);
+      return;
+    }
+    if (vooDoDia.socio_id) {
+      setCriterio("DIRETO");
+      setSocioDireto(vooDoDia.socio_id);
+      setSugestao(`Voo de ${fmtData(vooDoDia.data)} (${vooDoDia.origem ?? "?"} → ${vooDoDia.destino ?? "?"}) era de ${vooDoDia.socio}: rateio direto a ele.`);
+    } else {
+      setCriterio("IGUAL");
+      setSugestao(`Voo de ${fmtData(vooDoDia.data)} era da sociedade: rateio igual.`);
+    }
+  }, [vooDoDia, edicao]);
+
+  async function tratarComprovante(arquivo: File | undefined) {
+    if (!arquivo) return;
+    setErroArquivo(null);
+    setEnviando(true);
+    const r = await enviarArquivo(arquivo, "comprovantes", `COMPROVANTE - ${categoriaNome}`);
+    setEnviando(false);
+    if (!r.ok) return setErroArquivo(r.mensagem);
+    setComprovante(r.caminho);
+  }
+
+  async function cadastrarFornecedor() {
+    const r = await criarFornecedor(novoFornecedor, "PJ");
+    if (!r.ok) return setErroArquivo(r.mensagem);
+    setListaFornecedores((l) => [...l.filter((f) => f.id !== r.id), { id: r.id, nome: r.nome }].sort((a, b) => a.nome.localeCompare(b.nome)));
+    setFornecedorId(r.id);
+    setNovoFornecedor("");
+  }
+
+  const cotaTotal = socios.reduce((s, x) => s + x.cota, 0) || 100;
+
+  return (
+    <div className="space-y-6">
+      <form action={acao} className="space-y-5">
+        {despesa && <input type="hidden" name="id" value={despesa.id} />}
+        <input type="hidden" name="comprovante_path" value={comprovante ?? ""} />
+        {estado.mensagem && <Alerta tom={estado.ok ? "ok" : "erro"}>{estado.mensagem}</Alerta>}
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="data">Data</Label>
+            <Input id="data" name="data" type="date" value={data} onChange={(e) => setData(e.target.value)} required className="h-12" />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="valor">Valor (R$)</Label>
+            <Input id="valor" name="valor" inputMode="decimal" placeholder="0,00" defaultValue={despesa ? despesa.valor.toFixed(2).replace(".", ",") : ""} required className="h-12 text-lg font-semibold tabular" />
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label htmlFor="descricao">Descrição</Label>
+            <Input id="descricao" name="descricao" defaultValue={despesa?.descricao ?? ""} placeholder="ex.: TAXA DE POUSO SBSV" required className="h-12 uppercase" />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="categoria_id">Categoria</Label>
+            <Select id="categoria_id" name="categoria_id" value={categoriaId} onChange={(e) => setCategoriaId(e.target.value)} className="h-12">
+              {categorias.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nome}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="fornecedor_id">Fornecedor</Label>
+            <Select id="fornecedor_id" name="fornecedor_id" value={fornecedorId} onChange={(e) => setFornecedorId(e.target.value)} className="h-12">
+              <option value="">—</option>
+              {listaFornecedores.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.nome}
+                </option>
+              ))}
+            </Select>
+            <div className="flex gap-2">
+              <Input value={novoFornecedor} onChange={(e) => setNovoFornecedor(e.target.value)} placeholder="Novo fornecedor…" className="h-9 text-xs uppercase" />
+              <Button type="button" variant="secundario" size="pequeno" onClick={cadastrarFornecedor} disabled={novoFornecedor.trim().length < 2}>
+                Cadastrar
+              </Button>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="pagador">Quem pagou</Label>
+            <Select id="pagador" name="pagador" value={pagador} onChange={(e) => setPagador(e.target.value)} className="h-12">
+              <option value="CAIXA">Caixa da sociedade</option>
+              {socios.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.apelido} (do próprio bolso)
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="criterio">Rateio</Label>
+            <Select id="criterio" name="criterio" value={criterio} onChange={(e) => setCriterio(e.target.value as CriterioRateio)} className="h-12">
+              {CRITERIOS.map((c) => (
+                <option key={c} value={c}>
+                  {ROTULO_CRITERIO[c]}
+                </option>
+              ))}
+            </Select>
+          </div>
+        </div>
+
+        {sugestao && <Alerta tom="info">{sugestao}</Alerta>}
+
+        {criterio === "DIRETO" && (
+          <div className="space-y-1.5">
+            <Label htmlFor="socio_direto_id">Sócio que arca com tudo</Label>
+            <Select id="socio_direto_id" name="socio_direto_id" value={socioDireto} onChange={(e) => setSocioDireto(e.target.value)} required className="h-12">
+              <option value="">Escolha…</option>
+              {socios.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.apelido}
+                </option>
+              ))}
+            </Select>
+          </div>
+        )}
+
+        {criterio === "POR_HORAS" && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="periodo_inicio">Horas de (em branco = mês da despesa)</Label>
+              <Input id="periodo_inicio" name="periodo_inicio" type="date" defaultValue={despesa?.periodo_inicio ?? ""} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="periodo_fim">até</Label>
+              <Input id="periodo_fim" name="periodo_fim" type="date" defaultValue={despesa?.periodo_fim ?? ""} />
+            </div>
+          </div>
+        )}
+
+        {criterio === "MANUAL" && (
+          <div className="grid gap-3 sm:grid-cols-4">
+            {socios.map((s) => {
+              const atual = despesa?.rateios.find((r) => r.socio_id === s.id)?.percentual;
+              return (
+                <div key={s.id} className="space-y-1.5">
+                  <Label htmlFor={`pct_${s.id}`}>{s.apelido} (%)</Label>
+                  <Input
+                    id={`pct_${s.id}`}
+                    name={`pct_${s.id}`}
+                    inputMode="decimal"
+                    defaultValue={(atual ?? Math.round((s.cota / cotaTotal) * 10000) / 100).toString().replace(".", ",")}
+                    className="tabular"
+                  />
+                </div>
+              );
+            })}
+            <p className="text-xs text-marinho-300 sm:col-span-4">Os percentuais precisam somar 100 %.</p>
+          </div>
+        )}
+
+        <div className="space-y-1.5">
+          <Label>Comprovante</Label>
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="inline-flex h-12 cursor-pointer items-center gap-2 rounded border border-marinho-100 bg-areia-200 px-4 text-sm font-semibold hover:border-laranja dark:border-marinho-300 dark:bg-marinho-700">
+              {enviando ? <Loader2 className="size-4 animate-spin" /> : <Paperclip className="size-4" />}
+              {comprovante ? "Trocar comprovante" : "Foto ou PDF"}
+              <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => tratarComprovante(e.target.files?.[0])} disabled={enviando} />
+            </label>
+            {comprovante && <span className="text-xs text-ok">anexado</span>}
+            {erroArquivo && <span className="text-xs text-erro">{erroArquivo}</span>}
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="observacao">Observação</Label>
+          <Textarea id="observacao" name="observacao" defaultValue={despesa?.observacao ?? ""} />
+        </div>
+
+        <Botao edicao={edicao} />
+      </form>
+
+      {podeApagar && despesa && (
+        <div className="border-t border-marinho-100 pt-4 dark:border-marinho-300">
+          {!confirmarApagar ? (
+            <Button type="button" variant="fantasma" size="pequeno" onClick={() => setConfirmarApagar(true)}>
+              <Trash2 /> Apagar esta despesa
+            </Button>
+          ) : (
+            <form action={async () => { await apagarDespesa(despesa.id); }} className="flex flex-wrap items-center gap-3">
+              <span className="text-sm text-erro">Sai dos extratos; fica guardada com quem apagou e quando.</span>
+              <Button type="submit" variant="destrutivo" size="pequeno">
+                Confirmar
+              </Button>
+              <Button type="button" variant="secundario" size="pequeno" onClick={() => setConfirmarApagar(false)}>
+                Cancelar
+              </Button>
+            </form>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

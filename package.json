@@ -1,0 +1,45 @@
+{
+  "name": "73-aviation",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "criar-usuario": "node --env-file=.env.local scripts/criar-usuario.mjs",
+    "verificar-rls": "node --env-file=.env.local scripts/verificar-rls.mjs",
+    "importar-horimetro": "node --env-file=.env.local scripts/importar-horimetro.mjs",
+    "gerar-icones": "node scripts/gerar-icones.mjs",
+    "testar-horimetro": "node --env-file=.env.local scripts/testar-horimetro.mjs",
+    "testar-rateio": "node --env-file=.env.local scripts/testar-rateio.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.124.0",
+    "@radix-ui/react-slot": "^1.1.2",
+    "@supabase/ssr": "^0.6.1",
+    "@supabase/supabase-js": "^2.49.4",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "exceljs": "^4.4.0",
+    "lucide-react": "^0.487.0",
+    "next": "^15.5.25",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "server-only": "^0.0.1",
+    "sharp": "^0.35.4",
+    "tailwind-merge": "^2.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "autoprefixer": "^10.4.21",
+    "eslint": "^9.24.0",
+    "eslint-config-next": "^15.5.25",
+    "postcss": "^8.5.3",
+    "tailwindcss": "^3.4.17",
+    "tailwindcss-animate": "^1.0.7",
+    "typescript": "^5.8.3"
+  }
+}
