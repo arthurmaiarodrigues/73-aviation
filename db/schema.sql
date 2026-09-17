@@ -496,7 +496,7 @@ end $$;
 -- Roda como dono porque o sócio não tem policy de escrita em rateios.
 create or replace function definir_rateio_manual(p_despesa uuid, p_percentuais jsonb) returns void
   language plpgsql security definer set search_path = public as
-$
+$$
 declare v_soma numeric;
 begin
   if not ve_valores() then raise exception 'Sem acesso.'; end if;
@@ -514,7 +514,7 @@ begin
   from jsonb_array_elements(p_percentuais) e
   where (e->>'percentual')::numeric > 0;
   perform calcular_rateio(p_despesa);
-end $;
+end $$;
 
 create or replace function despesas_ratear() returns trigger
   language plpgsql as
