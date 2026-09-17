@@ -53,7 +53,7 @@ export default async function PaginaExtratos({ searchParams }: { searchParams: P
               <span className="size-3 rounded-full" style={{ background: s.cor }} />
               <span className="text-sm font-semibold">{s.apelido}</span>
             </div>
-            <p className={cn("mt-1 text-xl font-semibold tabular", s.saldo < 0 ? "text-erro" : "text-ok")}>{reais(s.saldo)}</p>
+            <p className={cn("mt-1 whitespace-nowrap text-xl font-semibold tabular", s.saldo < 0 ? "text-erro" : "text-ok")}>{reais(s.saldo)}</p>
             <p className="text-xs text-marinho-300 tabular">
               +{reais(s.creditos)} · −{reais(s.debitos)}
             </p>
@@ -83,7 +83,7 @@ export default async function PaginaExtratos({ searchParams }: { searchParams: P
                   <TabelaCorpo>
                     {combustivelDele.map((c) => (
                       <TabelaLinha key={c.mes}>
-                        <Celula className="capitalize">{mesPorExtenso(c.mes)}</Celula>
+                        <Celula>{mesPorExtenso(c.mes)}</Celula>
                         <Celula numerico>{fmtLitros(c.litros_abastecidos)}</Celula>
                         <Celula numerico>
                           {fmtLitros(c.litros_consumidos)}

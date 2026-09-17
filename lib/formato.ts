@@ -62,6 +62,11 @@ export function data(valor: string | Date | null | undefined): string {
 
 /** "setembro de 2026" a partir de "AAAA-MM-01". */
 export function mesPorExtenso(valor: string | null | undefined): string {
+  const t = mesBruto(valor);
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
+function mesBruto(valor: string | null | undefined): string {
   if (!valor) return "—";
   const d = new Date(`${valor.slice(0, 10)}T00:00:00Z`);
   if (Number.isNaN(d.getTime())) return "—";

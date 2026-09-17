@@ -58,7 +58,7 @@ export function FormularioDespesa({
   const [categoriaId, setCategoriaId] = useState(String(despesa?.categoria_id ?? categorias[0]?.id ?? ""));
   const [criterio, setCriterio] = useState<CriterioRateio>(despesa?.criterio ?? "IGUAL");
   const [socioDireto, setSocioDireto] = useState(despesa?.socio_direto_id ?? "");
-  const [pagador, setPagador] = useState(despesa?.pagador_socio_id ?? socioLogadoId ?? "CAIXA");
+  const [pagador, setPagador] = useState(despesa ? (despesa.pagador_socio_id ?? "CAIXA") : (socioLogadoId ?? "CAIXA"));
   const [comprovante, setComprovante] = useState<string | null>(despesa?.comprovante_path ?? null);
   const [enviando, setEnviando] = useState(false);
   const [erroArquivo, setErroArquivo] = useState<string | null>(null);

@@ -122,7 +122,7 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
 
       {/* Horas do mês */}
       <div>
-        <h2 className="mb-3 text-lg font-semibold capitalize">
+        <h2 className="mb-3 text-lg font-semibold">
           {mesPorExtenso(mes)} · {fmtHoras(totalHorasMes)}
         </h2>
         <div className="grid gap-3 sm:grid-cols-4">
