@@ -11,7 +11,7 @@
     "verificar-rls": "node --env-file=.env.local scripts/verificar-rls.mjs",
     "importar-horimetro": "node --env-file=.env.local scripts/importar-horimetro.mjs",
     "gerar-icones": "node scripts/gerar-icones.mjs",
-    "testar-horimetro": "node --env-file=.env.local scripts/testar-horimetro.mjs",
+    "testar-horimetro": "node --env-file=.env.local --experimental-strip-types scripts/testar-horimetro.mjs",
     "testar-rateio": "node --env-file=.env.local scripts/testar-rateio.mjs"
   },
   "dependencies": {

@@ -725,6 +725,7 @@ select s.id as socio_id, s.apelido, s.nome, s.cor,
        coalesce(sum(e.debito), 0)::numeric(14,2) as debitos,
        (coalesce(sum(e.credito), 0) - coalesce(sum(e.debito), 0))::numeric(14,2) as saldo
 from socios s left join v_extrato_socio e on e.socio_id = s.id
+where ve_valores()
 group by s.id, s.apelido, s.nome, s.cor;
 
 -- Horas e custo por sócio e mês (painel).

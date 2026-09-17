@@ -63,4 +63,6 @@ if (!erroDespesa) falhas++;
 
 // v_saldo_socio para piloto tem de vir vazia (views com security_invoker).
 console.log(falhas ? `\n  ✗ ${falhas} falha(s) de RLS\n` : "\n  ✓ RLS ok\n");
+// Apaga os usuários de teste: não ficam no projeto.
+for (const u of [piloto, socio]) await admin.auth.admin.deleteUser(u.id);
 process.exit(falhas ? 1 : 0);
