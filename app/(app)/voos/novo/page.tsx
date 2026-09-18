@@ -25,7 +25,6 @@ export default async function PaginaNovoVoo() {
     ultimoHorimetro(aeronave.id),
   ]);
 
-  const pilotoLogado = pilotos.find((p) => p.socio_id && p.socio_id === usuario.socioId) ?? null;
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -44,7 +43,7 @@ export default async function PaginaNovoVoo() {
           socioLogadoId={usuario.socioId}
           socios={socios.map((s) => ({ id: s.id, apelido: s.apelido }))}
           pilotos={pilotos}
-          pilotoLogadoId={pilotoLogado?.id ?? null}
+          pilotoLogadoId={pilotos.length === 1 ? pilotos[0].id : null}
           aerodromos={aerodromos}
           base={aeronave.base_icao ?? "SNTF"}
           ultimoHorimetro={ultimo}

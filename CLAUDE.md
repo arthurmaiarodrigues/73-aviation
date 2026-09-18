@@ -6,7 +6,7 @@ Documento de partida para o Claude Code. Fica na raiz do projeto como `CLAUDE.md
 
 ## 1. Contexto e objetivo
 
-Sociedade nova de **4 sócios** — **ARTHUR, MARCELINO, CAETANO e WANDERSON**, cotas iguais de 25% — dona de um Van's RV-10, matrícula **PP-ZNM**, baseado em Teixeira de Freitas/BA (**SNTF**). Cada sócio pilota o próprio voo; eventualmente um piloto de fora voa por conta da sociedade. O controle **começa do zero** com esta sociedade; nada de gestões anteriores entra no app.
+Sociedade nova de **4 sócios** — **ARTHUR, MARCELINO, CAETANO e WANDERSON**, cotas iguais de 25% — dona de um Van's RV-10, matrícula **PP-ZNM**, baseado em Teixeira de Freitas/BA (**SNTF**). **Nenhum sócio pilota**: quem voa é piloto contratado (cadastro `pilotos`), por conta do sócio que está usando o avião ou da sociedade (decisão do Arthur em 18/09/2026). O controle **começa do zero** com esta sociedade; nada de gestões anteriores entra no app.
 
 Hoje o controle é a planilha `HORAS E COMBUSTÍVEL.xlsx`, aba HORIMETRO: data, sócio, origem, destino, horímetro inicial/final, horas, combustível inicial/final em litros e saldo, mais um resumo de saldo de horas e de combustível por sócio. É simples e já tem furos: voos sem horímetro, horas digitadas à mão, "SÓCIOS" como sócio genérico para uso comum, voo de piloto de fora ("ROBINHO (EXTRA)"), fórmulas quebrando.
 
@@ -52,7 +52,7 @@ Mesma do app AMR OBRAS, para reaproveitar código e hábitos:
 ### Cadastros
 - `aeronaves` — uma só hoje, mas a tabela existe: matrícula, modelo, horímetro atual (calculado do último voo), TBO do motor, capacidade de combustível (L), consumo médio (L/h), **fundo de reserva por hora** (R$/h, com histórico `vigente_desde`).
 - `socios` — nome, apelido, CPF, cota (%), ativo desde/até, usuário do Auth. Cotas somam 100%. Sócio que sair um dia fica com `ativo_ate` e histórico preservado.
-- `pilotos` — quem pode pilotar sem ser sócio (nome, licença, validade). Todo sócio piloto aparece aqui também.
+- `pilotos` — os pilotos contratados (nome, licença, validade). Sócio não é piloto. Remover apaga de vez; voos antigos ficam com `piloto_id` nulo.
 - `aerodromos` — ICAO, nome, cidade (SNTF, SDC4, SIVV, SNGI, SNGT, SBSU…). Cadastro cresce sozinho a partir dos voos.
 - `fornecedores` — oficinas, hangares, postos, seguradora, despachante: nome, CNPJ/CPF, tipo.
 - `categorias_despesa` — fixas: COMBUSTÍVEL, ÓLEO, HANGAR, SEGURO, MANUTENÇÃO, PEÇAS, TAXAS DE POUSO E NAVEGAÇÃO, DOCUMENTAÇÃO, ASSINATURAS E AVIÔNICOS, PILOTO, VIAGEM E DIÁRIAS, OUTROS.
@@ -180,6 +180,16 @@ Só a `HORAS E COMBUSTÍVEL.xlsx`, aba HORIMETRO:
 - `manutencoes.voo_translado_id`/`voo_teste_id` são ponteiros sem FK (validados no código).
 - Aeródromos: `db/schema_v3b_aerodromos.sql` amplia a tabela (UF, tipo, coordenadas, pista) e cria `buscar_aerodromos`; `npm run importar-aerodromos` carrega as listas da ANAC em `dados/aerodromos/*.csv` (4.349 em 18/09/2026). O seletor de aeródromo busca em `/api/aerodromos?q=` (ICAO, nome ou cidade) — sem `<datalist>`, que o iPhone não mostra.
 - Constantes usadas nos dois lados ficam em `lib/manutencao-constantes.ts` (sem `server-only`).
+
+## 10d. Fase 4 (18/09/2026)
+
+- **Fechamento** (`db/schema_v4_fechamento.sql`): `resumo_mes`, `pendencias_mes`, `linhas_mes`, `fechar_mes` (só mês terminado; voo sem pouso bloqueia; grava o resumo em `fechamentos.resumo`), `reabrir_mes` (auditado em `historico`). Tela `/fechamento` com acerto sugerido (casamento guloso devedor × credor pelo saldo acumulado) e `/fechamento/[mes]/imprimir` (PDF pelo "Salvar em PDF" do navegador).
+- **Comprovante por foto** (`lib/comprovante/ler.ts`, rota `/api/comprovante`): fornecedor, CNPJ, data, valor, litros, categoria, ICAO. Preenche despesa e abastecimento; leitura acessória.
+- **Escalas** (`db/schema_v4b_escalas.sql`): `voos.escalas text[]`; pousos = escalas + 1 (ajustável). Trecho `SNTF → SDIY → SIFC` em listas, Excel e PDF.
+- **Conciliação** (`db/schema_v4c_conciliacao.sql`): `extrato_banco` (FITID único por conta), `sugestoes_extrato` (mesmo valor ± 5 dias), `conciliar_linha`, `ignorar_linha`, `desfazer_conciliacao`. Leitores: `lib/ofx.ts` (do AMR) e `lib/extrato-csv.ts`. Linha sem par vira despesa do caixa ou aporte direto da tela.
+- Pilotos: nenhum sócio pilota; lixeira apaga (voos antigos ficam sem piloto), botão inativar/reativar para os contratados.
+- Scripts com `@/`: `node --experimental-strip-types --import ./scripts/alias.mjs`.
+- Ficou para depois: WhatsApp (resumo do mês para os sócios) e push "é a sua vez".
 
 ## 11. Pendências (não travam a Fase 1 — implementar com a assunção indicada)
 

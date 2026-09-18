@@ -172,14 +172,13 @@ export default async function PaginaCadastros() {
       <Card>
         <CardHeader>
           <CardTitle>Pilotos</CardTitle>
-          <CardDescription>Todo sócio é piloto. Piloto de fora registra voo por conta da sociedade. Remover: quem nunca voou é apagado; quem já tem voo fica inativo (some das listas, o histórico continua).</CardDescription>
+          <CardDescription>Os pilotos que voam o avião. Remover apaga o cadastro; os voos antigos dele ficam sem piloto.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <ul className="grid gap-2 sm:grid-cols-2">
             {(pilotos ?? []).map((p) => (
               <li key={p.id} className="flex items-center gap-2 text-sm">
                 <span className="font-semibold">{p.nome}</span>
-                {p.socio_id ? <Badge variant="info">sócio</Badge> : <Badge variant="neutro">externo</Badge>}
                 {p.licenca && <span className="text-marinho-300">{p.licenca}</span>}
                 {!p.ativo && <Badge variant="erro">inativo</Badge>}
                 {admin && <BotoesPiloto id={p.id} ativo={p.ativo} nome={p.nome} />}
@@ -188,7 +187,7 @@ export default async function PaginaCadastros() {
           </ul>
           {admin && (
             <details className="rounded border border-dashed border-marinho-300 p-3">
-              <summary className="cursor-pointer text-sm font-semibold text-laranja-700">+ Piloto externo</summary>
+              <summary className="cursor-pointer text-sm font-semibold text-laranja-700">+ Piloto</summary>
               <div className="mt-3">
                 <FormularioAcao acao={salvarPiloto} className="grid gap-3 sm:grid-cols-4" rotulo="Cadastrar">
                   <Campo nome="nome" rotulo="Nome" valor="" />

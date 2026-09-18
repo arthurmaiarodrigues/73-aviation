@@ -85,12 +85,6 @@ export async function salvarSocio(_a: Resultado, form: FormData): Promise<Result
   const { error } = id && UUID.test(id) ? await supabase.from("socios").update(campos).eq("id", id) : await supabase.from("socios").insert(campos);
   if (error) return { ok: false, mensagem: /unique|duplicate/i.test(error.message) ? "Já existe sócio com esse apelido ou esse usuário." : error.message };
 
-  // Todo sócio é piloto.
-  if (!id) {
-    const { data: novo } = await supabase.from("socios").select("id").eq("apelido", apelido.toUpperCase()).maybeSingle();
-    if (novo) await supabase.from("pilotos").upsert({ nome, socio_id: novo.id }, { onConflict: "socio_id" });
-  }
-
   revalidatePath("/cadastros");
   revalidatePath("/inicio");
   return { ok: true, mensagem: "Sócio salvo." };
@@ -130,38 +124,40 @@ export async function salvarPiloto(_a: Resultado, form: FormData): Promise<Resul
 }
 
 /**
- * Remover piloto: se nunca voou, apaga; se já tem voo, só desativa (o
- * histórico continua apontando para ele). Piloto que é sócio só desativa.
+ * Remover piloto: apaga de vez. Voo antigo que apontava para ele fica sem
+ * piloto (o registro do voo continua inteiro). Nenhum sócio pilota, então
+ * não há vínculo a preservar.
  */
 export async function removerPiloto(id: string): Promise<Resultado> {
   const adm = await exigirAdminAcao();
   if (!adm.ok) return adm;
   if (!UUID.test(id)) return { ok: false, mensagem: "Piloto inválido." };
   const supabase = await criarClienteServidor();
-  const { data: p } = await supabase.from("pilotos").select("id, nome, socio_id").eq("id", id).maybeSingle();
+  const { data: p } = await supabase.from("pilotos").select("id, nome").eq("id", id).maybeSingle();
   if (!p) return { ok: false, mensagem: "Piloto não encontrado." };
   const { count } = await supabase.from("voos").select("*", { count: "exact", head: true }).eq("piloto_id", id);
-  if (!p.socio_id && (count ?? 0) === 0) {
-    const { error } = await supabase.from("pilotos").delete().eq("id", id);
+  if ((count ?? 0) > 0) {
+    const { error } = await supabase.from("voos").update({ piloto_id: null }).eq("piloto_id", id);
     if (error) return { ok: false, mensagem: error.message };
-    revalidatePath("/cadastros");
-    return { ok: true, mensagem: `${p.nome} apagado.` };
   }
-  const { error } = await supabase.from("pilotos").update({ ativo: false }).eq("id", id);
+  const { error } = await supabase.from("pilotos").delete().eq("id", id);
   if (error) return { ok: false, mensagem: error.message };
   revalidatePath("/cadastros");
-  return { ok: true, mensagem: p.socio_id ? `${p.nome} é sócio: ficou inativo como piloto.` : `${p.nome} tem ${count} voo(s) no histórico: ficou inativo.` };
+  revalidatePath("/voos");
+  return { ok: true, mensagem: `${p.nome} apagado${count ? ` (${count} voo(s) ficaram sem piloto)` : ""}.` };
 }
 
-export async function reativarPiloto(id: string): Promise<Resultado> {
+/** Inativar tira o piloto das listas sem apagar (voltou a voar? reativa). */
+export async function ativarPiloto(id: string, ativo: boolean): Promise<Resultado> {
   const adm = await exigirAdminAcao();
   if (!adm.ok) return adm;
   if (!UUID.test(id)) return { ok: false, mensagem: "Piloto inválido." };
   const supabase = await criarClienteServidor();
-  const { error } = await supabase.from("pilotos").update({ ativo: true }).eq("id", id);
+  const { error } = await supabase.from("pilotos").update({ ativo }).eq("id", id);
   if (error) return { ok: false, mensagem: error.message };
   revalidatePath("/cadastros");
-  return { ok: true, mensagem: "Piloto reativado." };
+  revalidatePath("/voos/novo");
+  return { ok: true, mensagem: ativo ? "Piloto reativado." : "Piloto inativado." };
 }
 
 export async function salvarFornecedor(_a: Resultado, form: FormData): Promise<Resultado> {
