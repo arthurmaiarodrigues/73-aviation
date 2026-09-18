@@ -23,12 +23,12 @@ de preview em cada Pull Request. Banco: projeto `RV10 PP-ZNM` no Supabase.
    | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | do `.env.local` (`sb_publishable_…`) |
    | `SUPABASE_SERVICE_ROLE_KEY` | do `.env.local` (`sb_secret_…`) — **segredo** |
    | `ANTHROPIC_API_KEY` | do `.env.local` — **segredo** |
-   | `NEXT_PUBLIC_SITE_URL` | `https://73-aviation.vercel.app` (ajuste se a Vercel der outro nome) |
+   | `NEXT_PUBLIC_SITE_URL` | `https://ppznm.vercel.app` (ajuste se a Vercel der outro nome) |
 
    Deploy. Em ~2 min sai a URL.
 4. **Supabase → Authentication → URL Configuration**:
-   - Site URL: `https://73-aviation.vercel.app`
-   - Redirect URLs: `https://73-aviation.vercel.app/**` e `http://localhost:3073/**`
+   - Site URL: `https://ppznm.vercel.app`
+   - Redirect URLs: `https://ppznm.vercel.app/**` e `http://localhost:3073/**`
 
    Sem isso o link de convite/redefinição de senha cai no lugar errado.
 5. **Sócios**: Supabase → Authentication → Users → **Invite user** com o
