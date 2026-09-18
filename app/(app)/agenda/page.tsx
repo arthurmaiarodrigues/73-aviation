@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight, Lock } from "lucide-react";
 
 import { exigirSessao } from "@/lib/perfil";
-import { aeronaveAtiva, listarSocios } from "@/lib/dados/cadastros";
+import { aeronaveAtiva, aerodromosRecentes, listarSocios } from "@/lib/dados/cadastros";
 import {
   ROTULO_BLOQUEIO,
   fila,
@@ -49,12 +49,13 @@ export default async function PaginaAgenda({ searchParams }: { searchParams: Pro
   const semanas = await listarSemanas(aeronave.id, mes);
   const de = semanas[0]?.inicio ?? mes;
   const ate = semanas[semanas.length - 1]?.fim ?? mes;
-  const [linhasFila, vez, reservas, bloqueios, socios] = await Promise.all([
+  const [linhasFila, vez, reservas, bloqueios, socios, aerodromos] = await Promise.all([
     fila(aeronave.id, mes),
     vezDeEscolher(aeronave.id, mes),
     listarReservas(aeronave.id, de, ate),
     listarBloqueios(aeronave.id, de, ate),
     listarSocios({ somenteAtivos: true }),
+    aerodromosRecentes(aeronave.id),
   ]);
 
   const minhaVez = vez !== null && vez === usuario.socioId;
@@ -155,7 +156,7 @@ export default async function PaginaAgenda({ searchParams }: { searchParams: Pro
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {usuario.socioId ? <FormularioReserva hoje={h} /> : <p className="text-sm text-marinho-300">Só sócio reserva.</p>}
+            {usuario.socioId ? <FormularioReserva hoje={h} aerodromos={aerodromos} /> : <p className="text-sm text-marinho-300">Só sócio reserva.</p>}
             <ul className="divide-y divide-marinho-100 text-sm dark:divide-marinho-300">
               {reservas.map((r) => (
                 <li key={r.id} className="flex flex-wrap items-center gap-2 py-2">

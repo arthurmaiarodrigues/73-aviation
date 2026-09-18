@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Alerta } from "@/components/ui/alerta";
+import { SeletorAerodromo } from "@/components/seletor-aerodromo";
 import { bloquear, reservar, type Resultado } from "./acoes";
 
 const INICIAL: Resultado = { ok: true, mensagem: "" };
@@ -23,7 +24,7 @@ function Botao({ rotulo, icone }: { rotulo: string; icone: React.ReactNode }) {
   );
 }
 
-export function FormularioReserva({ hoje }: { hoje: string }) {
+export function FormularioReserva({ hoje, aerodromos }: { hoje: string; aerodromos: string[] }) {
   const [estado, acao] = useActionState(reservar, INICIAL);
   return (
     <form action={acao} className="space-y-3">
@@ -41,12 +42,7 @@ export function FormularioReserva({ hoje }: { hoje: string }) {
           </Label>
           <Input id="r-fim" name="fim" type="date" min={hoje} />
         </div>
-        <div className="space-y-1">
-          <Label htmlFor="r-destino" className="text-xs">
-            Destino
-          </Label>
-          <Input id="r-destino" name="destino" placeholder="SBSV" className="uppercase" maxLength={40} />
-        </div>
+        <SeletorAerodromo nome="destino" rotulo="Destino" opcoes={aerodromos} />
         <div className="space-y-1">
           <Label htmlFor="r-motivo" className="text-xs">
             Motivo
