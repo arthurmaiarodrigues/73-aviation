@@ -6,4 +6,5 @@ node_modules
 next-env.d.ts
 .vercel
 dados/conferencia/*.xlsx
+dados/aerodromos/*.csv
 dados/horimetro-teste/
