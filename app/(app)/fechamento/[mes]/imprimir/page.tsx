@@ -98,12 +98,12 @@ export default async function PaginaImprimir({ params }: { params: Promise<{ mes
               </td>
               <td className="px-2 py-1 text-marinho-300">{l.trecho ?? ""}</td>
               <td className="px-2 py-1">{l.pagador ?? ""}</td>
-              <td className="tabular px-2 py-1 text-right">{l.horas !== null ? fmtHoras(l.horas) : ""}</td>
-              <td className="tabular px-2 py-1 text-right">{l.valor !== null ? reais(l.valor) : ""}</td>
+              <td className="tabular whitespace-nowrap px-2 py-1 text-right">{l.horas !== null ? fmtHoras(l.horas) : ""}</td>
+              <td className="tabular whitespace-nowrap px-2 py-1 text-right">{l.valor !== null ? reais(l.valor) : ""}</td>
               {apelidos.map((a) => {
                 const v = porSocio(l, a);
                 return (
-                  <td key={a} className="tabular px-2 py-1 text-right">
+                  <td key={a} className="tabular whitespace-nowrap px-2 py-1 text-right">
                     {v === undefined ? "" : l.tipo === "VOO" ? fmtHoras(v) : reais(v)}
                   </td>
                 );
@@ -123,12 +123,12 @@ export default async function PaginaImprimir({ params }: { params: Promise<{ mes
             <td className="px-2 py-1.5" colSpan={4}>
               Totais · {fmtHoras(totalHoras)} voadas · despesas {reais(totalDespesas)} · aportes {reais(totalAportes)}
             </td>
-            <td className="tabular px-2 py-1.5 text-right">{fmtHoras(totalHoras)}</td>
-            <td className="tabular px-2 py-1.5 text-right">{reais(totalDespesas)}</td>
+            <td className="tabular whitespace-nowrap px-2 py-1.5 text-right">{fmtHoras(totalHoras)}</td>
+            <td className="tabular whitespace-nowrap px-2 py-1.5 text-right">{reais(totalDespesas)}</td>
             {apelidos.map((a) => {
               const r = resumo.find((s) => s.apelido === a);
               return (
-                <td key={a} className="tabular px-2 py-1.5 text-right">
+                <td key={a} className="tabular whitespace-nowrap px-2 py-1.5 text-right">
                   {r ? reais(r.rateado) : ""}
                 </td>
               );
@@ -168,7 +168,7 @@ export default async function PaginaImprimir({ params }: { params: Promise<{ mes
               {apelidos.map((a) => {
                 const s = resumo.find((r) => r.apelido === a);
                 return (
-                  <td key={a} className="tabular px-2 py-1 text-right">
+                  <td key={a} className="tabular whitespace-nowrap px-2 py-1 text-right">
                     {s ? f(s) : ""}
                   </td>
                 );

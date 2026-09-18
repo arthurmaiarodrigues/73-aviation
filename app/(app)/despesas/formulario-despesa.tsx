@@ -67,6 +67,10 @@ export function FormularioDespesa({
   const [novoFornecedor, setNovoFornecedor] = useState("");
   const [confirmarApagar, setConfirmarApagar] = useState(false);
   const [sugestao, setSugestao] = useState<string | null>(null);
+  const [descricao, setDescricao] = useState(despesa?.descricao ?? "");
+  const [valor, setValor] = useState(despesa ? despesa.valor.toFixed(2).replace(".", ",") : "");
+  const [leitura, setLeitura] = useState<{ confianca: number; observacao: string; fornecedor: string | null } | null>(null);
+  const [lendo, setLendo] = useState(false);
 
   const categoriaNome = categorias.find((c) => String(c.id) === categoriaId)?.nome ?? "";
 
@@ -101,10 +105,40 @@ export function FormularioDespesa({
     if (!arquivo) return;
     setErroArquivo(null);
     setEnviando(true);
+    // Sobe o arquivo e, ao mesmo tempo, manda ler. A leitura é acessória:
+    // se falhar, o comprovante fica anexado e a pessoa digita.
+    const leituraPromessa = edicao ? null : lerComprovanteNoServidor(arquivo);
     const r = await enviarArquivo(arquivo, "comprovantes", `COMPROVANTE - ${categoriaNome}`);
     setEnviando(false);
     if (!r.ok) return setErroArquivo(r.mensagem);
     setComprovante(r.caminho);
+    if (leituraPromessa) await leituraPromessa;
+  }
+
+  async function lerComprovanteNoServidor(arquivo: File) {
+    setLendo(true);
+    try {
+      const form = new FormData();
+      form.append("arquivo", arquivo);
+      const resp = await fetch("/api/comprovante", { method: "POST", body: form });
+      const lido = (await resp.json()) as { erro?: string; legivel: boolean; fornecedor: string | null; data: string | null; valor: number | null; descricao: string | null; categoria: string | null; confianca: number; observacao: string };
+      if (!resp.ok) throw new Error(lido.erro ?? "Falha na leitura.");
+      if (lido.data) setData(lido.data);
+      if (lido.valor !== null) setValor(lido.valor.toFixed(2).replace(".", ","));
+      if (lido.descricao) setDescricao(lido.descricao);
+      const cat = categorias.find((c) => c.nome === lido.categoria);
+      if (cat) setCategoriaId(String(cat.id));
+      if (lido.fornecedor) {
+        const existente = listaFornecedores.find((f) => f.nome === lido.fornecedor || f.nome.startsWith(lido.fornecedor!.split(" ")[0]) && lido.fornecedor!.split(" ").length > 1 && f.nome.includes(lido.fornecedor!.split(" ")[1]));
+        if (existente) setFornecedorId(existente.id);
+        else setNovoFornecedor(lido.fornecedor);
+      }
+      setLeitura({ confianca: lido.confianca, observacao: lido.observacao, fornecedor: lido.fornecedor });
+    } catch (e) {
+      setErroArquivo(`Comprovante anexado, mas não consegui ler: ${e instanceof Error ? e.message : "falha"}. Preencha à mão.`);
+    } finally {
+      setLendo(false);
+    }
   }
 
   async function cadastrarFornecedor() {
@@ -124,6 +158,27 @@ export function FormularioDespesa({
         <input type="hidden" name="comprovante_path" value={comprovante ?? ""} />
         {estado.mensagem && <Alerta tom={estado.ok ? "ok" : "erro"}>{estado.mensagem}</Alerta>}
 
+        {!edicao && (
+          <div className="rounded-lg border border-dashed border-marinho-300 p-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="inline-flex h-12 cursor-pointer items-center gap-2 rounded bg-laranja px-4 text-sm font-semibold text-marinho hover:bg-laranja-700 hover:text-areia">
+                {enviando || lendo ? <Loader2 className="size-4 animate-spin" /> : <Paperclip className="size-4" />}
+                {lendo ? "Lendo o comprovante…" : enviando ? "Enviando…" : comprovante ? "Trocar comprovante" : "Foto ou PDF do comprovante"}
+                <input type="file" accept="image/*,application/pdf" capture="environment" className="hidden" onChange={(e) => tratarComprovante(e.target.files?.[0])} disabled={enviando || lendo} />
+              </label>
+              {comprovante && !lendo && <span className="text-xs text-ok">anexado</span>}
+              {leitura && (
+                <span className={`text-xs ${leitura.confianca >= 0.8 ? "text-ok" : "text-atencao"}`}>
+                  lido da foto ({Math.round(leitura.confianca * 100)} %) — confira os campos
+                </span>
+              )}
+            </div>
+            {leitura?.observacao && <p className="mt-2 text-xs text-marinho-300">{leitura.observacao}</p>}
+            {erroArquivo && <p className="mt-2 text-xs text-erro">{erroArquivo}</p>}
+            <p className="mt-2 text-xs text-marinho-300">O app lê fornecedor, valor, data e categoria; você confere e lança.</p>
+          </div>
+        )}
+
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="data">Data</Label>
@@ -131,11 +186,11 @@ export function FormularioDespesa({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="valor">Valor (R$)</Label>
-            <Input id="valor" name="valor" inputMode="decimal" placeholder="0,00" defaultValue={despesa ? despesa.valor.toFixed(2).replace(".", ",") : ""} required className="h-12 text-lg font-semibold tabular" />
+            <Input id="valor" name="valor" inputMode="decimal" placeholder="0,00" value={valor} onChange={(e) => setValor(e.target.value)} required className="h-12 text-lg font-semibold tabular" />
           </div>
           <div className="space-y-1.5 sm:col-span-2">
             <Label htmlFor="descricao">Descrição</Label>
-            <Input id="descricao" name="descricao" defaultValue={despesa?.descricao ?? ""} placeholder="ex.: TAXA DE POUSO SBSV" required className="h-12 uppercase" />
+            <Input id="descricao" name="descricao" value={descricao} onChange={(e) => setDescricao(e.target.value)} placeholder="ex.: TAXA DE POUSO SBSV" required className="h-12 uppercase" />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="categoria_id">Categoria</Label>
@@ -237,6 +292,7 @@ export function FormularioDespesa({
           </div>
         )}
 
+        {edicao && (
         <div className="space-y-1.5">
           <Label>Comprovante</Label>
           <div className="flex flex-wrap items-center gap-3">
@@ -249,6 +305,7 @@ export function FormularioDespesa({
             {erroArquivo && <span className="text-xs text-erro">{erroArquivo}</span>}
           </div>
         </div>
+        )}
 
         <div className="space-y-1.5">
           <Label htmlFor="observacao">Observação</Label>
