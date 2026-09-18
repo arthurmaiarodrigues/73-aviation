@@ -195,6 +195,8 @@ create or replace function manutencao_item_despesa() returns trigger
 $$
 declare m manutencoes%rowtype; v_cat int; v_inicio date; v_fim date; v_criterio criterio_rateio; v_desc text;
 begin
+  new.pago_pelo_fundo := coalesce(new.pago_pelo_fundo, false);
+  new.tipo_custo := coalesce(new.tipo_custo, 'IGUAL');
   select * into m from manutencoes where id = new.manutencao_id;
   select id into v_cat from categorias_despesa where nome = 'MANUTENÇÃO';
   v_desc := 'MANUTENÇÃO: ' || new.descricao;
@@ -336,7 +338,22 @@ begin
 
   update manutencoes set status = 'CONCLUIDA', data_fim = p_data_fim, horimetro = coalesce(p_horimetro, horimetro) where id = p_manutencao;
 
-  -- Itens do plano executados: histórico + nova base de contagem.
+  -- 1) A base anterior de cada item executado (última execução digitada à mão)
+  --    entra no histórico, para o "desde a última troca" continuar valendo.
+  insert into plano_execucoes (plano_item_id, manutencao_id, data, horimetro)
+  select p.id, null, p.ultima_data, p.ultimo_horimetro
+  from plano_manutencao p
+  where p.aeronave_id = m.aeronave_id and p.ultima_data is not null
+    and (p.id = any(coalesce(p_plano_itens, array[]::uuid[]))
+         or p.id in (select plano_item_id from manutencao_itens where manutencao_id = p_manutencao and plano_item_id is not null and deleted_at is null))
+    and not exists (select 1 from plano_execucoes e where e.plano_item_id = p.id and e.data = p.ultima_data);
+
+  -- 2) Reprocessa os itens da nota com a data real (período POR_USO fecha na saída).
+  for it in select id from manutencao_itens where manutencao_id = p_manutencao and deleted_at is null loop
+    update manutencao_itens set valor = valor where id = it.id;
+  end loop;
+
+  -- 3) Esta execução vira a nova base dos itens do plano.
   insert into plano_execucoes (plano_item_id, manutencao_id, data, horimetro)
   select p.id, p_manutencao, p_data_fim, coalesce(p_horimetro, ultimo_horimetro(m.aeronave_id))
   from plano_manutencao p
@@ -348,11 +365,6 @@ begin
   update plano_manutencao p set ultima_data = e.data, ultimo_horimetro = coalesce(e.horimetro, p.ultimo_horimetro)
   from plano_execucoes e
   where e.plano_item_id = p.id and e.manutencao_id = p_manutencao;
-
-  -- Reprocessa os itens (a data da despesa e o período POR_HORAS mudam).
-  for it in select id from manutencao_itens where manutencao_id = p_manutencao and deleted_at is null loop
-    update manutencao_itens set valor = valor where id = it.id;
-  end loop;
 end $$;
 
 -- ---------------------------------------------------------------------

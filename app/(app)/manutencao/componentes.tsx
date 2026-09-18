@@ -12,16 +12,8 @@ import { Alerta } from "@/components/ui/alerta";
 import { enviarArquivo } from "@/lib/upload-cliente";
 import { cn } from "@/lib/utils";
 import { data as fmtData } from "@/lib/formato";
-import {
-  ROTULO_GATILHO,
-  ROTULO_TIPO_CUSTO,
-  TIPOS_DOCUMENTO,
-  type Gatilho,
-  type ItemManutencao,
-  type ItemPlano,
-  type Manutencao,
-  type TipoCusto,
-} from "@/lib/dados/manutencao";
+import { ROTULO_GATILHO, ROTULO_TIPO_CUSTO, TIPOS_DOCUMENTO, type Gatilho, type TipoCusto } from "@/lib/manutencao-constantes";
+import type { ItemManutencao, ItemPlano, Manutencao } from "@/lib/dados/manutencao";
 import {
   apagarDocumento,
   apagarItemManutencao,
@@ -48,14 +40,18 @@ function Botao({ rotulo, icone, tamanho = "padrao" }: { rotulo: string; icone?: 
   );
 }
 
-/** Botão de ação com confirmação e resposta ao lado. */
+/** Botão de ação com confirmação e resposta ao lado (só recebe dados serializáveis). */
 export function BotaoAcao({
   acao,
+  id,
+  extra,
   rotulo,
   confirmar,
   variant = "fantasma",
 }: {
-  acao: () => Promise<Resultado>;
+  acao: "tirarDoPlano" | "removerItem" | "removerDocumento";
+  id: string;
+  extra?: string;
   rotulo: string;
   confirmar?: string;
   variant?: "fantasma" | "destrutivo" | "secundario";
@@ -63,7 +59,13 @@ export function BotaoAcao({
   const [pendente, iniciar] = useTransition();
   const [resultado, setResultado] = useState<Resultado | null>(null);
   const [pedindo, setPedindo] = useState(false);
-  const executar = () => iniciar(async () => { setResultado(await acao()); setPedindo(false); });
+  const executar = () =>
+    iniciar(async () => {
+      const r =
+        acao === "tirarDoPlano" ? await desativarItemPlano(id) : acao === "removerItem" ? await apagarItemManutencao(id, extra ?? "") : await apagarDocumento(id);
+      setResultado(r);
+      setPedindo(false);
+    });
   if (pedindo)
     return (
       <span className="inline-flex items-center gap-2">
@@ -82,10 +84,6 @@ export function BotaoAcao({
   );
 }
 
-export const apagarItemPlanoAcao = (id: string) => () => desativarItemPlano(id);
-export const apagarItemManutencaoAcao = (id: string, m: string) => () => apagarItemManutencao(id, m);
-export const apagarDocumentoAcao = (id: string) => () => apagarDocumento(id);
-export const apagarManutencaoAcao = (id: string) => async () => apagarManutencao(id);
 
 // ------------------------------------------------------------ plano
 export function FormularioItemPlano({ item }: { item?: ItemPlano }) {

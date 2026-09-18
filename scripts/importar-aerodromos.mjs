@@ -23,6 +23,10 @@ if (!url || !secreta) {
 const db = createClient(url, secreta, { auth: { persistSession: false } });
 const pasta = resolve(import.meta.dirname, "..", "dados", "aerodromos");
 
+const UF = { ACRE: "AC", ALAGOAS: "AL", AMAPA: "AP", AMAZONAS: "AM", BAHIA: "BA", CEARA: "CE", "DISTRITO FEDERAL": "DF", "ESPIRITO SANTO": "ES", GOIAS: "GO", MARANHAO: "MA", "MATO GROSSO": "MT", "MATO GROSSO DO SUL": "MS", "MINAS GERAIS": "MG", PARA: "PA", PARAIBA: "PB", PARANA: "PR", PERNAMBUCO: "PE", PIAUI: "PI", "RIO DE JANEIRO": "RJ", "RIO GRANDE DO NORTE": "RN", "RIO GRANDE DO SUL": "RS", RONDONIA: "RO", RORAIMA: "RR", "SANTA CATARINA": "SC", "SAO PAULO": "SP", SERGIPE: "SE", TOCANTINS: "TO" };
+const semAcento = (t) => String(t ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "");
+// "BAHIA" (lista pública) e "BA" (lista privada) viram a sigla.
+const uf = (t) => { const v = semAcento(caixaAlta(t) ?? ""); return UF[v] ?? (v.length === 2 ? v : null); };
 const caixaAlta = (t) => String(t ?? "").trim().replace(/\s+/g, " ").toUpperCase() || null;
 const num = (t) => {
   const s = String(t ?? "").trim().replace(",", ".");
@@ -62,7 +66,7 @@ for (const { icao, c, idx } of publicos.registros) {
     icao,
     nome: caixaAlta(c[idx("Nome")]),
     cidade: caixaAlta(c[idx("Município")]),
-    uf: caixaAlta(c[idx("UF")]),
+    uf: uf(c[idx("UF")]),
     tipo: "PUBLICO",
     latitude: num(c[idx("LATGEOPOINT")]) ?? gms(c[idx("Latitude")]),
     longitude: num(c[idx("LONGEOPOINT")]) ?? gms(c[idx("Longitude")]),
@@ -80,7 +84,7 @@ for (const { icao, c, idx } of privados.registros) {
     icao,
     nome: caixaAlta(c[idx("Nome")]),
     cidade: caixaAlta(c[idx("Município")]),
-    uf: caixaAlta(c[idx("UF")]),
+    uf: uf(c[idx("UF")]),
     tipo: "PRIVADO",
     latitude: num(c[idx("LATGEOPOINT")]) ?? gms(c[idx("Latitude")]),
     longitude: num(c[idx("LONGEOPOINT")]) ?? gms(c[idx("Longitude")]),

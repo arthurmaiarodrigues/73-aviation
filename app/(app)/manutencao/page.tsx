@@ -13,7 +13,7 @@ import { Alerta } from "@/components/ui/alerta";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Cabecalho, Celula, Tabela, TabelaCabecalho, TabelaCorpo, TabelaLinha } from "@/components/ui/tabela";
-import { BotaoAcao, FormularioDocumento, FormularioItemPlano, FormularioManutencao, apagarDocumentoAcao, apagarItemPlanoAcao } from "./componentes";
+import { BotaoAcao, FormularioDocumento, FormularioItemPlano, FormularioManutencao } from "./componentes";
 
 export const metadata: Metadata = { title: "Manutenção" };
 
@@ -86,7 +86,7 @@ export default async function PaginaManutencao({ searchParams }: { searchParams:
                     <div className="mt-2">
                       <FormularioItemPlano item={p} />
                       <div className="mt-2">
-                        <BotaoAcao acao={apagarItemPlanoAcao(p.id)} rotulo="Tirar do plano" confirmar="Tirar este item do plano?" />
+                        <BotaoAcao acao="tirarDoPlano" id={p.id} rotulo="Tirar do plano" confirmar="Tirar este item do plano?" />
                       </div>
                     </div>
                   </details>
@@ -191,7 +191,7 @@ export default async function PaginaManutencao({ searchParams }: { searchParams:
                     <Paperclip className="inline size-4" /> abrir
                   </a>
                 )}
-                {admin && <BotaoAcao acao={apagarDocumentoAcao(d.id)} rotulo="Remover" confirmar="Remover este documento?" />}
+                {admin && <BotaoAcao acao="removerDocumento" id={d.id} rotulo="Remover" confirmar="Remover este documento?" />}
               </li>
             ))}
             {documentos.length === 0 && <li className="py-2 text-marinho-300">Nenhum documento registrado. Comece pelo CA/CVA, seguro RETA e IAM.</li>}

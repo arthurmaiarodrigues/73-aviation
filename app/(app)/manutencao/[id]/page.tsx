@@ -13,7 +13,7 @@ import { Alerta } from "@/components/ui/alerta";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Cabecalho, Celula, Tabela, TabelaCabecalho, TabelaCorpo, TabelaLinha, TabelaRodape } from "@/components/ui/tabela";
-import { BotaoAcao, BotaoApagarManutencao, FormularioConcluir, FormularioItemManutencao, FormularioManutencao, apagarItemManutencaoAcao } from "../componentes";
+import { BotaoAcao, BotaoApagarManutencao, FormularioConcluir, FormularioItemManutencao, FormularioManutencao } from "../componentes";
 
 export const metadata: Metadata = { title: "Manutenção" };
 
@@ -109,7 +109,7 @@ export default async function PaginaManutencaoFicha({ params, searchParams }: { 
                           rateio
                         </Link>
                       )}
-                      {admin && <BotaoAcao acao={apagarItemManutencaoAcao(i.id, m.id)} rotulo="Remover" confirmar="Remover o item e a despesa dele?" />}
+                      {admin && <BotaoAcao acao="removerItem" id={i.id} extra={m.id} rotulo="Remover" confirmar="Remover o item e a despesa dele?" />}
                     </Celula>
                   </TabelaLinha>
                 ))}
