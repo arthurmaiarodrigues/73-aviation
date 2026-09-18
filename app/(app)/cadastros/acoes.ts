@@ -129,6 +129,41 @@ export async function salvarPiloto(_a: Resultado, form: FormData): Promise<Resul
   return { ok: true, mensagem: "Piloto salvo." };
 }
 
+/**
+ * Remover piloto: se nunca voou, apaga; se já tem voo, só desativa (o
+ * histórico continua apontando para ele). Piloto que é sócio só desativa.
+ */
+export async function removerPiloto(id: string): Promise<Resultado> {
+  const adm = await exigirAdminAcao();
+  if (!adm.ok) return adm;
+  if (!UUID.test(id)) return { ok: false, mensagem: "Piloto inválido." };
+  const supabase = await criarClienteServidor();
+  const { data: p } = await supabase.from("pilotos").select("id, nome, socio_id").eq("id", id).maybeSingle();
+  if (!p) return { ok: false, mensagem: "Piloto não encontrado." };
+  const { count } = await supabase.from("voos").select("*", { count: "exact", head: true }).eq("piloto_id", id);
+  if (!p.socio_id && (count ?? 0) === 0) {
+    const { error } = await supabase.from("pilotos").delete().eq("id", id);
+    if (error) return { ok: false, mensagem: error.message };
+    revalidatePath("/cadastros");
+    return { ok: true, mensagem: `${p.nome} apagado.` };
+  }
+  const { error } = await supabase.from("pilotos").update({ ativo: false }).eq("id", id);
+  if (error) return { ok: false, mensagem: error.message };
+  revalidatePath("/cadastros");
+  return { ok: true, mensagem: p.socio_id ? `${p.nome} é sócio: ficou inativo como piloto.` : `${p.nome} tem ${count} voo(s) no histórico: ficou inativo.` };
+}
+
+export async function reativarPiloto(id: string): Promise<Resultado> {
+  const adm = await exigirAdminAcao();
+  if (!adm.ok) return adm;
+  if (!UUID.test(id)) return { ok: false, mensagem: "Piloto inválido." };
+  const supabase = await criarClienteServidor();
+  const { error } = await supabase.from("pilotos").update({ ativo: true }).eq("id", id);
+  if (error) return { ok: false, mensagem: error.message };
+  revalidatePath("/cadastros");
+  return { ok: true, mensagem: "Piloto reativado." };
+}
+
 export async function salvarFornecedor(_a: Resultado, form: FormData): Promise<Resultado> {
   const { user, usuario } = await usuarioDaSessao();
   if (!user || !usuario?.ativo || usuario.perfil === "piloto") return { ok: false, mensagem: "Sem acesso." };

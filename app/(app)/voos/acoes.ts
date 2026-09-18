@@ -27,6 +27,14 @@ function icao(form: FormData, campo: string): string | null {
   return t && ICAO.test(t) ? t : null;
 }
 
+/** Escalas (campos `escala`), só as válidas e na ordem. */
+function escalas(form: FormData): string[] {
+  return form
+    .getAll("escala")
+    .map((v) => String(v).trim().toUpperCase())
+    .filter((v) => ICAO.test(v));
+}
+
 function leituraJson(form: FormData, campo: string): unknown {
   const t = texto(form, campo);
   if (!t) return null;
@@ -117,6 +125,7 @@ export async function salvarVoo(_anterior: Resultado, form: FormData): Promise<R
       piloto_id: pilotoId,
       origem,
       destino,
+      escalas: escalas(form),
       horimetro_inicial: hInicial,
       horimetro_final: hFinal,
       horas_informadas: hInicial === null ? horasInformadas : null,
@@ -168,6 +177,7 @@ export async function registrarPouso(_anterior: Resultado, form: FormData): Prom
     .update({
       horimetro_final: hFinal,
       destino,
+      ...(form.has("escala") ? { escalas: escalas(form) } : {}),
       combustivel_final_l: lerNumero(form.get("combustivel_final_l")),
       pousos: Math.max(0, Math.round(lerNumero(form.get("pousos")) ?? 1)),
       foto_horimetro_final: texto(form, "foto_final"),
@@ -213,6 +223,7 @@ export async function editarVoo(_anterior: Resultado, form: FormData): Promise<R
       piloto_id: pilotoBruto && UUID.test(pilotoBruto) ? pilotoBruto : null,
       origem: icao(form, "origem"),
       destino: icao(form, "destino"),
+      escalas: escalas(form),
       horimetro_inicial: hInicial,
       horimetro_final: hFinal,
       horas_informadas: hInicial === null ? horasInformadas : null,

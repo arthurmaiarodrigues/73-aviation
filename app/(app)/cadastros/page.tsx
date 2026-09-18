@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { FormularioAcao } from "@/components/formulario-acao";
+import { BotoesPiloto } from "./botoes-piloto";
 import { salvarAerodromo, salvarAeronave, salvarFornecedor, salvarPiloto, salvarSocio, salvarUsuario } from "./acoes";
 
 export const metadata: Metadata = { title: "Cadastros" };
@@ -171,7 +172,7 @@ export default async function PaginaCadastros() {
       <Card>
         <CardHeader>
           <CardTitle>Pilotos</CardTitle>
-          <CardDescription>Todo sócio é piloto. Piloto de fora registra voo por conta da sociedade.</CardDescription>
+          <CardDescription>Todo sócio é piloto. Piloto de fora registra voo por conta da sociedade. Remover: quem nunca voou é apagado; quem já tem voo fica inativo (some das listas, o histórico continua).</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <ul className="grid gap-2 sm:grid-cols-2">
@@ -181,6 +182,7 @@ export default async function PaginaCadastros() {
                 {p.socio_id ? <Badge variant="info">sócio</Badge> : <Badge variant="neutro">externo</Badge>}
                 {p.licenca && <span className="text-marinho-300">{p.licenca}</span>}
                 {!p.ativo && <Badge variant="erro">inativo</Badge>}
+                {admin && <BotoesPiloto id={p.id} ativo={p.ativo} nome={p.nome} />}
               </li>
             ))}
           </ul>

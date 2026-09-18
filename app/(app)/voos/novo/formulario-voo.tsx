@@ -11,6 +11,7 @@ import { Select, Textarea } from "@/components/ui/select";
 import { Alerta } from "@/components/ui/alerta";
 import { FotoHorimetro, type EstadoFoto } from "@/components/foto-horimetro";
 import { SeletorAerodromo } from "@/components/seletor-aerodromo";
+import { ListaEscalas } from "@/components/lista-escalas";
 import { NATUREZAS, ROTULO_NATUREZA, ehUsoComum, type NaturezaVoo, type Perfil } from "@/lib/tipos";
 import { horimetro as fmtHorimetro } from "@/lib/formato";
 import { salvarVoo, type Resultado } from "../acoes";
@@ -56,6 +57,7 @@ export function FormularioVoo({
   const [semHorimetro, setSemHorimetro] = useState(false);
   const [fotoInicial, setFotoInicial] = useState<EstadoFoto>({ caminho: null, leitura: null, valor: "" });
   const [fotoFinal, setFotoFinal] = useState<EstadoFoto>({ caminho: null, leitura: null, valor: "" });
+  const [pousos, setPousos] = useState("1");
 
   const usoComum = ehUsoComum(natureza);
   const inicialNumero = Number(fotoInicial.valor.replace(/\./g, "").replace(",", "."));
@@ -149,6 +151,7 @@ export function FormularioVoo({
 
         <SeletorAerodromo nome="origem" rotulo="Origem" opcoes={aerodromos} valorInicial={base} />
         <SeletorAerodromo nome="destino" rotulo="Destino" opcoes={aerodromos} />
+        <ListaEscalas opcoes={aerodromos} aoMudar={(n) => setPousos(String(n + 1))} />
 
         <div className="space-y-1.5">
           <Label htmlFor="combustivel_inicial_l">Combustível na decolagem (L)</Label>
@@ -158,7 +161,8 @@ export function FormularioVoo({
 
         <div className="space-y-1.5">
           <Label htmlFor="pousos">Pousos</Label>
-          <Input id="pousos" name="pousos" type="number" min={0} defaultValue={1} className="h-12 tabular" />
+          <Input id="pousos" name="pousos" type="number" min={0} value={pousos} onChange={(e) => setPousos(e.target.value)} className="h-12 tabular" />
+          <p className="text-xs text-marinho-300">Escalas + destino. Ajuste se fez toque-e-arremetida.</p>
         </div>
       </div>
 

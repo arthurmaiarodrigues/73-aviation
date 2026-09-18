@@ -4,7 +4,7 @@ import { Camera, Fuel, PlaneTakeoff, Receipt } from "lucide-react";
 
 import { exigirSessao } from "@/lib/perfil";
 import { aeronaveAtiva, listarSocios } from "@/lib/dados/cadastros";
-import { horasPorSocioNoMes, listarVoos, ultimoHorimetro, vooEmAberto } from "@/lib/dados/voos";
+import { horasPorSocioNoMes, listarVoos, trecho, ultimoHorimetro, vooEmAberto } from "@/lib/dados/voos";
 import { saldoDoCaixa, saldoDoFundo, saldosDosSocios } from "@/lib/dados/financeiro";
 import { resumoManutencao } from "@/lib/dados/manutencao";
 import { ROTULO_BLOQUEIO, agendaDoDia, fila, garantirEscolhaAberta, mesSeguinte, proximasReservas, vezDeEscolher } from "@/lib/dados/agenda";
@@ -183,7 +183,7 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
             {pendentesReais.slice(0, 5).map((v) => (
               <li key={v.id}>
                 <Link href={`/voos/${v.id}`} className="underline">
-                  {fmtData(v.data)} · {v.socio ?? "Sociedade"} · {v.origem ?? "?"} → {v.destino ?? "?"}
+                  {fmtData(v.data)} · {v.socio ?? "Sociedade"} · {trecho(v)}
                 </Link>{" "}
                 <span className="text-marinho-300">
                   {v.horimetro_final === null && v.horimetro_inicial !== null ? "sem pouso" : v.pendente_horimetro ? "horímetro pendente" : "rascunho"}
@@ -276,9 +276,7 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
             <li key={v.id}>
               <Link href={`/voos/${v.id}`} className="flex items-center justify-between gap-3 p-3 hover:bg-areia-200 dark:hover:bg-marinho-700">
                 <div>
-                  <p className="text-sm font-semibold">
-                    {v.origem ?? "?"} → {v.destino ?? "?"}
-                  </p>
+                  <p className="text-sm font-semibold">{trecho(v)}</p>
                   <p className="text-xs text-marinho-300">
                     {fmtData(v.data)} · {v.socio ?? "Sociedade"}
                   </p>

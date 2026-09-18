@@ -5,7 +5,7 @@ import { ArrowLeft } from "lucide-react";
 
 import { exigirSessao } from "@/lib/perfil";
 import { aeronaveAtiva, aerodromosRecentes, listarPilotos, listarSocios } from "@/lib/dados/cadastros";
-import { buscarVoo, urlDaFoto } from "@/lib/dados/voos";
+import { buscarVoo, trecho, urlDaFoto } from "@/lib/dados/voos";
 import { temChave } from "@/lib/horimetro/ler";
 import { data as fmtData, horas as fmtHoras, horimetro as fmtHorimetro, litros as fmtLitros } from "@/lib/formato";
 import { ROTULO_NATUREZA } from "@/lib/tipos";
@@ -49,7 +49,7 @@ export default async function PaginaVoo({
         </Link>
         <div className="mt-2 flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-semibold">
-            {fmtData(voo.data)} · {voo.origem ?? "?"} → {voo.destino ?? "?"}
+            {fmtData(voo.data)} · {trecho(voo)}
           </h1>
           {emAberto ? <Badge variant="atencao">em voo</Badge> : voo.status === "CONFIRMADO" ? <Badge variant="ok">confirmado</Badge> : <Badge variant="info">rascunho</Badge>}
           {voo.pendente_horimetro && <Badge variant="erro">horímetro pendente</Badge>}
@@ -103,6 +103,7 @@ export default async function PaginaVoo({
               id={voo.id}
               horimetroInicial={voo.horimetro_inicial}
               destino={voo.destino}
+              escalas={voo.escalas}
               aerodromos={aerodromos}
               observacao={voo.observacao}
               leituraAutomatica={temChave()}

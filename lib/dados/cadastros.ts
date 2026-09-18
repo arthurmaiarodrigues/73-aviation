@@ -77,16 +77,15 @@ export async function aerodromosRecentes(aeronaveId: string): Promise<string[]> 
   const supabase = await criarClienteServidor();
   const { data } = await supabase
     .from("voos")
-    .select("origem, destino, data")
+    .select("origem, destino, escalas, data")
     .eq("aeronave_id", aeronaveId)
     .is("deleted_at", null)
     .order("data", { ascending: false })
     .limit(40);
   const vistos = new Set<string>();
   for (const v of data ?? []) {
-    for (const i of [v.destino, v.origem]) if (i && !vistos.has(i)) vistos.add(i);
+    for (const i of [v.destino, ...((v.escalas as string[] | null) ?? []), v.origem]) if (i && !vistos.has(i)) vistos.add(i);
   }
-  const todos = await listarAerodromos();
-  for (const a of todos) vistos.add(a.icao);
-  return [...vistos];
+  // Só os recentes: a lista completa (4.349) vem pela busca em /api/aerodromos.
+  return [...vistos].slice(0, 12);
 }

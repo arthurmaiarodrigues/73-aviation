@@ -35,6 +35,7 @@ export async function GET(request: Request) {
     { header: "DATA", key: "data", width: 12, style: { numFmt: DATA_BR } },
     { header: "SÓCIO", key: "socio", width: 16 },
     { header: "ORIGEM", key: "origem", width: 9 },
+    { header: "ESCALAS", key: "escalas", width: 16 },
     { header: "DESTINO", key: "destino", width: 9 },
     { header: "HORÍMETRO INICIAL", key: "hi", width: 18, style: { numFmt: DECIMAL_1 } },
     { header: "HORÍMETRO FINAL", key: "hf", width: 17, style: { numFmt: DECIMAL_1 } },
@@ -56,6 +57,7 @@ export async function GET(request: Request) {
       data: dataExcel(v.data),
       socio: v.socio ?? "SOCIEDADE",
       origem: v.origem ?? "",
+      escalas: v.escalas.join(" "),
       destino: v.destino ?? "",
       hi: v.horimetro_inicial,
       hf: v.horimetro_final,
@@ -70,7 +72,7 @@ export async function GET(request: Request) {
       obs: v.observacao ?? "",
     });
   }
-  adicionarTotal(ws, ["TOTAL", null, null, null, null, null, voos.reduce((s, v) => s + v.horas, 0)]);
+  adicionarTotal(ws, ["TOTAL", null, null, null, null, null, null, voos.reduce((s, v) => s + v.horas, 0)]);
 
   const buffer = await wb.xlsx.writeBuffer();
   return new NextResponse(buffer as ArrayBuffer, { headers: cabecalhosXlsx(nomeArquivo("VOOS PP-ZNM")) });

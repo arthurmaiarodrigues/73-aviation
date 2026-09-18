@@ -11,6 +11,7 @@ export type VooLinha = {
   piloto: string | null;
   origem: string | null;
   destino: string | null;
+  escalas: string[];
   horimetro_inicial: number | null;
   horimetro_final: number | null;
   horas: number;
@@ -35,13 +36,13 @@ export type FiltroVoos = {
   pendentes?: boolean;
 };
 
-const SELECT = `id, data, socio_id, origem, destino, horimetro_inicial, horimetro_final, horas,
+const SELECT = `id, data, socio_id, origem, destino, escalas, horimetro_inicial, horimetro_final, horas,
   combustivel_inicial_l, combustivel_final_l, pousos, natureza, status, pendente_horimetro, observacao,
   foto_horimetro_inicial, foto_horimetro_final, autor_id,
   socios ( apelido ), pilotos ( nome )`;
 
 type LinhaBruta = {
-  id: string; data: string; socio_id: string | null; origem: string | null; destino: string | null;
+  id: string; data: string; socio_id: string | null; origem: string | null; destino: string | null; escalas: string[] | null;
   horimetro_inicial: string | null; horimetro_final: string | null; horas: string;
   combustivel_inicial_l: string | null; combustivel_final_l: string | null; pousos: number;
   natureza: NaturezaVoo; status: "RASCUNHO" | "CONFIRMADO"; pendente_horimetro: boolean; observacao: string | null;
@@ -62,6 +63,7 @@ function mapear(v: LinhaBruta): VooLinha {
     piloto: v.pilotos?.nome ?? null,
     origem: v.origem,
     destino: v.destino,
+    escalas: v.escalas ?? [],
     horimetro_inicial: n(v.horimetro_inicial),
     horimetro_final: n(v.horimetro_final),
     horas: Number(v.horas),
@@ -95,7 +97,7 @@ export async function listarVoos(aeronaveId: string, filtro: FiltroVoos = {}, li
   if (filtro.de) q = q.gte("data", filtro.de);
   if (filtro.ate) q = q.lte("data", filtro.ate);
   if (filtro.natureza) q = q.eq("natureza", filtro.natureza);
-  if (filtro.aerodromo) q = q.or(`origem.eq.${filtro.aerodromo},destino.eq.${filtro.aerodromo}`);
+  if (filtro.aerodromo) q = q.or(`origem.eq.${filtro.aerodromo},destino.eq.${filtro.aerodromo},escalas.cs.{${filtro.aerodromo}}`);
   if (filtro.pendentes) q = q.or("status.eq.RASCUNHO,pendente_horimetro.eq.true,horimetro_final.is.null");
 
   const { data, error } = await q;
@@ -108,6 +110,11 @@ export async function buscarVoo(id: string): Promise<VooLinha | null> {
   const { data, error } = await supabase.from("voos").select(SELECT).eq("id", id).is("deleted_at", null).maybeSingle();
   if (error) throw new Error(`Voo: ${error.message}`);
   return data ? mapear(data as unknown as LinhaBruta) : null;
+}
+
+/** "SNTF → SDIY → SIFC" */
+export function trecho(v: { origem: string | null; escalas?: string[]; destino: string | null }): string {
+  return [v.origem ?? "?", ...(v.escalas ?? []), v.destino ?? "?"].join(" → ");
 }
 
 /** Último horímetro confirmado da aeronave — de onde o próximo voo começa. */

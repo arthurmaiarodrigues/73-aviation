@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, Textarea } from "@/components/ui/select";
 import { Alerta } from "@/components/ui/alerta";
 import { SeletorAerodromo } from "@/components/seletor-aerodromo";
+import { ListaEscalas } from "@/components/lista-escalas";
 import { NATUREZAS, ROTULO_NATUREZA, ehUsoComum, type NaturezaVoo } from "@/lib/tipos";
 import type { VooLinha } from "@/lib/dados/voos";
 import { apagarVoo, editarVoo, type Resultado } from "../acoes";
@@ -91,6 +92,7 @@ export function FormularioEdicao({
           </div>
           <SeletorAerodromo nome="origem" rotulo="Origem" opcoes={aerodromos} valorInicial={voo.origem ?? ""} />
           <SeletorAerodromo nome="destino" rotulo="Destino" opcoes={aerodromos} valorInicial={voo.destino ?? ""} />
+          <ListaEscalas opcoes={aerodromos} iniciais={voo.escalas} />
           <div className="space-y-1.5">
             <Label htmlFor="horimetro_inicial">Horímetro inicial</Label>
             <Input id="horimetro_inicial" name="horimetro_inicial" inputMode="decimal" defaultValue={dec(voo.horimetro_inicial)} className="tabular" />

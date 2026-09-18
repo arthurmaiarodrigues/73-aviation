@@ -4,7 +4,7 @@ import { Camera } from "lucide-react";
 
 import { exigirSessao } from "@/lib/perfil";
 import { aeronaveAtiva, listarAerodromos, listarSocios } from "@/lib/dados/cadastros";
-import { listarVoos, type FiltroVoos } from "@/lib/dados/voos";
+import { listarVoos, trecho, type FiltroVoos } from "@/lib/dados/voos";
 import { data as fmtData, horas as fmtHoras, horimetro as fmtHorimetro, litros as fmtLitros } from "@/lib/formato";
 import { NATUREZAS, ROTULO_NATUREZA } from "@/lib/tipos";
 import { Alerta } from "@/components/ui/alerta";
@@ -104,9 +104,7 @@ export default async function PaginaVoos({ searchParams }: { searchParams: Promi
                   </Link>
                 </Celula>
                 <Celula>{v.socio ?? <span className="text-marinho-300">Sociedade</span>}</Celula>
-                <Celula className="whitespace-nowrap">
-                  {v.origem ?? "?"} → {v.destino ?? "?"}
-                </Celula>
+                <Celula className="whitespace-nowrap">{trecho(v)}</Celula>
                 <Celula numerico>{fmtHorimetro(v.horimetro_inicial)}</Celula>
                 <Celula numerico>{fmtHorimetro(v.horimetro_final)}</Celula>
                 <Celula numerico className="font-semibold">{fmtHoras(v.horas)}</Celula>

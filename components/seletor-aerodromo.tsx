@@ -106,7 +106,7 @@ export function SeletorAerodromo({
 
   return (
     <div className="relative space-y-1.5" ref={caixa}>
-      <Label htmlFor={nome}>{rotulo}</Label>
+      {rotulo && <Label htmlFor={nome}>{rotulo}</Label>}
       <Input
         id={nome}
         name={nome}
