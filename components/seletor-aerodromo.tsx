@@ -121,7 +121,7 @@ export function SeletorAerodromo({
         <ul
           id={listaId}
           role="listbox"
-          className="absolute left-0 right-0 top-full z-20 mt-1 max-h-64 overflow-y-auto rounded border border-marinho-100 bg-areia shadow-lg dark:border-marinho-300 dark:bg-marinho-700"
+          className="absolute left-0 top-full z-20 mt-1 max-h-64 w-max min-w-full max-w-[min(90vw,28rem)] overflow-y-auto rounded border border-marinho-100 bg-areia shadow-lg dark:border-marinho-300 dark:bg-marinho-700"
         >
           {sugestoes.map((s, i) => (
             <li
