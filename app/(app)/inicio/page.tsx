@@ -6,6 +6,7 @@ import { exigirSessao } from "@/lib/perfil";
 import { aeronaveAtiva, listarSocios } from "@/lib/dados/cadastros";
 import { horasPorSocioNoMes, listarVoos, ultimoHorimetro, vooEmAberto } from "@/lib/dados/voos";
 import { saldoDoCaixa, saldoDoFundo, saldosDosSocios } from "@/lib/dados/financeiro";
+import { resumoManutencao } from "@/lib/dados/manutencao";
 import { ROTULO_BLOQUEIO, agendaDoDia, fila, garantirEscolhaAberta, mesSeguinte, proximasReservas, vezDeEscolher } from "@/lib/dados/agenda";
 import { data as fmtData, horas as fmtHoras, horimetro as fmtHorimetro, hoje, inicioDoMes, mesPorExtenso, reais } from "@/lib/formato";
 import { veValores } from "@/lib/tipos";
@@ -45,6 +46,7 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
     fila(aeronave.id, mes),
     fila(aeronave.id, mesProximo),
   ]);
+  const manutencao = await resumoManutencao(aeronave.id);
   const minhaVezEm = [vezAtual === usuario.socioId && usuario.socioId ? mes : null, vezProxima === usuario.socioId && usuario.socioId ? mesProximo : null].filter(Boolean) as string[];
   const puladoEm = [filaAtual, filaProxima]
     .map((f, i) => (f.find((l) => l.socio_id === usuario.socioId && l.pulado && !l.semana_id) ? (i === 0 ? mes : mesProximo) : null))
@@ -135,6 +137,30 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
           </div>
         </CardContent>
       </Card>
+
+      {/* Manutenção e documentos */}
+      {(manutencao.proximo || manutencao.documentosAlerta.length > 0 || manutencao.semRegistro > 0) && (
+        <Alerta tom={manutencao.proximo?.situacao === "VENCIDO" || manutencao.documentosAlerta.some((d) => d.situacao === "VENCIDO") ? "erro" : manutencao.proximo?.situacao === "AVISO" || manutencao.documentosAlerta.length > 0 ? "atencao" : "info"}>
+          {manutencao.proximo && (
+            <p>
+              <span className="font-semibold">Próxima: {manutencao.proximo.descricao}</span>
+              {manutencao.proximo.horas_restantes !== null && (manutencao.proximo.horas_restantes <= 0 ? ` — vencida há ${fmtHoras(-manutencao.proximo.horas_restantes)}` : ` em ${fmtHoras(manutencao.proximo.horas_restantes)}`)}
+              {manutencao.proximo.dias_restantes !== null && (manutencao.proximo.dias_restantes <= 0 ? ` — vencida há ${-manutencao.proximo.dias_restantes} dias` : `${manutencao.proximo.horas_restantes !== null ? " ou" : ""} em ${manutencao.proximo.dias_restantes} dias`)}
+            </p>
+          )}
+          {manutencao.documentosAlerta.map((d) => (
+            <p key={d.id}>
+              {d.tipo}: {d.situacao === "VENCIDO" ? `vencido há ${-d.dias_restantes} dias — bloqueia reserva` : `vence em ${d.dias_restantes} dias (${fmtData(d.vencimento)})`}
+            </p>
+          ))}
+          {manutencao.semRegistro > 0 && usuario.perfil === "admin" && (
+            <p className="text-xs">{manutencao.semRegistro} item{manutencao.semRegistro === 1 ? "" : "ns"} do plano sem última execução informada.</p>
+          )}
+          <Link href="/manutencao" className="text-sm underline">
+            manutenção
+          </Link>
+        </Alerta>
+      )}
 
       {(minhaVezEm.length > 0 || puladoEm.length > 0) && (
         <Alerta tom="atencao">
