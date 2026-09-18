@@ -75,6 +75,19 @@ export function SeletorAerodromo({
     setAtivo(-1);
   }
 
+  /**
+   * Saiu do campo com um nome ou cidade digitados (não é um ICAO de 4
+   * letras): assume a primeira sugestão. No celular, o toque na lista
+   * chega depois do blur — sem isto, "SALVADOR" virava "SALV".
+   */
+  function aoSair() {
+    const limpo = valor.replace(/[^A-Z0-9]/g, "");
+    if (limpo.length === 4 && limpo === valor) return;
+    const primeira = sugestoes.find((s) => s.nome);
+    if (valor.trim().length >= 2 && primeira) escolher(primeira);
+    else setValor(limpo.slice(0, 4));
+  }
+
   function tecla(e: React.KeyboardEvent<HTMLInputElement>) {
     if (!aberto || sugestoes.length === 0) return;
     if (e.key === "ArrowDown") {
@@ -106,7 +119,7 @@ export function SeletorAerodromo({
         }}
         onFocus={() => setAberto(true)}
         onKeyDown={tecla}
-        onBlur={() => setValor((v) => v.replace(/[^A-Z0-9]/g, "").slice(0, 4))}
+        onBlur={aoSair}
         placeholder="SNTF ou nome da cidade"
         autoCapitalize="characters"
         autoComplete="off"
@@ -128,7 +141,8 @@ export function SeletorAerodromo({
               key={s.icao}
               role="option"
               aria-selected={i === ativo}
-              onMouseDown={(e) => {
+              onPointerDown={(e) => {
+                // pointerdown vem antes do blur, no dedo e no mouse
                 e.preventDefault();
                 escolher(s);
               }}
