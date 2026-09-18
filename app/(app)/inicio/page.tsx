@@ -6,6 +6,7 @@ import { exigirSessao } from "@/lib/perfil";
 import { aeronaveAtiva, listarSocios } from "@/lib/dados/cadastros";
 import { horasPorSocioNoMes, listarVoos, ultimoHorimetro, vooEmAberto } from "@/lib/dados/voos";
 import { saldoDoCaixa, saldoDoFundo, saldosDosSocios } from "@/lib/dados/financeiro";
+import { ROTULO_BLOQUEIO, agendaDoDia, fila, garantirEscolhaAberta, mesSeguinte, proximasReservas, vezDeEscolher } from "@/lib/dados/agenda";
 import { data as fmtData, horas as fmtHoras, horimetro as fmtHorimetro, hoje, inicioDoMes, mesPorExtenso, reais } from "@/lib/formato";
 import { veValores } from "@/lib/tipos";
 import { cn } from "@/lib/utils";
@@ -32,6 +33,22 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
     horasPorSocioNoMes(aeronave.id, mes),
   ]);
   const [saldos, caixa, fundo] = valores ? await Promise.all([saldosDosSocios(), saldoDoCaixa(), saldoDoFundo(aeronave.id)]) : [[], null, null];
+
+  // Agenda: quem está com o avião hoje e se é a minha vez de escolher.
+  await garantirEscolhaAberta(aeronave.id);
+  const mesProximo = mesSeguinte(mes);
+  const [diaHoje, reservasProximas, vezAtual, vezProxima, filaAtual, filaProxima] = await Promise.all([
+    agendaDoDia(aeronave.id, hoje()),
+    proximasReservas(aeronave.id, 5),
+    vezDeEscolher(aeronave.id, mes),
+    vezDeEscolher(aeronave.id, mesProximo),
+    fila(aeronave.id, mes),
+    fila(aeronave.id, mesProximo),
+  ]);
+  const minhaVezEm = [vezAtual === usuario.socioId && usuario.socioId ? mes : null, vezProxima === usuario.socioId && usuario.socioId ? mesProximo : null].filter(Boolean) as string[];
+  const puladoEm = [filaAtual, filaProxima]
+    .map((f, i) => (f.find((l) => l.socio_id === usuario.socioId && l.pulado && !l.semana_id) ? (i === 0 ? mes : mesProximo) : null))
+    .filter(Boolean) as string[];
 
   const meuSaldo = saldos.find((s) => s.socio_id === usuario.socioId);
   const totalHorasMes = horasMes.reduce((s, h) => s + h.horas, 0);
@@ -71,10 +88,10 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
 
       {busca["sem-acesso"] && <Alerta tom="atencao">Essa tela é só para sócios e administrador.</Alerta>}
 
-      {/* Disponibilidade */}
-      <Card className={cn(aberto ? "border-atencao" : "border-ok")}>
+      {/* Disponibilidade: voo em aberto > bloqueio > reserva > semana > livre */}
+      <Card className={cn(aberto || diaHoje?.bloqueio_id ? "border-atencao" : "border-ok")}>
         <CardContent className="flex flex-wrap items-center gap-4 p-5">
-          <PlaneTakeoff className={cn("size-8", aberto ? "text-atencao" : "text-ok")} />
+          <PlaneTakeoff className={cn("size-8", aberto || diaHoje?.bloqueio_id ? "text-atencao" : "text-ok")} />
           <div className="flex-1">
             {aberto ? (
               <>
@@ -84,15 +101,51 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
                   {aberto.destino ? ` para ${aberto.destino}` : ""}. Pouso ainda não registrado.
                 </p>
               </>
+            ) : diaHoje?.bloqueio_id ? (
+              <>
+                <p className="font-semibold">Avião indisponível — {ROTULO_BLOQUEIO[diaHoje.bloqueio_tipo ?? "OUTRO"]}</p>
+                <p className="text-sm text-marinho-300">{diaHoje.bloqueio_motivo}</p>
+              </>
+            ) : diaHoje?.reserva_id ? (
+              <>
+                <p className="font-semibold">Hoje o avião é de {diaHoje.reserva_socio}</p>
+                <p className="text-sm text-marinho-300">
+                  Reservado{diaHoje.reserva_destino ? ` para ${diaHoje.reserva_destino}` : ""}
+                  {diaHoje.reserva_origem === "SEMANA" ? " (semana dele)" : ""}.
+                </p>
+              </>
+            ) : diaHoje?.semana_socio ? (
+              <>
+                <p className="font-semibold">Semana de {diaHoje.semana_socio} — sem reserva hoje</p>
+                <p className="text-sm text-marinho-300">O titular tem preferência; combine com ele antes de usar.</p>
+              </>
             ) : (
               <>
                 <p className="font-semibold">Avião disponível na base</p>
-                <p className="text-sm text-marinho-300">Nenhum voo em aberto. A agenda de semanas chega na Fase 2.</p>
+                <p className="text-sm text-marinho-300">Ninguém reservou hoje. Quem reservar primeiro fica com ele.</p>
               </>
+            )}
+            {reservasProximas.length > 0 && (
+              <p className="mt-2 text-xs text-marinho-300">
+                Próximas: {reservasProximas.map((r) => `${fmtData(r.inicio)} ${r.socio}${r.destino ? ` → ${r.destino}` : ""}`).join(" · ")}
+                {" · "}
+                <Link href="/agenda" className="text-laranja-700 hover:underline">agenda</Link>
+              </p>
             )}
           </div>
         </CardContent>
       </Card>
+
+      {(minhaVezEm.length > 0 || puladoEm.length > 0) && (
+        <Alerta tom="atencao">
+          <p className="font-semibold">
+            {minhaVezEm.length > 0 ? `É a sua vez de escolher a semana de ${minhaVezEm.map(mesPorExtenso).join(" e ")}.` : `Você passou a vez em ${puladoEm.map(mesPorExtenso).join(" e ")}, mas ainda pode escolher entre as semanas livres.`}
+          </p>
+          <Link href={`/agenda?mes=${(minhaVezEm[0] ?? puladoEm[0]).slice(0, 7)}`} className="text-sm underline">
+            escolher agora
+          </Link>
+        </Alerta>
+      )}
 
       {/* Pendências */}
       {pendentesReais.length > 0 && (

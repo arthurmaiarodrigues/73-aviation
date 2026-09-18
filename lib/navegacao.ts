@@ -10,7 +10,7 @@ const SOCIO: ItemMenu[] = [
   { rotulo: "Despesas", href: "/despesas", icone: "despesas" },
   { rotulo: "Aportes", href: "/aportes", icone: "aportes" },
   { rotulo: "Extratos", href: "/extratos", icone: "extratos" },
-  { rotulo: "Agenda", href: "/agenda", icone: "agenda", emBreve: true },
+  { rotulo: "Agenda", href: "/agenda", icone: "agenda" },
   { rotulo: "Manutenção", href: "/manutencao", icone: "manutencao", emBreve: true },
   { rotulo: "Cadastros", href: "/cadastros", icone: "cadastros" },
 ];
@@ -19,6 +19,7 @@ const PILOTO: ItemMenu[] = [
   { rotulo: "Início", href: "/inicio", icone: "inicio" },
   { rotulo: "Registrar voo", href: "/voos/novo", icone: "camera" },
   { rotulo: "Voos", href: "/voos", icone: "voos" },
+  { rotulo: "Agenda", href: "/agenda", icone: "agenda" },
 ];
 
 export function menuDoPerfil(perfil: Perfil): ItemMenu[] {

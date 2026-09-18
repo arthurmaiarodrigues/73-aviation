@@ -162,6 +162,15 @@ Só a `HORAS E COMBUSTÍVEL.xlsx`, aba HORIMETRO:
 - Leitura do horímetro: `lib/horimetro/ler.ts` (Claude, ferramenta `registrar_horimetro`), rota `/api/horimetro`. Confiança < 0,8 fica amarela; falha cai na digitação.
 - Login novo: `npm run criar-usuario -- email senha "NOME" socio` (vincula ao sócio de mesmo apelido). Importação: `npm run importar-horimetro -- "<xlsx>" --gravar`. RLS: `npm run verificar-rls`.
 
+## 10b. Fase 2 — Agenda (18/09/2026)
+
+- `db/schema_v2_agenda.sql`: `semanas`, `escolha_semanas`, `reservas`, `bloqueios`, view `v_agenda_dia`; funções `abrir_escolha`, `vez_de_escolher`, `escolher_semana`, `ceder_semana`, `reservar`. Tudo pelas RPCs (security definer, `auth.uid()` → sócio).
+- A escolha abre sozinha: qualquer sócio que abrir Início/Agenda dispara `abrir_escolha` do mês corrente e, do dia 15 em diante, do mês seguinte. Sem cron ainda.
+- Prazo de 48 h por vez; vencido, `vez_de_escolher` marca `pulado` e passa. Pulado escolhe depois entre o que sobrou.
+- Semana com reserva de outro sócio feita antes não pode ser escolhida (bloqueio no `escolher_semana`).
+- `semanas` tem DUAS FKs para `socios` (titular e cedida_por): consulta nomeia `socios!semanas_socio_id_fkey`.
+- Notificação push ficou para depois (precisa de service worker + VAPID); o aviso "é a sua vez" aparece no Início.
+
 ## 11. Pendências (não travam a Fase 1 — implementar com a assunção indicada)
 
 1. **Valor do fundo de reserva por hora** — assumir R$ 150/h até o admin definir na tela de cadastro da aeronave.
