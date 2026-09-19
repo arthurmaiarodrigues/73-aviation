@@ -212,3 +212,10 @@ Só a `HORAS E COMBUSTÍVEL.xlsx`, aba HORIMETRO:
 - **Agenda**: `reservar(..., p_socio)` — admin reserva em nome de outro sócio; `editar_reserva` (quem reservou ou admin); `conferir_reserva` concentra as checagens. Formulário "Em nome de" e "editar" por reserva.
 - **Push** (`web-push`): `public/sw.js` (fora do middleware), `push_inscricoes`, rota `/api/push/inscrever`, `components/ativar-avisos.tsx` (botão no Início), `lib/push.ts` `notificar({usuarios|perfis}, aviso)`. Dispara: reserva feita/alterada/cancelada e semana escolhida → pilotos; reembolso lançado → o sócio. Env: `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (na Vercel desde 19/09). Testado no celular do Arthur em 19/09/2026.
 - Convites: Caetano, Wanderson, Marcelino (sócios) e Giuliano (piloto) enviados em 19/09/2026 via `npm run convidar`.
+
+## 10g. Regras da agenda (19/09/2026) e instalação
+
+- `db/schema_v7_regras_agenda.sql`: `semanas.tipo` (SEMANA seg–qui / FDS sex–dom; as semanas antigas viraram dois blocos), `escolha_semanas.fds_id`/`dias_base`; fila por **dias reservados + horas voadas** (`dias_reservados_por_socio`); `reservas.pendente`/`feriado`, `reserva_respostas`, `feriados` (2026–27), `responder_pedido` (qualquer "preciso" cancela; todos "concordo" confirma), `resolver_pedidos` (dia comum: 48 h sem objeção → confirma; chamado em `garantirEscolhaAberta`, que avisa piloto e dono), `conferir_reserva` (60 dias, sem sobreposição), `dentro_dos_blocos`, `trocas` + `propor_troca`/`responder_troca` (mesmo tipo; inverte blocos, reservas e a fila). `v_agenda_dia` ignora pendentes.
+- Tela `/agenda`: alerta da vez pede semana e fim de semana; cards "Pedidos aguardando" (Concordo / Preciso) e "Trocas propostas"; "trocar com…" em cada bloco meu (`seletor-troca.tsx`); regras escritas no fim.
+- `/instalar` (pública, fora do middleware): Android com `beforeinstallprompt`, iPhone passo a passo; link no login e no menu.
+- Links de acesso pessoais: `generateLink({type:"magiclink", redirectTo: .../auth/definir-senha})` — valem 1 h.
