@@ -89,22 +89,32 @@ export async function salvarVoo(_anterior: Resultado, form: FormData): Promise<R
   const pilotoId = usuario.pilotoId ?? (pilotoBruto && UUID.test(pilotoBruto) ? pilotoBruto : null);
 
   const origem = icao(form, "origem");
-  let destino = icao(form, "destino");
+  const destino = icao(form, "destino");
   if (!origem) return { ok: false, mensagem: "Informe a origem (código ICAO, ex.: SNTF)." };
 
   const hInicial = lerNumero(form.get("horimetro_inicial"));
   const hFinal = lerNumero(form.get("horimetro_final"));
-  let escalasLista = escalas(form);
-  // Ida e volta: o "para onde" vira a primeira escala e o voo termina na origem.
-  if (form.get("ida_volta") === "on" && destino && destino !== origem) {
-    escalasLista = [destino, ...escalasLista.filter((e) => e !== destino)];
-    destino = origem;
-  }
+  const escalasLista = escalas(form);
   const pernas = pernasDoForm(form, escalasLista.length);
   const horasInformadas = lerNumero(form.get("horas_informadas")) ?? pernas.soma;
   if (hInicial === null && horasInformadas === null) return { ok: false, mensagem: "Informe o horímetro inicial (ou as horas de cada perna)." };
   if (hFinal !== null && hInicial !== null && hFinal < hInicial) return { ok: false, mensagem: "O horímetro final tem de ser maior que o inicial." };
   if (hFinal !== null && hInicial !== null && hFinal - hInicial > 12) return { ok: false, mensagem: "Mais de 12 h num voo só? Confira os horímetros." };
+
+  // Volta junto: um segundo voo, com a própria data, que começa onde a ida terminou.
+  const comVolta = form.get("volta") === "on";
+  const dataVolta = texto(form, "data_volta") ?? data;
+  const origemVolta = icao(form, "origem_volta") ?? destino;
+  const destinoVolta = icao(form, "destino_volta") ?? origem;
+  const hInicialVolta = lerNumero(form.get("horimetro_inicial_volta")) ?? hFinal;
+  const hFinalVolta = lerNumero(form.get("horimetro_final_volta"));
+  if (comVolta) {
+    if (hFinal === null) return { ok: false, mensagem: "Para registrar a volta junto, informe o horímetro no pouso da ida." };
+    if (dataVolta < data) return { ok: false, mensagem: "A data da volta não pode ser antes da ida." };
+    if (hInicialVolta !== null && hInicialVolta < hFinal) return { ok: false, mensagem: "O horímetro da decolagem da volta não pode ser menor que o do pouso da ida." };
+    if (hFinalVolta !== null && hInicialVolta !== null && hFinalVolta < hInicialVolta) return { ok: false, mensagem: "O horímetro final da volta tem de ser maior que o da decolagem." };
+    if (hFinalVolta !== null && hInicialVolta !== null && hFinalVolta - hInicialVolta > 12) return { ok: false, mensagem: "Mais de 12 h na volta? Confira os horímetros." };
+  }
 
   const combInicial = (pernas.combustivel[0] ?? null) || lerNumero(form.get("combustivel_inicial_l"));
   const combFinal = lerNumero(form.get("combustivel_final_l"));
@@ -165,6 +175,33 @@ export async function salvarVoo(_anterior: Resultado, form: FormData): Promise<R
     .single();
 
   if (error) return { ok: false, mensagem: traduzir(error.message) };
+
+  if (comVolta) {
+    const { data: volta, error: erroVolta } = await supabase
+      .from("voos")
+      .insert({
+        aeronave_id: aeronave.id,
+        data: dataVolta,
+        socio_id: socioId,
+        piloto_id: pilotoId,
+        origem: origemVolta,
+        destino: destinoVolta,
+        horimetro_inicial: hInicialVolta,
+        horimetro_final: hFinalVolta,
+        pousos: 1,
+        natureza,
+        foto_horimetro_final: texto(form, "foto_final_volta"),
+        leitura_ia: { final: leituraJson(form, "leitura_final_volta") },
+        status: hFinalVolta !== null ? "CONFIRMADO" : "RASCUNHO",
+        autor_id: user.id,
+      })
+      .select("id")
+      .single();
+    if (erroVolta) return { ok: false, mensagem: `A ida foi gravada, mas a volta não: ${traduzir(erroVolta.message)}. Registre a volta como "só um trecho".` };
+    revalidatePath("/voos");
+    revalidatePath("/inicio");
+    redirect(hFinalVolta !== null ? `/voos/${volta.id}?salvo=2` : `/voos/${volta.id}?decolou=1`);
+  }
 
   revalidatePath("/voos");
   revalidatePath("/inicio");

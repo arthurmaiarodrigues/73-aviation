@@ -3,15 +3,15 @@ import { redirect } from "next/navigation";
 
 import { exigirSessao } from "@/lib/perfil";
 import { aeronaveAtiva, aerodromosRecentes, listarPilotos, listarSocios } from "@/lib/dados/cadastros";
-import { ultimoHorimetro, vooEmAberto } from "@/lib/dados/voos";
+import { ondeEstaAviao, ultimoHorimetro, vooEmAberto } from "@/lib/dados/voos";
 import { agendaDoDia } from "@/lib/dados/agenda";
 import { temChave } from "@/lib/horimetro/ler";
-import { hoje } from "@/lib/formato";
+import { data as fmtData, hoje } from "@/lib/formato";
 import { FormularioVoo } from "./formulario-voo";
 
 export const metadata: Metadata = { title: "Registrar voo" };
 
-export default async function PaginaNovoVoo({ searchParams }: { searchParams: Promise<{ data?: string; socio?: string; destino?: string }> }) {
+export default async function PaginaNovoVoo({ searchParams }: { searchParams: Promise<{ data?: string; socio?: string; destino?: string; origem?: string }> }) {
   const busca = await searchParams;
   const usuario = await exigirSessao();
   const aeronave = await aeronaveAtiva();
@@ -20,20 +20,28 @@ export default async function PaginaNovoVoo({ searchParams }: { searchParams: Pr
   const aberto = await vooEmAberto(aeronave.id);
   if (aberto && aberto.autor_id === usuario.id) redirect(`/voos/${aberto.id}?aberto=1`);
 
-  const [socios, pilotos, aerodromos, ultimo, dia] = await Promise.all([
+  const [socios, pilotos, aerodromos, ultimo, dia, local] = await Promise.all([
     listarSocios({ somenteAtivos: true }),
     listarPilotos(),
     aerodromosRecentes(aeronave.id),
     ultimoHorimetro(aeronave.id),
     agendaDoDia(aeronave.id, hoje()),
+    ondeEstaAviao(aeronave.id),
   ]);
+  const base = aeronave.base_icao ?? "SNTF";
+  const icaoDaUrl = (v?: string) => (v && /^[A-Z0-9]{4}$/i.test(v) ? v.toUpperCase() : null);
+  // Fora da base: o próximo voo é a volta, por conta de quem levou o avião.
+  const foraDaBase = local?.destino && local.destino !== base ? local : null;
+  const origemInicial = icaoDaUrl(busca.origem) ?? foraDaBase?.destino ?? base;
 
   // Sócio do voo: pela URL (reserva sem voo) > sócio logado > reserva de hoje > titular do bloco de hoje.
   const socioDaUrl = busca.socio && /^[0-9a-f-]{36}$/i.test(busca.socio) ? busca.socio : null;
   const socioDaAgenda = dia?.reserva_socio_id ?? dia?.semana_socio_id ?? null;
-  const socioInicial = socioDaUrl ?? usuario.socioId ?? socioDaAgenda;
-  const destinoInicial = busca.destino && /^[A-Z0-9]{4}$/i.test(busca.destino) ? busca.destino.toUpperCase() : !socioDaUrl && !usuario.socioId && dia?.reserva_destino ? dia.reserva_destino : undefined;
-  const dica = !socioDaUrl && !usuario.socioId && socioDaAgenda
+  const socioInicial = socioDaUrl ?? foraDaBase?.socio_id ?? usuario.socioId ?? socioDaAgenda;
+  const destinoInicial = icaoDaUrl(busca.destino) ?? (foraDaBase ? base : !socioDaUrl && !usuario.socioId && dia?.reserva_destino ? dia.reserva_destino : undefined);
+  const dica = foraDaBase
+    ? `O avião está em ${foraDaBase.destino} desde ${fmtData(foraDaBase.data)} (${foraDaBase.socio ?? "sociedade"}). Preenchi a volta para ${base} — se for outro trecho, troque.`
+    : !socioDaUrl && !usuario.socioId && socioDaAgenda
     ? dia?.reserva_socio_id
       ? `Hoje o avião está reservado por ${dia.reserva_socio}${dia.reserva_destino ? ` para ${dia.reserva_destino}` : ""} — já preenchi. Se for outro sócio, troque.`
       : `Hoje é o período de ${dia?.semana_socio} — já preenchi o sócio. Se for outro, troque.`
@@ -58,11 +66,13 @@ export default async function PaginaNovoVoo({ searchParams }: { searchParams: Pr
           socioLogadoId={socioInicial}
           dataInicial={busca.data && /^\d{4}-\d{2}-\d{2}$/.test(busca.data) ? busca.data : undefined}
           destinoInicial={destinoInicial}
+          origemInicial={origemInicial}
+          naturezaInicial={foraDaBase ? (foraDaBase.natureza === "PARTICULAR" ? "PARTICULAR" : "SOCIEDADE") : undefined}
           socios={socios.map((s) => ({ id: s.id, apelido: s.apelido }))}
           pilotos={pilotos}
           pilotoLogadoId={usuario.pilotoId ?? (pilotos.length === 1 ? pilotos[0].id : null)}
           aerodromos={aerodromos}
-          base={aeronave.base_icao ?? "SNTF"}
+          base={base}
           ultimoHorimetro={ultimo}
           hoje={hoje()}
           leituraAutomatica={temChave()}

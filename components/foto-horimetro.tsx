@@ -27,6 +27,7 @@ export type EstadoFoto = {
  */
 export function FotoHorimetro({
   nome,
+  campo = nome,
   rotulo,
   esperado,
   rotuloArquivo,
@@ -36,6 +37,8 @@ export function FotoHorimetro({
   leituraAutomatica,
 }: {
   nome: "inicial" | "final" | "perna";
+  /** Sufixo dos campos do formulário (horimetro_, foto_, leitura_); padrão = nome. */
+  campo?: string;
   rotulo: string;
   /** Horímetro que a leitura deveria bater ou superar (o último registrado). */
   esperado: number | null;
@@ -150,14 +153,14 @@ export function FotoHorimetro({
       {erro && <p className="text-sm text-erro">{erro}</p>}
       {leitura?.observacao && <p className="text-xs text-marinho-300">{leitura.observacao}</p>}
 
-      <input type="hidden" name={`foto_${nome}`} value={estado.caminho ?? ""} />
-      <input type="hidden" name={`leitura_${nome}`} value={leitura ? JSON.stringify(leitura) : ""} />
+      <input type="hidden" name={`foto_${campo}`} value={estado.caminho ?? ""} />
+      <input type="hidden" name={`leitura_${campo}`} value={leitura ? JSON.stringify(leitura) : ""} />
 
       <div className="space-y-1.5">
-        <Label htmlFor={`horimetro_${nome}`}>Horímetro {nome === "perna" ? "no pouso" : nome}</Label>
+        <Label htmlFor={`horimetro_${campo}`}>Horímetro {nome === "perna" ? "no pouso" : nome}</Label>
         <Input
-          id={`horimetro_${nome}`}
-          name={`horimetro_${nome}`}
+          id={`horimetro_${campo}`}
+          name={`horimetro_${campo}`}
           inputMode="decimal"
           placeholder={esperado !== null ? fmtHorimetro(esperado) : "0000,0"}
           value={estado.valor}

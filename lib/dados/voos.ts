@@ -150,6 +150,27 @@ export async function vooEmAberto(aeronaveId: string): Promise<VooLinha | null> 
   return data ? mapear(data as unknown as LinhaBruta) : null;
 }
 
+/**
+ * Onde o avião está: o destino do último voo fechado. Fora da base, o
+ * próximo voo é a volta — de outro dia, com a própria data (cada perna é um
+ * voo, como no diário de bordo).
+ */
+export async function ondeEstaAviao(aeronaveId: string): Promise<VooLinha | null> {
+  const supabase = await criarClienteServidor();
+  const { data } = await supabase
+    .from("voos")
+    .select(SELECT)
+    .eq("aeronave_id", aeronaveId)
+    .is("deleted_at", null)
+    .or("horimetro_final.not.is.null,horas_informadas.not.is.null")
+    .order("data", { ascending: false })
+    .order("horimetro_final", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data ? mapear(data as unknown as LinhaBruta) : null;
+}
+
 /** Horas e voos por sócio no mês, com o uso comum já dividido. */
 export async function horasPorSocioNoMes(aeronaveId: string, mes: string) {
   const supabase = await criarClienteServidor();

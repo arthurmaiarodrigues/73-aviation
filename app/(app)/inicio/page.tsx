@@ -4,7 +4,7 @@ import { Camera, Fuel, PlaneTakeoff, Receipt } from "lucide-react";
 
 import { exigirSessao } from "@/lib/perfil";
 import { aeronaveAtiva, listarSocios } from "@/lib/dados/cadastros";
-import { horasPorSocio, horasPorSocioNoMes, listarVoos, trecho, ultimoHorimetro, vooEmAberto } from "@/lib/dados/voos";
+import { horasPorSocio, horasPorSocioNoMes, listarVoos, ondeEstaAviao, trecho, ultimoHorimetro, vooEmAberto } from "@/lib/dados/voos";
 import { saldoDoCaixa, saldoDoFundo, saldosDosSocios } from "@/lib/dados/financeiro";
 import { ciclosRevisao, listarPlano, resumoManutencao } from "@/lib/dados/manutencao";
 import { listarReembolsos } from "@/lib/dados/reembolsos";
@@ -30,9 +30,10 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
   const mes = inicioDoMes(hoje());
   const valores = veValores(usuario.perfil);
 
-  const [ultimo, aberto, pendentes, ultimosVoos, socios, horasMes] = await Promise.all([
+  const [ultimo, aberto, local, pendentes, ultimosVoos, socios, horasMes] = await Promise.all([
     ultimoHorimetro(aeronave.id),
     vooEmAberto(aeronave.id),
+    ondeEstaAviao(aeronave.id),
     listarVoos(aeronave.id, { pendentes: true }, 20),
     listarVoos(aeronave.id, {}, 5),
     listarSocios({ somenteAtivos: true }),
@@ -103,6 +104,9 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
   const pernaAberta = aberto ? Math.min(aberto.pernas_concluidas, aberto.escalas.length) : 0;
   const pousoEm = aberto ? pontosAberto[pernaAberta + 1] : "";
   const podePousar = Boolean(aberto && (aberto.autor_id === usuario.id || usuario.perfil === "admin"));
+  // Avião fora da base (último voo fechado pousou noutro lugar): o próximo voo é a volta.
+  const base = aeronave.base_icao ?? "SNTF";
+  const foraDaBase = !aberto && local?.destino && local.destino !== base ? local : null;
   const pendentesReais = pendentes.filter((v) => !(v.horimetro_final === null && v.horimetro_inicial !== null && v.id === aberto?.id));
 
   return (
@@ -117,7 +121,7 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
         <div className="flex flex-wrap gap-2">
           <Button asChild size="campo" className="w-auto">
             <Link href={podePousar && aberto ? `/voos/${aberto.id}` : "/voos/novo"}>
-              <Camera /> {podePousar ? `Pousei em ${pousoEm}` : "Registrar voo"}
+              <Camera /> {podePousar ? `Pousei em ${pousoEm}` : foraDaBase ? `Registrar a volta de ${foraDaBase.destino}` : "Registrar voo"}
             </Link>
           </Button>
           <Button asChild variant="secundario">
@@ -141,11 +145,21 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
       <AtivarAvisos />
 
       {/* Disponibilidade: voo em aberto > bloqueio > reserva > semana > livre */}
-      <Card className={cn(aberto || diaHoje?.bloqueio_id ? "border-atencao" : "border-ok")}>
+      <Card className={cn(aberto || foraDaBase || diaHoje?.bloqueio_id ? "border-atencao" : "border-ok")}>
         <CardContent className="flex flex-wrap items-center gap-4 p-5">
-          <PlaneTakeoff className={cn("size-8", aberto || diaHoje?.bloqueio_id ? "text-atencao" : "text-ok")} />
+          <PlaneTakeoff className={cn("size-8", aberto || foraDaBase || diaHoje?.bloqueio_id ? "text-atencao" : "text-ok")} />
           <div className="flex-1">
-            {aberto ? (
+            {foraDaBase ? (
+              <>
+                <p className="font-semibold">Avião em {foraDaBase.destino} — {foraDaBase.socio ?? "sociedade"}</p>
+                <p className="text-sm text-marinho-300">
+                  Pousou lá em {fmtData(foraDaBase.data)} ({trecho(foraDaBase)}). A volta para {base} ainda não foi registrada.
+                </p>
+                <Link href="/voos/novo" className="mt-1 inline-block text-sm font-semibold text-laranja-700">
+                  Registrar a volta {foraDaBase.destino} → {base} →
+                </Link>
+              </>
+            ) : aberto ? (
               <>
                 <p className="font-semibold">Avião em voo — {aberto.socio ?? "sociedade"}</p>
                 <p className="text-sm text-marinho-300">

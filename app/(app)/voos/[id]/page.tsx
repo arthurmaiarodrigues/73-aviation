@@ -66,7 +66,7 @@ export default async function PaginaVoo({
         </p>
       </div>
 
-      {busca.salvo && <Alerta tom="ok">Voo registrado.</Alerta>}
+      {busca.salvo && <Alerta tom="ok">{busca.salvo === "2" ? "Ida e volta registradas — esta é a volta." : "Voo registrado."}</Alerta>}
       {busca.decolou && <Alerta tom="info">Decolagem registrada. A cada pouso, volte aqui (o Início também leva) e registre o horímetro.</Alerta>}
       {busca.perna && <Alerta tom="ok">Pouso registrado. Boa próxima perna!</Alerta>}
       {busca.aberto && <Alerta tom="atencao">Você tem este voo em aberto. Registre o pouso antes de começar outro.</Alerta>}

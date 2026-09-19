@@ -14,24 +14,33 @@ import { SeletorAerodromo } from "@/components/seletor-aerodromo";
 import { ListaEscalas } from "@/components/lista-escalas";
 import { NATUREZAS, ROTULO_NATUREZA, ehUsoComum, type NaturezaVoo, type Perfil } from "@/lib/tipos";
 import { horasHm, horimetro as fmtHorimetro } from "@/lib/formato";
+import { cn } from "@/lib/utils";
 import { salvarVoo, type Resultado } from "../acoes";
 
 const INICIAL: Resultado = { ok: true, mensagem: "" };
+const VAZIA: EstadoFoto = { caminho: null, leitura: null, valor: "" };
 
-function Botao({ pousou, antigo }: { pousou: boolean; antigo: boolean }) {
+function lerHorimetro(v: string): number | null {
+  if (!v.trim()) return null;
+  const n = Number(v.replace(/\./g, "").replace(",", "."));
+  return Number.isFinite(n) ? n : null;
+}
+
+function Botao({ rotulo }: { rotulo: string }) {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" size="campo" disabled={pending}>
-      {pending ? <Loader2 className="animate-spin" /> : pousou ? <PlaneLanding /> : <PlaneTakeoff />}
-      {pending ? "Salvando…" : antigo ? "Registrar voo antigo" : pousou ? "Registrar voo completo" : "Decolei"}
+      {pending ? <Loader2 className="animate-spin" /> : rotulo.startsWith("Decolei") ? <PlaneTakeoff /> : <PlaneLanding />}
+      {pending ? "Salvando…" : rotulo}
     </Button>
   );
 }
 
 /**
- * Decolagem em três toques: foto do horímetro, para onde (ida e volta por
- * padrão) e por conta de quem. O resto fica em "mais detalhes". O pouso é
- * registrado perna a perna na ficha do voo.
+ * Registro do voo no formato do diário de bordo: ida (data, origem, destino,
+ * horímetro inicial e final) e volta (idem), juntas ou separadas. Cada
+ * trecho vira um voo com a própria data. Horímetro final vazio = "ainda
+ * estou voando": o voo fica aberto e o pouso é registrado pelo Início.
  */
 export function FormularioVoo({
   perfil,
@@ -45,6 +54,8 @@ export function FormularioVoo({
   hoje,
   dataInicial,
   destinoInicial,
+  origemInicial,
+  naturezaInicial,
   leituraAutomatica,
 }: {
   perfil: Perfil;
@@ -59,129 +70,212 @@ export function FormularioVoo({
   /** Vindo de uma reserva sem voo: data e destino já preenchidos. */
   dataInicial?: string;
   destinoInicial?: string;
+  /** Onde o avião está (destino do último voo); fora da base é de lá que decola. */
+  origemInicial?: string;
+  naturezaInicial?: NaturezaVoo;
   leituraAutomatica: boolean;
 }) {
   const [estado, acao] = useActionState(salvarVoo, INICIAL);
-  const [natureza, setNatureza] = useState<NaturezaVoo>("PARTICULAR");
-  const [pousou, setPousou] = useState(false);
+  const [natureza, setNatureza] = useState<NaturezaVoo>(naturezaInicial ?? "PARTICULAR");
+  const foraDaBase = Boolean(origemInicial && origemInicial !== base);
+  // Fora da base o trecho pendente é só a volta; na base, ida e volta juntas por padrão.
+  const [comVolta, setComVolta] = useState(!foraDaBase);
   const [semHorimetro, setSemHorimetro] = useState(false);
-  const [fotoInicial, setFotoInicial] = useState<EstadoFoto>({ caminho: null, leitura: null, valor: "" });
-  const [fotoFinal, setFotoFinal] = useState<EstadoFoto>({ caminho: null, leitura: null, valor: "" });
-  const [idaVolta, setIdaVolta] = useState(true);
-  const [origem, setOrigem] = useState(base);
+  const [fotoInicial, setFotoInicial] = useState<EstadoFoto>(VAZIA);
+  const [horimetroFimIda, setHorimetroFimIda] = useState("");
+  const [horimetroIniVolta, setHorimetroIniVolta] = useState("");
+  const [fotoFinalVolta, setFotoFinalVolta] = useState<EstadoFoto>(VAZIA);
+  const [origem, setOrigem] = useState(origemInicial ?? base);
   const [destino, setDestino] = useState(destinoInicial ?? "");
-  const [pousos, setPousos] = useState("2");
+  const [dataIda, setDataIda] = useState(dataInicial ?? hoje);
+  const [pousos, setPousos] = useState("1");
   const [horasDigitadas, setHorasDigitadas] = useState("");
   const [somaPernas, setSomaPernas] = useState<number | null>(null);
   const [qtdEscalas, setQtdEscalas] = useState(0);
   const [detalhes, setDetalhes] = useState(false);
 
   const usoComum = ehUsoComum(natureza);
-  const inicialNumero = Number(fotoInicial.valor.replace(/\./g, "").replace(",", "."));
-  const esperadoFinal = fotoInicial.valor && Number.isFinite(inicialNumero) ? inicialNumero : ultimoHorimetro;
-  const trecho = [origem || "?", ...(idaVolta && destino ? [destino] : []), ...(idaVolta ? [origem || "?"] : [destino || "?"])].join(" → ");
-  const totalPousos = (idaVolta ? 1 : 0) + qtdEscalas + 1;
+  const hIni = lerHorimetro(fotoInicial.valor);
+  const hFimIda = lerHorimetro(horimetroFimIda);
+  const hIniVolta = lerHorimetro(horimetroIniVolta) ?? hFimIda;
+  const hFimVolta = lerHorimetro(fotoFinalVolta.valor);
+  const horasIda = hIni !== null && hFimIda !== null && hFimIda >= hIni ? Math.round((hFimIda - hIni) * 10) / 10 : null;
+  const horasVolta = hIniVolta !== null && hFimVolta !== null && hFimVolta >= hIniVolta ? Math.round((hFimVolta - hIniVolta) * 10) / 10 : null;
+
+  const aberto = comVolta ? hFimVolta === null : hFimIda === null;
+  const rotuloBotao = semHorimetro ? "Registrar voo antigo" : aberto ? (comVolta ? "Registrar ida e decolei na volta" : "Decolei") : comVolta ? "Registrar ida e volta" : "Registrar voo";
 
   return (
     <form action={acao} className="space-y-6">
       {!estado.ok && estado.mensagem && <Alerta tom="erro">{estado.mensagem}</Alerta>}
-      <input type="hidden" name="ida_volta" value={idaVolta ? "on" : ""} />
-      <input type="hidden" name="pousos" value={detalhes ? pousos : String(totalPousos)} />
+      <input type="hidden" name="volta" value={comVolta && !semHorimetro ? "on" : ""} />
+      <input type="hidden" name="pousos" value={detalhes ? pousos : String(qtdEscalas + 1)} />
 
-      {/* 1. Foto do horímetro */}
-      {!semHorimetro ? (
-        <FotoHorimetro
-          nome="inicial"
-          rotulo="1. Foto do horímetro antes de decolar"
-          esperado={ultimoHorimetro}
-          rotuloArquivo="HORIMETRO - INICIAL"
-          estado={fotoInicial}
-          aoMudar={setFotoInicial}
-          leituraAutomatica={leituraAutomatica}
-        />
-      ) : (
-        <div className="space-y-1.5 rounded-lg border border-atencao/40 bg-atencao/10 p-4">
-          <Label htmlFor="horas_informadas">Horas voadas (sem horímetro)</Label>
-          <Input
-            id="horas_informadas"
-            name="horas_informadas"
-            inputMode="decimal"
-            placeholder="1,5"
-            value={somaPernas !== null ? String(somaPernas).replace(".", ",") : horasDigitadas}
-            onChange={(e) => setHorasDigitadas(e.target.value)}
-            readOnly={somaPernas !== null}
-            className="h-12 text-lg tabular"
-            required
-          />
-          <p className="text-xs text-atencao">
-            {somaPernas !== null ? `Soma das pernas: ${horasHm(somaPernas)} (edite as horas de cada perna em "mais detalhes"). ` : ""}O voo fica marcado como pendente de horímetro até o administrador conferir.
-          </p>
+      {/* Junto ou separado */}
+      {!semHorimetro && (
+        <div className="grid grid-cols-2 gap-2 rounded-lg bg-areia-200 p-1 dark:bg-marinho-700">
+          {(
+            [
+              [true, "Ida e volta"],
+              [false, "Só um trecho"],
+            ] as const
+          ).map(([v, r]) => (
+            <button
+              key={r}
+              type="button"
+              onClick={() => setComVolta(v)}
+              className={cn("h-11 rounded-md text-sm font-semibold transition", comVolta === v ? "bg-laranja text-marinho shadow" : "text-marinho-300 hover:text-marinho dark:hover:text-areia")}
+            >
+              {r}
+            </button>
+          ))}
         </div>
       )}
-      {ultimoHorimetro !== null && !semHorimetro && (
-        <p className="-mt-3 text-xs text-marinho-300">
-          Último registrado: <strong className="tabular">{fmtHorimetro(ultimoHorimetro)}</strong>
-        </p>
-      )}
 
-      {/* 2. Para onde e por conta de quem */}
-      <div className="space-y-4 rounded-lg border border-marinho-100 p-4 dark:border-marinho-300">
-        <p className="text-sm font-semibold">2. Para onde?</p>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <SeletorAerodromo nome="destino" rotulo={idaVolta ? "Destino (vai e volta)" : "Destino"} opcoes={aerodromos} valorInicial={destinoInicial ?? ""} aoMudar={setDestino} />
+      {/* IDA */}
+      <fieldset className="space-y-4 rounded-lg border border-marinho-100 p-4 dark:border-marinho-300">
+        <legend className="px-1 text-sm font-semibold">{comVolta ? "Ida" : "Voo"}</legend>
+        <div className="grid gap-4 sm:grid-cols-3">
           <div className="space-y-1.5">
-            <Label htmlFor="socio_id">Por conta de</Label>
-            {usoComum ? (
-              <p className="flex h-12 items-center rounded border border-marinho-100 bg-areia-200 px-3 text-sm text-marinho-300 dark:border-marinho-300 dark:bg-marinho-700">
-                Sociedade — horas divididas entre os sócios
-              </p>
-            ) : (
-              <Select id="socio_id" name="socio_id" defaultValue={socioLogadoId ?? ""} required className="h-12">
-                <option value="" disabled>
-                  Escolha…
-                </option>
-                {socios.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.apelido}
-                  </option>
-                ))}
-              </Select>
-            )}
+            <Label htmlFor="data">Data</Label>
+            <Input id="data" name="data" type="date" value={dataIda} onChange={(e) => setDataIda(e.target.value)} required className="h-12" />
           </div>
+          <SeletorAerodromo nome="origem" rotulo="Origem" opcoes={aerodromos} valorInicial={origemInicial ?? base} aoMudar={setOrigem} obrigatorio />
+          <SeletorAerodromo nome="destino" rotulo="Destino" opcoes={aerodromos} valorInicial={destinoInicial ?? ""} aoMudar={setDestino} obrigatorio />
         </div>
-        <label className="flex items-center gap-3 text-sm font-semibold">
-          <input type="checkbox" checked={idaVolta} onChange={(e) => setIdaVolta(e.target.checked)} className="size-5" />
-          Ida e volta — termina em {origem || base}
-        </label>
-        <p className="text-sm text-marinho-300">
-          Voo: <strong className="text-marinho dark:text-areia">{trecho}</strong> · {totalPousos} pouso{totalPousos === 1 ? "" : "s"}. Cada pouso você registra na hora, com a foto do horímetro; o último fecha o voo.
-        </p>
+
+        {!semHorimetro ? (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FotoHorimetro
+              nome="inicial"
+              rotulo="Horímetro na decolagem"
+              esperado={ultimoHorimetro}
+              rotuloArquivo="HORIMETRO - INICIAL"
+              estado={fotoInicial}
+              aoMudar={setFotoInicial}
+              leituraAutomatica={leituraAutomatica}
+            />
+            <div className="space-y-1.5">
+              <Label htmlFor="horimetro_final">Horímetro no pouso{comVolta ? ` em ${destino || "…"}` : ""}</Label>
+              <Input
+                id="horimetro_final"
+                name="horimetro_final"
+                inputMode="decimal"
+                placeholder={hIni !== null ? fmtHorimetro(hIni) : "0000,0"}
+                value={horimetroFimIda}
+                onChange={(e) => setHorimetroFimIda(e.target.value)}
+                required={comVolta}
+                className="h-12 text-lg font-semibold tabular"
+              />
+              <p className={cn("text-xs", hFimIda !== null && hIni !== null && hFimIda < hIni ? "text-erro" : "text-marinho-300")}>
+                {horasIda !== null ? `${horasHm(horasIda)} de voo` : hFimIda !== null && hIni !== null ? "Tem de ser maior que o da decolagem." : comVolta ? "Anote o horímetro ao pousar." : "Vazio = ainda estou voando; o pouso é registrado depois pelo Início."}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-1.5 rounded-lg border border-atencao/40 bg-atencao/10 p-4">
+            <Label htmlFor="horas_informadas">Horas voadas (sem horímetro)</Label>
+            <Input
+              id="horas_informadas"
+              name="horas_informadas"
+              inputMode="decimal"
+              placeholder="1,5"
+              value={somaPernas !== null ? String(somaPernas).replace(".", ",") : horasDigitadas}
+              onChange={(e) => setHorasDigitadas(e.target.value)}
+              readOnly={somaPernas !== null}
+              className="h-12 text-lg tabular"
+              required
+            />
+            <p className="text-xs text-atencao">
+              {somaPernas !== null ? `Soma das pernas: ${horasHm(somaPernas)}. ` : ""}O voo fica marcado como pendente de horímetro até o administrador conferir.
+            </p>
+          </div>
+        )}
+        {ultimoHorimetro !== null && !semHorimetro && (
+          <p className="text-xs text-marinho-300">
+            Último registrado: <strong className="tabular">{fmtHorimetro(ultimoHorimetro)}</strong>
+          </p>
+        )}
+      </fieldset>
+
+      {/* VOLTA */}
+      {comVolta && !semHorimetro && (
+        <fieldset className="space-y-4 rounded-lg border border-marinho-100 p-4 dark:border-marinho-300">
+          <legend className="px-1 text-sm font-semibold">Volta</legend>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="data_volta">Data</Label>
+              <Input id="data_volta" name="data_volta" type="date" defaultValue={dataInicial ?? hoje} min={dataIda || undefined} required className="h-12" />
+            </div>
+            <SeletorAerodromo key={`ov-${destino}`} nome="origem_volta" rotulo="Origem" opcoes={aerodromos} valorInicial={destino} obrigatorio />
+            <SeletorAerodromo key={`dv-${origem}`} nome="destino_volta" rotulo="Destino" opcoes={aerodromos} valorInicial={origem} obrigatorio />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="horimetro_inicial_volta">Horímetro na decolagem</Label>
+              <Input
+                id="horimetro_inicial_volta"
+                name="horimetro_inicial_volta"
+                inputMode="decimal"
+                placeholder={hFimIda !== null ? fmtHorimetro(hFimIda) : "0000,0"}
+                value={horimetroIniVolta}
+                onChange={(e) => setHorimetroIniVolta(e.target.value)}
+                className="h-12 text-lg font-semibold tabular"
+              />
+              <p className="text-xs text-marinho-300">Vazio = o mesmo do pouso da ida{hFimIda !== null ? ` (${fmtHorimetro(hFimIda)})` : ""}.</p>
+            </div>
+            <div>
+              <FotoHorimetro
+                nome="final"
+                campo="final_volta"
+                rotulo="Horímetro no pouso"
+                esperado={hIniVolta}
+                rotuloArquivo="HORIMETRO - FINAL"
+                estado={fotoFinalVolta}
+                aoMudar={setFotoFinalVolta}
+                obrigatoria={false}
+                leituraAutomatica={leituraAutomatica}
+              />
+              <p className="mt-1 text-xs text-marinho-300">{horasVolta !== null ? `${horasHm(horasVolta)} de voo · total ${horasHm(Math.round(((horasIda ?? 0) + horasVolta) * 10) / 10)}` : "Vazio = ainda vou voltar; o pouso é registrado depois pelo Início."}</p>
+            </div>
+          </div>
+        </fieldset>
+      )}
+
+      {/* Por conta de */}
+      <div className="space-y-1.5">
+        <Label htmlFor="socio_id">Por conta de</Label>
+        {usoComum ? (
+          <p className="flex h-12 items-center rounded border border-marinho-100 bg-areia-200 px-3 text-sm text-marinho-300 dark:border-marinho-300 dark:bg-marinho-700">
+            Sociedade — horas divididas entre os sócios
+          </p>
+        ) : (
+          <Select id="socio_id" name="socio_id" defaultValue={socioLogadoId ?? ""} required className="h-12">
+            <option value="" disabled>
+              Escolha…
+            </option>
+            {socios.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.apelido}
+              </option>
+            ))}
+          </Select>
+        )}
       </div>
 
-      {/* 3. Mais detalhes (recolhido) */}
+      {/* Mais detalhes */}
       <button type="button" onClick={() => setDetalhes((d) => !d)} className="flex items-center gap-1 text-sm font-semibold text-laranja-700">
-        <ChevronDown className={`size-4 transition-transform ${detalhes ? "rotate-180" : ""}`} /> {detalhes ? "menos detalhes" : "mais detalhes (data, piloto, escalas, combustível…)"}
+        <ChevronDown className={`size-4 transition-transform ${detalhes ? "rotate-180" : ""}`} /> {detalhes ? "menos detalhes" : "mais detalhes (natureza, piloto, escalas, combustível…)"}
       </button>
 
       <div className={detalhes ? "space-y-4" : "hidden"}>
         {perfil === "admin" && (
           <label className="flex items-center gap-2 text-sm text-marinho-300">
-            <input
-              type="checkbox"
-              checked={semHorimetro}
-              onChange={(e) => {
-                setSemHorimetro(e.target.checked);
-                if (e.target.checked) setPousou(true);
-              }}
-            />
+            <input type="checkbox" checked={semHorimetro} onChange={(e) => setSemHorimetro(e.target.checked)} />
             Voo antigo, sem foto do horímetro (digitar só as horas)
           </label>
         )}
         <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="data">Data</Label>
-            <Input id="data" name="data" type="date" defaultValue={dataInicial ?? hoje} required className="h-12" />
-          </div>
           <div className="space-y-1.5">
             <Label htmlFor="natureza">Natureza do voo</Label>
             <Select id="natureza" name="natureza" value={natureza} onChange={(e) => setNatureza(e.target.value as NaturezaVoo)} className="h-12">
@@ -203,12 +297,11 @@ export function FormularioVoo({
               ))}
             </Select>
           </div>
-          <SeletorAerodromo nome="origem" rotulo="Origem" opcoes={aerodromos} valorInicial={base} aoMudar={setOrigem} />
           <ListaEscalas
             opcoes={aerodromos}
             aoMudar={(n, total) => {
               setQtdEscalas(n);
-              setPousos(String((idaVolta ? 1 : 0) + n + 1));
+              setPousos(String(n + 1));
               setSomaPernas(total);
             }}
           />
@@ -218,46 +311,22 @@ export function FormularioVoo({
             <p className="text-xs text-marinho-300">Sem a leitura, o consumo é estimado pelo consumo médio.</p>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="pousos_edit">Pousos</Label>
+            <Label htmlFor="combustivel_final_l">Combustível no pouso (L)</Label>
+            <Input id="combustivel_final_l" name="combustivel_final_l" inputMode="decimal" placeholder="ex.: 125" className="h-12 tabular" />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="pousos_edit">Pousos {comVolta ? "(na ida)" : ""}</Label>
             <Input id="pousos_edit" type="number" min={0} value={pousos} onChange={(e) => setPousos(e.target.value)} className="h-12 tabular" />
             <p className="text-xs text-marinho-300">Ajuste se fez toque-e-arremetida.</p>
           </div>
         </div>
-
-        {!semHorimetro && (
-          <label className="flex items-center gap-3 rounded-lg border border-marinho-100 bg-areia-200 p-4 text-sm font-semibold dark:border-marinho-300 dark:bg-marinho-700">
-            <input type="checkbox" checked={pousou} onChange={(e) => setPousou(e.target.checked)} className="size-5" />
-            Já pousei — registrar o horímetro final agora (voo inteiro de uma vez)
-          </label>
-        )}
-        {pousou && (
-          <>
-            {semHorimetro ? (
-              <p className="text-xs text-marinho-300">Voo antigo: sem horímetro final — as horas digitadas fecham o voo.</p>
-            ) : (
-              <FotoHorimetro
-                nome="final"
-                rotulo="Horímetro depois do pouso"
-                esperado={esperadoFinal}
-                rotuloArquivo="HORIMETRO - FINAL"
-                estado={fotoFinal}
-                aoMudar={setFotoFinal}
-                leituraAutomatica={leituraAutomatica}
-              />
-            )}
-            <div className="space-y-1.5">
-              <Label htmlFor="combustivel_final_l">Combustível no pouso (L)</Label>
-              <Input id="combustivel_final_l" name="combustivel_final_l" inputMode="decimal" placeholder="ex.: 125" className="h-12 tabular" />
-            </div>
-          </>
-        )}
         <div className="space-y-1.5">
           <Label htmlFor="observacao">Observação</Label>
           <Textarea id="observacao" name="observacao" placeholder="Opcional" />
         </div>
       </div>
 
-      <Botao pousou={pousou} antigo={semHorimetro} />
+      <Botao rotulo={rotuloBotao} />
     </form>
   );
 }
