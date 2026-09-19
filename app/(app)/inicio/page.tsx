@@ -4,17 +4,18 @@ import { Camera, Fuel, PlaneTakeoff, Receipt } from "lucide-react";
 
 import { exigirSessao } from "@/lib/perfil";
 import { aeronaveAtiva, listarSocios } from "@/lib/dados/cadastros";
-import { horasPorSocioNoMes, listarVoos, trecho, ultimoHorimetro, vooEmAberto } from "@/lib/dados/voos";
+import { horasPorSocio, horasPorSocioNoMes, listarVoos, trecho, ultimoHorimetro, vooEmAberto } from "@/lib/dados/voos";
 import { saldoDoCaixa, saldoDoFundo, saldosDosSocios } from "@/lib/dados/financeiro";
-import { resumoManutencao } from "@/lib/dados/manutencao";
+import { listarPlano, resumoManutencao } from "@/lib/dados/manutencao";
 import { ROTULO_BLOQUEIO, agendaDoDia, fila, garantirEscolhaAberta, mesSeguinte, proximasReservas, vezDeEscolher } from "@/lib/dados/agenda";
-import { data as fmtData, horas as fmtHoras, horimetro as fmtHorimetro, hoje, inicioDoMes, mesPorExtenso, reais } from "@/lib/formato";
+import { data as fmtData, horas as fmtHoras, horimetro as fmtHorimetro, hoje, inicioDoMes, mesPorExtenso, reais, trimestreDe } from "@/lib/formato";
 import { veValores } from "@/lib/tipos";
 import { cn } from "@/lib/utils";
 import { Alerta } from "@/components/ui/alerta";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { HorasPorSocio, type AbaHoras } from "@/components/horas-por-socio";
 
 export const metadata: Metadata = { title: "Início" };
 
@@ -47,13 +48,37 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
     fila(aeronave.id, mesProximo),
   ]);
   const manutencao = await resumoManutencao(aeronave.id);
+
+  // Horas por sócio: mês, trimestre e o ciclo de cada revisão (desde a última execução).
+  const trimestre = trimestreDe(hoje());
+  const plano = await listarPlano(aeronave.id);
+  const revisoes = plano.filter((p) => /^REVIS[ÃA]O \d+ ?H$/.test(p.descricao)).sort((a, b) => (a.intervalo_horas ?? 0) - (b.intervalo_horas ?? 0));
+  const [horasTrimestre, ...horasRevisoes] = await Promise.all([
+    horasPorSocio(aeronave.id, trimestre.inicio, trimestre.fim),
+    ...revisoes.map((r) => horasPorSocio(aeronave.id, r.ultima_data ?? "2000-01-01", "2099-12-31")),
+  ]);
+  const linhas = (h: { socio_id: string; horas: number; custo?: number }[], comCusto: boolean) =>
+    socios.map((s) => {
+      const x = h.find((l) => l.socio_id === s.id);
+      return { socio_id: s.id, apelido: s.apelido, cor: s.cor, horas: x?.horas ?? 0, custo: comCusto && valores ? (x?.custo ?? 0) : null };
+    });
+  const abasHoras: AbaHoras[] = [
+    { chave: "mes", rotulo: "Mês", subtitulo: mesPorExtenso(mes), meta: null, linhas: linhas(horasMes, true) },
+    { chave: "trimestre", rotulo: "Trimestre", subtitulo: trimestre.rotulo, meta: null, linhas: linhas(horasTrimestre, false) },
+    ...revisoes.map((r, i) => ({
+      chave: r.id,
+      rotulo: r.descricao.replace("REVISÃO", "Revisão").replace(/(\d+) ?H$/, "$1 h"),
+      subtitulo: r.ultima_data ? `desde a última revisão, em ${fmtData(r.ultima_data)}` : "desde o início (última execução não informada no plano)",
+      meta: r.intervalo_horas,
+      linhas: linhas(horasRevisoes[i], false),
+    })),
+  ];
   const minhaVezEm = [vezAtual === usuario.socioId && usuario.socioId ? mes : null, vezProxima === usuario.socioId && usuario.socioId ? mesProximo : null].filter(Boolean) as string[];
   const puladoEm = [filaAtual, filaProxima]
     .map((f, i) => (f.find((l) => l.socio_id === usuario.socioId && l.pulado && !l.semana_id) ? (i === 0 ? mes : mesProximo) : null))
     .filter(Boolean) as string[];
 
   const meuSaldo = saldos.find((s) => s.socio_id === usuario.socioId);
-  const totalHorasMes = horasMes.reduce((s, h) => s + h.horas, 0);
   const pendentesReais = pendentes.filter((v) => !(v.horimetro_final === null && v.horimetro_inicial !== null && v.id === aberto?.id));
 
   return (
@@ -154,7 +179,7 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
             </p>
           ))}
           {manutencao.semRegistro > 0 && usuario.perfil === "admin" && (
-            <p className="text-xs">{manutencao.semRegistro} item{manutencao.semRegistro === 1 ? "" : "ns"} do plano sem última execução informada.</p>
+            <p className="text-xs">{manutencao.semRegistro} {manutencao.semRegistro === 1 ? "item" : "itens"} do plano sem última execução informada.</p>
           )}
           <Link href="/manutencao" className="text-sm underline">
             manutenção
@@ -199,37 +224,8 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
         </Alerta>
       )}
 
-      {/* Horas do mês */}
-      <div>
-        <h2 className="mb-3 text-lg font-semibold">
-          {mesPorExtenso(mes)} · {fmtHoras(totalHorasMes)}
-        </h2>
-        <div className="grid gap-3 sm:grid-cols-4">
-          {socios.map((s) => {
-            const h = horasMes.find((x) => x.socio_id === s.id);
-            const horasSocio = h?.horas ?? 0;
-            const pct = totalHorasMes > 0 ? (horasSocio / totalHorasMes) * 100 : 0;
-            return (
-              <Card key={s.id}>
-                <CardHeader className="p-4">
-                  <div className="flex items-center gap-2">
-                    <span className="size-3 rounded-full" style={{ background: s.cor }} />
-                    <span className="text-sm font-semibold">{s.apelido}</span>
-                    {s.id === usuario.socioId && <Badge variant="info">você</Badge>}
-                  </div>
-                  <CardTitle className="tabular text-xl">{fmtHoras(horasSocio)}</CardTitle>
-                  <div className="h-1.5 w-full rounded bg-marinho-100 dark:bg-marinho-300">
-                    <div className="h-1.5 rounded" style={{ width: `${pct}%`, background: s.cor }} />
-                  </div>
-                  <p className="text-xs text-marinho-300 tabular">
-                    {pct.toFixed(0)} % do uso{valores && h ? ` · ${reais(h.custo)} em rateios` : ""}
-                  </p>
-                </CardHeader>
-              </Card>
-            );
-          })}
-        </div>
-      </div>
+      {/* Horas por sócio: mês, trimestre e ciclo das revisões */}
+      <HorasPorSocio abas={abasHoras} meuSocioId={usuario.socioId ?? null} />
 
       {/* Financeiro (só quem vê valores) */}
       {valores && caixa && (

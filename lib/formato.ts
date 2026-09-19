@@ -78,6 +78,17 @@ export function hoje(): string {
   return new Date().toLocaleDateString("sv-SE", { timeZone: "America/Bahia" });
 }
 
+/** Trimestre civil de uma data: início, fim e rótulo "3º trimestre de 2026". */
+export function trimestreDe(dataIso: string): { inicio: string; fim: string; rotulo: string } {
+  const ano = Number(dataIso.slice(0, 4));
+  const mes = Number(dataIso.slice(5, 7));
+  const n = Math.floor((mes - 1) / 3) + 1;
+  const m0 = (n - 1) * 3 + 1;
+  const ultimo = new Date(Date.UTC(ano, m0 + 2, 0)).getUTCDate();
+  const dd = (x: number) => String(x).padStart(2, "0");
+  return { inicio: `${ano}-${dd(m0)}-01`, fim: `${ano}-${dd(m0 + 2)}-${dd(ultimo)}`, rotulo: `${n}º trimestre de ${ano} (${dd(m0)}/${ano} a ${dd(m0 + 2)}/${ano})` };
+}
+
 /** Primeiro dia do mês de uma data "AAAA-MM-DD". */
 export function inicioDoMes(dataIso: string): string {
   return `${dataIso.slice(0, 7)}-01`;
