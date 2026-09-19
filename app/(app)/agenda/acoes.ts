@@ -251,3 +251,15 @@ export async function removerBloqueio(id: string): Promise<Resultado> {
   revalidar();
   return { ok: true, mensagem: "Bloqueio removido." };
 }
+
+/** Reserva que terminou sem voo: piloto, sócio dono ou admin marca como não realizada. */
+export async function marcarNaoRealizada(id: string): Promise<Resultado> {
+  const { user, usuario } = await usuarioDaSessao();
+  if (!user || !usuario?.ativo) return { ok: false, mensagem: "Sem sessão." };
+  if (!UUID.test(id)) return { ok: false, mensagem: "Reserva inválida." };
+  const supabase = await criarClienteServidor();
+  const { error } = await supabase.rpc("marcar_nao_realizada", { p_reserva: id });
+  if (error) return { ok: false, mensagem: traduzir(error.message) };
+  revalidar();
+  return { ok: true, mensagem: "Marcada como não realizada. Não conta como uso." };
+}

@@ -8,7 +8,8 @@ import { horasPorSocio, horasPorSocioNoMes, listarVoos, trecho, ultimoHorimetro,
 import { saldoDoCaixa, saldoDoFundo, saldosDosSocios } from "@/lib/dados/financeiro";
 import { ciclosRevisao, listarPlano, resumoManutencao } from "@/lib/dados/manutencao";
 import { listarReembolsos } from "@/lib/dados/reembolsos";
-import { ROTULO_BLOQUEIO, agendaDoDia, fila, garantirEscolhaAberta, mesSeguinte, proximasReservas, vezDeEscolher } from "@/lib/dados/agenda";
+import { ROTULO_BLOQUEIO, agendaDoDia, fila, garantirEscolhaAberta, mesSeguinte, proximasReservas, reservasSemVoo, vezDeEscolher } from "@/lib/dados/agenda";
+import { BotaoAcao } from "@/app/(app)/agenda/botoes";
 import { data as fmtData, horas as fmtHoras, horimetro as fmtHorimetro, hoje, inicioDoMes, mesPorExtenso, reais, trimestreDe } from "@/lib/formato";
 import { veValores } from "@/lib/tipos";
 import { cn } from "@/lib/utils";
@@ -50,6 +51,8 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
     fila(aeronave.id, mesProximo),
   ]);
   const manutencao = await resumoManutencao(aeronave.id);
+  // Reservas que terminaram sem voo: o piloto lança ou marca não realizada; o sócio dono também vê.
+  const semVoo = (await reservasSemVoo(aeronave.id)).filter((r) => usuario.perfil !== "socio" || r.socio_id === usuario.socioId);
   // Reembolsos ao piloto pendentes: o sócio vê o que deve; o piloto, o que tem a receber.
   const reembolsosPendentes = await listarReembolsos(aeronave.id, { pendentes: true, socioId: usuario.perfil === "socio" ? (usuario.socioId ?? undefined) : undefined });
   const totalReembolsos = reembolsosPendentes.reduce((t, r) => t + r.valor, 0);
@@ -199,6 +202,27 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
           <Link href="/manutencao" className="text-sm underline">
             manutenção
           </Link>
+        </Alerta>
+      )}
+
+      {semVoo.length > 0 && (
+        <Alerta tom="atencao">
+          <p className="font-semibold">{semVoo.length === 1 ? "Reserva terminou sem voo lançado" : `${semVoo.length} reservas terminaram sem voo lançado`}</p>
+          <ul className="mt-1 space-y-2 text-sm">
+            {semVoo.map((r) => (
+              <li key={r.id} className="flex flex-wrap items-center gap-2">
+                <span>
+                  {r.apelido} · {fmtData(r.inicio)}
+                  {r.fim !== r.inicio ? ` – ${fmtData(r.fim)}` : ""}
+                  {r.destino ? ` → ${r.destino}` : ""}
+                </span>
+                <Link href={`/voos/novo?data=${r.inicio}&socio=${r.socio_id}${r.destino ? `&destino=${r.destino}` : ""}`} className="rounded bg-laranja px-2 py-1 text-xs font-semibold text-marinho hover:bg-laranja-700 hover:text-areia">
+                  Lançar o voo
+                </Link>
+                <BotaoAcao acao="naoRealizada" id={r.id} rotulo="Não voou" variant="fantasma" confirmar="Marcar esta reserva como não realizada?" />
+              </li>
+            ))}
+          </ul>
         </Alerta>
       )}
 

@@ -60,6 +60,8 @@ export type Troca = {
   created_at: string;
 };
 
+export type ReservaSemVoo = { id: string; socio_id: string; apelido: string; inicio: string; fim: string; destino: string | null; aviso_sem_voo_em: string | null };
+
 export const ROTULO_BLOCO: Record<Semana["tipo"], string> = { SEMANA: "semana (seg–qui)", FDS: "fim de semana (sex–dom)" };
 
 export type Bloqueio = {
@@ -118,6 +120,16 @@ export async function garantirEscolhaAberta(aeronaveId: string): Promise<void> {
   if (Number(h.slice(8, 10)) >= 15) {
     await supabase.rpc("abrir_escolha", { p_aeronave: aeronaveId, p_mes: mesSeguinte(mesAtual) });
   }
+  // Reserva que terminou sem voo lançado: avisa piloto e sócio uma vez.
+  for (const r of await reservasSemVoo(aeronaveId)) {
+    if (r.aviso_sem_voo_em) continue;
+    const quando = `${fmtData(r.inicio)}${r.fim !== r.inicio ? ` a ${fmtData(r.fim)}` : ""}${r.destino ? ` → ${r.destino}` : ""}`;
+    await notificar({ perfis: ["piloto"] }, { titulo: "Voo não lançado", corpo: `A reserva de ${r.apelido} (${quando}) terminou sem voo registrado. Lance o voo ou marque como não realizada.`, url: "/inicio", tag: "sem-voo" });
+    const { data: so } = await supabase.from("socios").select("usuario_id").eq("id", r.socio_id).maybeSingle();
+    if (so?.usuario_id) await notificar({ usuarios: [so.usuario_id] }, { titulo: "Sua reserva sem voo", corpo: `${quando}: nenhum voo foi lançado. Se voou, peça ao piloto para registrar; se não, marque como não realizada.`, url: "/inicio", tag: "sem-voo" });
+    await supabase.rpc("registrar_aviso_sem_voo", { p_reserva: r.id });
+  }
+
   // Pedidos de dia comum com 48 h sem objeção: aprovados; piloto e dono ficam sabendo.
   const { data: liberadas } = await supabase.rpc("resolver_pedidos", { p_aeronave: aeronaveId });
   for (const id of (liberadas as string[] | null) ?? []) {
@@ -280,4 +292,12 @@ export async function proximasReservas(aeronaveId: string, limite = 5): Promise<
     .limit(limite);
   if (error) throw new Error(`Reservas: ${error.message}`);
   return (data ?? []).map((r) => mapearReserva(r as unknown as Record<string, unknown>));
+}
+
+/** Reservas confirmadas que terminaram sem nenhum voo no período (últimos 60 dias). */
+export async function reservasSemVoo(aeronaveId: string): Promise<ReservaSemVoo[]> {
+  const supabase = await criarClienteServidor();
+  const { data, error } = await supabase.rpc("reservas_sem_voo", { p_aeronave: aeronaveId });
+  if (error) throw new Error(`Reservas sem voo: ${error.message}`);
+  return (data ?? []) as ReservaSemVoo[];
 }

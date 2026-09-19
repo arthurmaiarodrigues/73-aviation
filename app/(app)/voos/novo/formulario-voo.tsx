@@ -38,6 +38,8 @@ export function FormularioVoo({
   base,
   ultimoHorimetro,
   hoje,
+  dataInicial,
+  destinoInicial,
   leituraAutomatica,
 }: {
   perfil: Perfil;
@@ -49,6 +51,9 @@ export function FormularioVoo({
   base: string;
   ultimoHorimetro: number | null;
   hoje: string;
+  /** Vindo de uma reserva sem voo: data e destino já preenchidos. */
+  dataInicial?: string;
+  destinoInicial?: string;
   leituraAutomatica: boolean;
 }) {
   const [estado, acao] = useActionState(salvarVoo, INICIAL);
@@ -125,7 +130,7 @@ export function FormularioVoo({
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor="data">Data</Label>
-          <Input id="data" name="data" type="date" defaultValue={hoje} required className="h-12" />
+          <Input id="data" name="data" type="date" defaultValue={dataInicial ?? hoje} required className="h-12" />
         </div>
 
         <div className="space-y-1.5">
@@ -172,7 +177,7 @@ export function FormularioVoo({
         </div>
 
         <SeletorAerodromo nome="origem" rotulo="Origem" opcoes={aerodromos} valorInicial={base} />
-        <SeletorAerodromo nome="destino" rotulo="Destino" opcoes={aerodromos} />
+        <SeletorAerodromo nome="destino" rotulo="Destino" opcoes={aerodromos} valorInicial={destinoInicial ?? ""} />
         <ListaEscalas
           opcoes={aerodromos}
           aoMudar={(n, total) => {

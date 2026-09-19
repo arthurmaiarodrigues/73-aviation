@@ -10,7 +10,8 @@ import { FormularioVoo } from "./formulario-voo";
 
 export const metadata: Metadata = { title: "Registrar voo" };
 
-export default async function PaginaNovoVoo() {
+export default async function PaginaNovoVoo({ searchParams }: { searchParams: Promise<{ data?: string; socio?: string; destino?: string }> }) {
+  const busca = await searchParams;
   const usuario = await exigirSessao();
   const aeronave = await aeronaveAtiva();
 
@@ -40,7 +41,9 @@ export default async function PaginaNovoVoo() {
       <div className="mt-6">
         <FormularioVoo
           perfil={usuario.perfil}
-          socioLogadoId={usuario.socioId}
+          socioLogadoId={busca.socio && /^[0-9a-f-]{36}$/i.test(busca.socio) ? busca.socio : usuario.socioId}
+          dataInicial={busca.data && /^\d{4}-\d{2}-\d{2}$/.test(busca.data) ? busca.data : undefined}
+          destinoInicial={busca.destino && /^[A-Z0-9]{4}$/i.test(busca.destino) ? busca.destino.toUpperCase() : undefined}
           socios={socios.map((s) => ({ id: s.id, apelido: s.apelido }))}
           pilotos={pilotos}
           pilotoLogadoId={usuario.pilotoId ?? (pilotos.length === 1 ? pilotos[0].id : null)}

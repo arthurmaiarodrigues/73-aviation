@@ -5,7 +5,7 @@ import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { cancelarReserva, cederSemana, escolherSemana, removerBloqueio, responderPedido, responderTroca, type Resultado } from "./acoes";
+import { cancelarReserva, cederSemana, escolherSemana, marcarNaoRealizada, removerBloqueio, responderPedido, responderTroca, type Resultado } from "./acoes";
 
 /** Botão que chama uma ação com id e mostra a resposta ao lado. */
 export function BotaoAcao({
@@ -16,7 +16,7 @@ export function BotaoAcao({
   confirmar,
   className,
 }: {
-  acao: "escolher" | "ceder" | "cancelar" | "removerBloqueio" | "concordar" | "precisar" | "aceitarTroca" | "recusarTroca";
+  acao: "escolher" | "ceder" | "cancelar" | "removerBloqueio" | "concordar" | "precisar" | "aceitarTroca" | "recusarTroca" | "naoRealizada";
   id: string;
   rotulo: string;
   variant?: "primario" | "secundario" | "fantasma" | "destrutivo";
@@ -38,6 +38,7 @@ export function BotaoAcao({
         precisar: (x) => responderPedido(x, false),
         aceitarTroca: (x) => responderTroca(x, true),
         recusarTroca: (x) => responderTroca(x, false),
+        naoRealizada: marcarNaoRealizada,
       };
       setResultado(await fn[acao](id));
       setPedindo(false);
