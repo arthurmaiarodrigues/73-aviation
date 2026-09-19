@@ -128,3 +128,9 @@ export function lerNumero(texto: FormDataEntryValue | string | null | undefined)
   const n = Number(normalizado);
   return Number.isFinite(n) ? n : null;
 }
+
+/** "18/09/2026" ou "18/09 → 19/09/2026" quando a volta foi noutro dia. */
+export function periodoVoo(v: { data: string; data_volta: string | null }): string {
+  if (!v.data_volta || v.data_volta === v.data) return data(v.data);
+  return `${data(v.data).slice(0, 5)} → ${data(v.data_volta)}`;
+}

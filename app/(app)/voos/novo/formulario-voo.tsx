@@ -164,11 +164,10 @@ export function FormularioVoo({
                 placeholder={hIni !== null ? fmtHorimetro(hIni) : "0000,0"}
                 value={horimetroFimIda}
                 onChange={(e) => setHorimetroFimIda(e.target.value)}
-                required={comVolta}
                 className="h-12 text-lg font-semibold tabular"
               />
               <p className={cn("text-xs", hFimIda !== null && hIni !== null && hFimIda < hIni ? "text-erro" : "text-marinho-300")}>
-                {horasIda !== null ? `${horasHm(horasIda)} de voo` : hFimIda !== null && hIni !== null ? "Tem de ser maior que o da decolagem." : comVolta ? "Anote o horímetro ao pousar." : "Vazio = ainda estou voando; o pouso é registrado depois pelo Início."}
+                {horasIda !== null ? `${horasHm(horasIda)} de voo` : hFimIda !== null && hIni !== null ? "Tem de ser maior que o da decolagem." : comVolta ? "Opcional. Sem ele, ida e volta entram como um voo só, com as horas totais." : "Vazio = ainda estou voando; o pouso é registrado depois pelo Início."}
               </p>
             </div>
           </div>
@@ -222,7 +221,7 @@ export function FormularioVoo({
                 onChange={(e) => setHorimetroIniVolta(e.target.value)}
                 className="h-12 text-lg font-semibold tabular"
               />
-              <p className="text-xs text-marinho-300">Vazio = o mesmo do pouso da ida{hFimIda !== null ? ` (${fmtHorimetro(hFimIda)})` : ""}.</p>
+              <p className="text-xs text-marinho-300">{hFimIda !== null ? `Vazio = o mesmo do pouso da ida (${fmtHorimetro(hFimIda)}).` : "Opcional."}</p>
             </div>
             <div>
               <FotoHorimetro
@@ -236,7 +235,7 @@ export function FormularioVoo({
                 obrigatoria={false}
                 leituraAutomatica={leituraAutomatica}
               />
-              <p className="mt-1 text-xs text-marinho-300">{horasVolta !== null ? `${horasHm(horasVolta)} de voo · total ${horasHm(Math.round(((horasIda ?? 0) + horasVolta) * 10) / 10)}` : "Vazio = ainda vou voltar; o pouso é registrado depois pelo Início."}</p>
+              <p className="mt-1 text-xs text-marinho-300">{horasVolta !== null ? `${horasHm(horasVolta)} de voo · total ${horasHm(Math.round(((horasIda ?? 0) + horasVolta) * 10) / 10)}` : hFimVolta !== null && hIni !== null && hFimVolta >= hIni && hFimIda === null ? `${horasHm(Math.round((hFimVolta - hIni) * 10) / 10)} no total (ida e volta)` : "Vazio = ainda vou voltar; o pouso é registrado depois pelo Início."}</p>
             </div>
           </div>
         </fieldset>

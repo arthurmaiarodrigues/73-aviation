@@ -6,6 +6,8 @@ import type { NaturezaVoo } from "@/lib/tipos";
 export type VooLinha = {
   id: string;
   data: string;
+  /** Ida e volta num voo só: o dia da volta (nulo = mesmo dia). */
+  data_volta: string | null;
   socio_id: string | null;
   socio: string | null;
   piloto: string | null;
@@ -41,13 +43,13 @@ export type FiltroVoos = {
   pendentes?: boolean;
 };
 
-const SELECT = `id, data, socio_id, origem, destino, escalas, horas_pernas, combustivel_pernas, horimetro_pernas, pernas_concluidas, horimetro_inicial, horimetro_final, horas,
+const SELECT = `id, data, data_volta, socio_id, origem, destino, escalas, horas_pernas, combustivel_pernas, horimetro_pernas, pernas_concluidas, horimetro_inicial, horimetro_final, horas,
   combustivel_inicial_l, combustivel_final_l, pousos, natureza, status, pendente_horimetro, observacao,
   foto_horimetro_inicial, foto_horimetro_final, autor_id,
   socios ( apelido ), pilotos ( nome )`;
 
 type LinhaBruta = {
-  id: string; data: string; socio_id: string | null; origem: string | null; destino: string | null; escalas: string[] | null; horas_pernas: (string | number)[] | null; combustivel_pernas: (string | number)[] | null; horimetro_pernas?: (string | number)[] | null; pernas_concluidas?: number | null;
+  id: string; data: string; data_volta?: string | null; socio_id: string | null; origem: string | null; destino: string | null; escalas: string[] | null; horas_pernas: (string | number)[] | null; combustivel_pernas: (string | number)[] | null; horimetro_pernas?: (string | number)[] | null; pernas_concluidas?: number | null;
   horimetro_inicial: string | null; horimetro_final: string | null; horas: string;
   combustivel_inicial_l: string | null; combustivel_final_l: string | null; pousos: number;
   natureza: NaturezaVoo; status: "RASCUNHO" | "CONFIRMADO"; pendente_horimetro: boolean; observacao: string | null;
@@ -63,6 +65,7 @@ function mapear(v: LinhaBruta): VooLinha {
   return {
     id: v.id,
     data: v.data,
+    data_volta: v.data_volta ?? null,
     socio_id: v.socio_id,
     socio: v.socios?.apelido ?? null,
     piloto: v.pilotos?.nome ?? null,

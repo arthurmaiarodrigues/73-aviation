@@ -7,7 +7,7 @@ import { exigirSessao } from "@/lib/perfil";
 import { aeronaveAtiva, aerodromosRecentes, listarPilotos, listarSocios } from "@/lib/dados/cadastros";
 import { buscarVoo, trecho, urlDaFoto } from "@/lib/dados/voos";
 import { temChave } from "@/lib/horimetro/ler";
-import { data as fmtData, horas as fmtHoras, horasHm, horimetro as fmtHorimetro, litros as fmtLitros } from "@/lib/formato";
+import { data as fmtData, horas as fmtHoras, horasHm, horimetro as fmtHorimetro, litros as fmtLitros, periodoVoo } from "@/lib/formato";
 import { ROTULO_NATUREZA } from "@/lib/tipos";
 import { Alerta } from "@/components/ui/alerta";
 import { Badge } from "@/components/ui/badge";
@@ -55,7 +55,7 @@ export default async function PaginaVoo({
         </Link>
         <div className="mt-2 flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-semibold">
-            {fmtData(voo.data)} · {trecho(voo)}
+            {periodoVoo(voo)} · {trecho(voo)}
           </h1>
           {emAberto ? <Badge variant="atencao">em voo</Badge> : voo.status === "CONFIRMADO" ? <Badge variant="ok">confirmado</Badge> : <Badge variant="info">rascunho</Badge>}
           {voo.pendente_horimetro && <Badge variant="erro">horímetro pendente</Badge>}
@@ -66,7 +66,7 @@ export default async function PaginaVoo({
         </p>
       </div>
 
-      {busca.salvo && <Alerta tom="ok">{busca.salvo === "2" ? "Ida e volta registradas — esta é a volta." : "Voo registrado."}</Alerta>}
+      {busca.salvo && <Alerta tom="ok">{busca.salvo === "2" ? "Ida e volta registradas — esta é a volta." : busca.salvo === "3" ? "Ida e volta registradas num voo só." : "Voo registrado."}</Alerta>}
       {busca.decolou && <Alerta tom="info">Decolagem registrada. A cada pouso, volte aqui (o Início também leva) e registre o horímetro.</Alerta>}
       {busca.perna && <Alerta tom="ok">Pouso registrado. Boa próxima perna!</Alerta>}
       {busca.aberto && <Alerta tom="atencao">Você tem este voo em aberto. Registre o pouso antes de começar outro.</Alerta>}

@@ -108,13 +108,18 @@ export async function salvarVoo(_anterior: Resultado, form: FormData): Promise<R
   const destinoVolta = icao(form, "destino_volta") ?? origem;
   const hInicialVolta = lerNumero(form.get("horimetro_inicial_volta")) ?? hFinal;
   const hFinalVolta = lerNumero(form.get("horimetro_final_volta"));
+  // Sem o horímetro do pouso da ida, ida e volta entram como um voo só (escala no destino).
+  const voltaJunta = comVolta && hFinal === null;
   if (comVolta) {
-    if (hFinal === null) return { ok: false, mensagem: "Para registrar a volta junto, informe o horímetro no pouso da ida." };
     if (dataVolta < data) return { ok: false, mensagem: "A data da volta não pode ser antes da ida." };
-    if (hInicialVolta !== null && hInicialVolta < hFinal) return { ok: false, mensagem: "O horímetro da decolagem da volta não pode ser menor que o do pouso da ida." };
+    if (hFinal !== null && hInicialVolta !== null && hInicialVolta < hFinal) return { ok: false, mensagem: "O horímetro da decolagem da volta não pode ser menor que o do pouso da ida." };
     if (hFinalVolta !== null && hInicialVolta !== null && hFinalVolta < hInicialVolta) return { ok: false, mensagem: "O horímetro final da volta tem de ser maior que o da decolagem." };
     if (hFinalVolta !== null && hInicialVolta !== null && hFinalVolta - hInicialVolta > 12) return { ok: false, mensagem: "Mais de 12 h na volta? Confira os horímetros." };
+    if (voltaJunta && hFinalVolta !== null && hInicial !== null && hFinalVolta < hInicial) return { ok: false, mensagem: "O horímetro final da volta tem de ser maior que o da decolagem da ida." };
   }
+  const hFinalVoo = voltaJunta ? hFinalVolta : hFinal;
+  const escalasVoo = voltaJunta && destino ? [destino, ...escalasLista.filter((e) => e !== destino)] : escalasLista;
+  const destinoVoo = voltaJunta ? destinoVolta : destino;
 
   const combInicial = (pernas.combustivel[0] ?? null) || lerNumero(form.get("combustivel_inicial_l"));
   const combFinal = lerNumero(form.get("combustivel_final_l"));
@@ -149,25 +154,26 @@ export async function salvarVoo(_anterior: Resultado, form: FormData): Promise<R
     .insert({
       aeronave_id: aeronave.id,
       data,
+      data_volta: voltaJunta && dataVolta !== data ? dataVolta : null,
       socio_id: socioId,
       piloto_id: pilotoId,
       origem,
-      destino,
-      escalas: escalasLista,
-      horas_pernas: pernas.horas,
-      combustivel_pernas: pernas.combustivel,
+      destino: destinoVoo,
+      escalas: escalasVoo,
+      horas_pernas: voltaJunta ? [] : pernas.horas,
+      combustivel_pernas: voltaJunta ? [] : pernas.combustivel,
       horimetro_inicial: hInicial,
-      horimetro_final: hFinal,
+      horimetro_final: hFinalVoo,
       horas_informadas: hInicial === null ? horasInformadas : null,
       combustivel_inicial_l: combInicial,
       combustivel_final_l: combFinal,
-      pousos,
+      pousos: voltaJunta ? escalasVoo.length + 1 : pousos,
       natureza,
       observacao: texto(form, "observacao"),
       foto_horimetro_inicial: texto(form, "foto_inicial"),
-      foto_horimetro_final: texto(form, "foto_final"),
-      leitura_ia: { inicial: leituraJson(form, "leitura_inicial"), final: leituraJson(form, "leitura_final") },
-      status: hFinal !== null || (hInicial === null && horasInformadas !== null) ? "CONFIRMADO" : "RASCUNHO",
+      foto_horimetro_final: voltaJunta ? texto(form, "foto_final_volta") : texto(form, "foto_final"),
+      leitura_ia: { inicial: leituraJson(form, "leitura_inicial"), final: voltaJunta ? leituraJson(form, "leitura_final_volta") : leituraJson(form, "leitura_final") },
+      status: hFinalVoo !== null || (hInicial === null && horasInformadas !== null) ? "CONFIRMADO" : "RASCUNHO",
       pendente_horimetro: hInicial === null,
       autor_id: user.id,
     })
@@ -176,7 +182,7 @@ export async function salvarVoo(_anterior: Resultado, form: FormData): Promise<R
 
   if (error) return { ok: false, mensagem: traduzir(error.message) };
 
-  if (comVolta) {
+  if (comVolta && !voltaJunta) {
     const { data: volta, error: erroVolta } = await supabase
       .from("voos")
       .insert({
@@ -205,7 +211,7 @@ export async function salvarVoo(_anterior: Resultado, form: FormData): Promise<R
 
   revalidatePath("/voos");
   revalidatePath("/inicio");
-  redirect(hFinal !== null ? `/voos/${criado.id}?salvo=1` : `/voos/${criado.id}?decolou=1`);
+  redirect(hFinalVoo !== null ? `/voos/${criado.id}?salvo=${voltaJunta ? 3 : 1}` : `/voos/${criado.id}?decolou=1`);
 }
 
 /** Fecha um voo aberto: foto e horímetro final, combustível final. */
