@@ -98,7 +98,8 @@ export function FormularioTanque({
       <input type="hidden" name="saldo_atual" value={saldoLitros} />
       <input type="hidden" name="comprovante_path" value={comprovante ?? ""} />
 
-      <div className="flex flex-wrap gap-1" role="tablist" hidden={somenteRetirada}>
+      {!somenteRetirada && (
+      <div className="flex flex-wrap gap-1" role="tablist">
         {abas.map((a) => (
           <button
             key={a.chave}
@@ -112,6 +113,7 @@ export function FormularioTanque({
           </button>
         ))}
       </div>
+      )}
 
       {estado.mensagem && <Alerta tom={estado.ok ? "ok" : "erro"}>{estado.mensagem}</Alerta>}
 
