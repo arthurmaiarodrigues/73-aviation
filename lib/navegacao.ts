@@ -16,6 +16,7 @@ const SOCIO: ItemMenu[] = [
   { rotulo: "Conciliação", href: "/conciliacao", icone: "banco" },
   { rotulo: "Agenda", href: "/agenda", icone: "agenda" },
   { rotulo: "Manutenção", href: "/manutencao", icone: "manutencao" },
+  { rotulo: "Anotações", href: "/anotacoes", icone: "anotacoes" },
   { rotulo: "Cadastros", href: "/cadastros", icone: "cadastros" },
   { rotulo: "Instalar o app", href: "/instalar", icone: "instalar" },
 ];
@@ -30,6 +31,7 @@ const PILOTO: ItemMenu[] = [
   { rotulo: "Reembolsos", href: "/reembolsos", icone: "despesas" },
   { rotulo: "Agenda", href: "/agenda", icone: "agenda" },
   { rotulo: "Manutenção", href: "/manutencao", icone: "manutencao" },
+  { rotulo: "Anotações", href: "/anotacoes", icone: "anotacoes" },
   { rotulo: "Instalar o app", href: "/instalar", icone: "instalar" },
 ];
 

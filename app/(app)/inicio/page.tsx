@@ -8,6 +8,7 @@ import { horasPorSocio, horasPorSocioNoMes, listarVoos, trecho, ultimoHorimetro,
 import { saldoDoCaixa, saldoDoFundo, saldosDosSocios } from "@/lib/dados/financeiro";
 import { ciclosRevisao, listarPlano, resumoManutencao } from "@/lib/dados/manutencao";
 import { listarReembolsos } from "@/lib/dados/reembolsos";
+import { listarAnotacoes } from "@/lib/dados/anotacoes";
 import { ROTULO_BLOQUEIO, agendaDoDia, fila, garantirEscolhaAberta, mesSeguinte, proximasReservas, reservasSemVoo, vezDeEscolher } from "@/lib/dados/agenda";
 import { BotaoAcao } from "@/app/(app)/agenda/botoes";
 import { data as fmtData, horas as fmtHoras, horimetro as fmtHorimetro, hoje, inicioDoMes, mesPorExtenso, reais, trimestreDe } from "@/lib/formato";
@@ -51,6 +52,7 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
     fila(aeronave.id, mesProximo),
   ]);
   const manutencao = await resumoManutencao(aeronave.id);
+  const anotacoesAbertas = (await listarAnotacoes(aeronave.id, 50)).filter((a) => !a.resolvida_em);
   // Reservas que terminaram sem voo: o piloto lança ou marca não realizada; o sócio dono também vê.
   const semVoo = (await reservasSemVoo(aeronave.id)).filter((r) => usuario.perfil !== "socio" || r.socio_id === usuario.socioId);
   // Reembolsos ao piloto pendentes: o sócio vê o que deve; o piloto, o que tem a receber.
@@ -201,6 +203,19 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
           )}
           <Link href="/manutencao" className="text-sm underline">
             manutenção
+          </Link>
+        </Alerta>
+      )}
+
+      {anotacoesAbertas.length > 0 && (
+        <Alerta tom={anotacoesAbertas.some((a) => a.gravidade === "URGENTE") ? "erro" : "info"}>
+          <p className="font-semibold">
+            {anotacoesAbertas.length === 1 ? "1 anotação aberta" : `${anotacoesAbertas.length} anotações abertas`} para a próxima revisão
+            {anotacoesAbertas.some((a) => a.gravidade === "URGENTE") ? " — há item URGENTE" : ""}
+          </p>
+          <p className="text-sm">{anotacoesAbertas.slice(0, 3).map((a) => a.descricao).join(" · ")}{anotacoesAbertas.length > 3 ? " …" : ""}</p>
+          <Link href="/anotacoes" className="text-sm underline">
+            ver anotações
           </Link>
         </Alerta>
       )}

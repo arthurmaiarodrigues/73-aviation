@@ -13,7 +13,7 @@ import { hoje } from "@/lib/formato";
  * comprovantes → só quem vê valores
  * documentos-aeronave → só admin
  */
-export type Bucket = "horimetro" | "comprovantes" | "documentos-aeronave";
+export type Bucket = "horimetro" | "comprovantes" | "documentos-aeronave" | "anotacoes";
 
 export type UploadPreparado = { ok: true; caminho: string; token: string } | { ok: false; mensagem: string };
 

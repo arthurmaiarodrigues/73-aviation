@@ -21,6 +21,7 @@ import {
   Scale,
   Wrench,
   Smartphone,
+  ClipboardPen,
   X,
 } from "lucide-react";
 
@@ -43,6 +44,7 @@ const ICONES = {
   manutencao: Wrench,
   cadastros: NotebookPen,
   instalar: Smartphone,
+  anotacoes: ClipboardPen,
 } as const;
 
 export function BarraLateral({
