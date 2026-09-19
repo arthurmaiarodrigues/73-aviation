@@ -84,11 +84,9 @@ export async function salvarVoo(_anterior: Resultado, form: FormData): Promise<R
   const socioBruto = texto(form, "socio_id");
   const socioId = ehUsoComum(natureza) ? null : socioBruto && UUID.test(socioBruto) ? socioBruto : null;
   if (!ehUsoComum(natureza) && !socioId) return { ok: false, mensagem: "Escolha o sócio responsável pelo voo." };
-  // Piloto de fora não lança voo em nome de sócio: é sempre da sociedade.
-  if (usuario.perfil === "piloto" && socioId) return { ok: false, mensagem: "Piloto externo registra voo por conta da sociedade." };
-
+  // Piloto contratado registra o voo em nome do sócio que o contratou (ou da sociedade); o piloto do voo é ele mesmo.
   const pilotoBruto = texto(form, "piloto_id");
-  const pilotoId = pilotoBruto && UUID.test(pilotoBruto) ? pilotoBruto : null;
+  const pilotoId = usuario.pilotoId ?? (pilotoBruto && UUID.test(pilotoBruto) ? pilotoBruto : null);
 
   const origem = icao(form, "origem");
   const destino = icao(form, "destino");

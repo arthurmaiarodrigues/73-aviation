@@ -52,7 +52,7 @@ export function FormularioVoo({
   leituraAutomatica: boolean;
 }) {
   const [estado, acao] = useActionState(salvarVoo, INICIAL);
-  const [natureza, setNatureza] = useState<NaturezaVoo>(perfil === "piloto" ? "SOCIEDADE" : "PARTICULAR");
+  const [natureza, setNatureza] = useState<NaturezaVoo>("PARTICULAR");
   const [pousou, setPousou] = useState(false);
   const [semHorimetro, setSemHorimetro] = useState(false);
   const [fotoInicial, setFotoInicial] = useState<EstadoFoto>({ caminho: null, leitura: null, valor: "" });
@@ -130,14 +130,13 @@ export function FormularioVoo({
 
         <div className="space-y-1.5">
           <Label htmlFor="natureza">Natureza do voo</Label>
-          <Select id="natureza" name="natureza" value={natureza} onChange={(e) => setNatureza(e.target.value as NaturezaVoo)} className="h-12" disabled={perfil === "piloto"}>
+          <Select id="natureza" name="natureza" value={natureza} onChange={(e) => setNatureza(e.target.value as NaturezaVoo)} className="h-12">
             {NATUREZAS.map((n) => (
               <option key={n} value={n}>
                 {ROTULO_NATUREZA[n]}
               </option>
             ))}
           </Select>
-          {perfil === "piloto" && <input type="hidden" name="natureza" value="SOCIEDADE" />}
         </div>
 
         <div className="space-y-1.5">

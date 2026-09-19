@@ -14,6 +14,8 @@ export type UsuarioSessao = {
   /** id em `socios`, quando o usuário é um dos sócios. */
   socioId: string | null;
   socioApelido: string | null;
+  /** id em `pilotos`, quando o login é de um piloto contratado. */
+  pilotoId: string | null;
 };
 
 /**
@@ -31,9 +33,10 @@ export async function usuarioDaSessao(): Promise<
 
   if (!user) return { user: null, usuario: null };
 
-  const [{ data }, { data: socio }] = await Promise.all([
+  const [{ data }, { data: socio }, { data: piloto }] = await Promise.all([
     supabase.from("usuarios").select("id, nome, perfil, ativo").eq("id", user.id).maybeSingle(),
     supabase.from("socios").select("id, apelido").eq("usuario_id", user.id).maybeSingle(),
+    supabase.from("pilotos").select("id").eq("usuario_id", user.id).maybeSingle(),
   ]);
 
   return {
@@ -47,6 +50,7 @@ export async function usuarioDaSessao(): Promise<
           ativo: data.ativo as boolean,
           socioId: (socio?.id as string | undefined) ?? null,
           socioApelido: (socio?.apelido as string | undefined) ?? null,
+          pilotoId: (piloto?.id as string | undefined) ?? null,
         }
       : null,
   };

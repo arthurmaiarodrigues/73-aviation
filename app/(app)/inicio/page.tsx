@@ -234,7 +234,7 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
       )}
 
       {/* Horas por sócio: mês, trimestre e ciclo das revisões */}
-      <HorasPorSocio abas={abasHoras} meuSocioId={usuario.socioId ?? null} />
+      {usuario.perfil !== "piloto" && <HorasPorSocio abas={abasHoras} meuSocioId={usuario.socioId ?? null} />}
 
       {/* Financeiro (só quem vê valores) */}
       {valores && caixa && (

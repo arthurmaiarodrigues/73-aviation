@@ -17,11 +17,11 @@ const SOCIO: ItemMenu[] = [
   { rotulo: "Cadastros", href: "/cadastros", icone: "cadastros" },
 ];
 
+// Piloto contratado: só o que precisa para lançar o voo (sem valores, sem agenda).
 const PILOTO: ItemMenu[] = [
   { rotulo: "Início", href: "/inicio", icone: "inicio" },
   { rotulo: "Registrar voo", href: "/voos/novo", icone: "camera" },
   { rotulo: "Voos", href: "/voos", icone: "voos" },
-  { rotulo: "Agenda", href: "/agenda", icone: "agenda" },
 ];
 
 export function menuDoPerfil(perfil: Perfil): ItemMenu[] {

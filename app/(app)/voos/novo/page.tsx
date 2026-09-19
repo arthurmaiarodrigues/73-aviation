@@ -43,7 +43,7 @@ export default async function PaginaNovoVoo() {
           socioLogadoId={usuario.socioId}
           socios={socios.map((s) => ({ id: s.id, apelido: s.apelido }))}
           pilotos={pilotos}
-          pilotoLogadoId={pilotos.length === 1 ? pilotos[0].id : null}
+          pilotoLogadoId={usuario.pilotoId ?? (pilotos.length === 1 ? pilotos[0].id : null)}
           aerodromos={aerodromos}
           base={aeronave.base_icao ?? "SNTF"}
           ultimoHorimetro={ultimo}

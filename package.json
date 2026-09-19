@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "criar-usuario": "node --env-file=.env.local scripts/criar-usuario.mjs",
+    "convidar": "node --env-file=.env.local scripts/convidar.mjs",
     "verificar-rls": "node --env-file=.env.local scripts/verificar-rls.mjs",
     "importar-horimetro": "node --env-file=.env.local scripts/importar-horimetro.mjs",
     "gerar-icones": "node scripts/gerar-icones.mjs",

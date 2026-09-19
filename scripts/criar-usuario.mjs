@@ -102,18 +102,6 @@ if (erroPerfil) {
   );
 }
 
-// Sócio com o mesmo apelido e sem login: vincula na hora.
-if (perfil !== 'piloto') {
-  const apelido = nomeNormalizado.split(' ')[0];
-  const { data: socio } = await admin.from('socios').select('id, apelido, usuario_id').eq('apelido', apelido).maybeSingle();
-  if (socio && !socio.usuario_id) {
-    const { error: erroVinculo } = await admin.from('socios').update({ usuario_id: usuarioId }).eq('id', socio.id);
-    console.log(erroVinculo ?  : );
-  } else if (socio?.usuario_id && socio.usuario_id !== usuarioId) {
-    console.log();
-  }
-}
-
 await vincularSocio(admin, usuarioId, nomeNormalizado, perfil);
 
 console.log(`
