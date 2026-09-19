@@ -174,7 +174,7 @@ Só a `HORAS E COMBUSTÍVEL.xlsx`, aba HORIMETRO:
 ## 10c. Fase 3 — Manutenção e aeródromos (18/09/2026)
 
 - `db/schema_v3_manutencao.sql`: `plano_manutencao` (+ view `v_plano_status`), `plano_execucoes` (histórico; a base do "desde a última troca"), `manutencoes`, `manutencao_itens`, `documentos_aeronave` (+ `v_documentos_status`), coluna `despesas.pago_pelo_fundo`.
-- Item da nota vira despesa por gatilho: POR_USO → POR_HORAS entre a execução anterior do item e a saída da oficina; POR_TEMPO/IGUAL → IGUAL; pago pelo fundo → sem rateio + saída em `fundo_reserva_movimentos`.
+- Item da nota vira despesa por gatilho: POR_USO → POR_HORAS entre a execução anterior do item e a ENTRADA na oficina (`data_inicio`; voo de teste durante a revisão fica fora — schema_v5b); POR_TEMPO/IGUAL → IGUAL; pago pelo fundo → sem rateio + saída em `fundo_reserva_movimentos`.
 - Manutenção PROGRAMADA/EM_OFICINA cria bloqueio MANUTENCAO na agenda; `concluir_manutencao` (admin) grava execuções, atualiza o plano, reprocessa os itens e encerra o bloqueio na data real.
 - Documento vencido (`documento_vencido_em`) barra `reservar` e aparece no Início. Bucket `documentos-aeronave` (admin grava).
 - `manutencoes.voo_translado_id`/`voo_teste_id` são ponteiros sem FK (validados no código).

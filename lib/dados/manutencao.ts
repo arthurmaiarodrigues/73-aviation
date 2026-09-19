@@ -183,3 +183,36 @@ export async function urlDoDocumento(caminho: string | null): Promise<string | n
   const { data } = await supabase.storage.from("documentos-aeronave").createSignedUrl(caminho, 900);
   return data?.signedUrl ?? null;
 }
+
+export type CicloRevisao = {
+  plano_item_id: string;
+  /** Ciclo da última revisão feita: da execução anterior até a entrada na oficina. */
+  anterior: { inicio: string; fim: string } | null;
+};
+
+/**
+ * Para cada item do plano, o ciclo que a última revisão cobriu: começa na
+ * execução anterior (ou no marco inicial) e termina na entrada da oficina
+ * (data_inicio da manutenção) — o mesmo período que o rateio POR_USO usa.
+ */
+export async function ciclosRevisao(aeronaveId: string): Promise<CicloRevisao[]> {
+  const supabase = await criarClienteServidor();
+  const { data, error } = await supabase
+    .from("plano_execucoes")
+    .select("plano_item_id, data, plano_manutencao!inner ( aeronave_id ), manutencoes ( data_inicio )")
+    .eq("plano_manutencao.aeronave_id", aeronaveId)
+    .order("data", { ascending: false });
+  if (error) throw new Error(`Execuções: ${error.message}`);
+  const porItem = new Map<string, { data: string; data_inicio: string | null }[]>();
+  for (const e of data ?? []) {
+    const m = e.manutencoes as unknown as { data_inicio: string } | null;
+    const lista = porItem.get(e.plano_item_id) ?? [];
+    lista.push({ data: e.data, data_inicio: m?.data_inicio ?? null });
+    porItem.set(e.plano_item_id, lista);
+  }
+  return [...porItem.entries()].map(([plano_item_id, execs]) => {
+    const [ultima, penultima] = execs;
+    const fim = ultima?.data_inicio ?? ultima?.data ?? null;
+    return { plano_item_id, anterior: penultima && fim ? { inicio: penultima.data, fim } : null };
+  });
+}

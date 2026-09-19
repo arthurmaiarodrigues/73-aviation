@@ -78,7 +78,11 @@ export default async function PaginaManutencao({ searchParams }: { searchParams:
                       {p.dias_restantes <= 0 ? `${-p.dias_restantes} dias vencido` : `faltam ${p.dias_restantes} dias`} <span className="text-marinho-300">({fmtData(p.proxima_data)})</span>
                     </p>
                   )}
-                  {p.situacao === "SEM_REGISTRO" && <p className="text-marinho-300">última execução não informada</p>}
+                  {p.situacao === "SEM_REGISTRO" && (
+                    <p className="text-marinho-300">
+                      {p.ultima_data ? `última em ${fmtData(p.ultima_data)} — falta o horímetro dessa execução` : "última execução não informada"}
+                    </p>
+                  )}
                 </div>
                 {admin && (
                   <details className="mt-2">

@@ -6,7 +6,7 @@ import { exigirSessao } from "@/lib/perfil";
 import { aeronaveAtiva, listarSocios } from "@/lib/dados/cadastros";
 import { horasPorSocio, horasPorSocioNoMes, listarVoos, trecho, ultimoHorimetro, vooEmAberto } from "@/lib/dados/voos";
 import { saldoDoCaixa, saldoDoFundo, saldosDosSocios } from "@/lib/dados/financeiro";
-import { listarPlano, resumoManutencao } from "@/lib/dados/manutencao";
+import { ciclosRevisao, listarPlano, resumoManutencao } from "@/lib/dados/manutencao";
 import { ROTULO_BLOQUEIO, agendaDoDia, fila, garantirEscolhaAberta, mesSeguinte, proximasReservas, vezDeEscolher } from "@/lib/dados/agenda";
 import { data as fmtData, horas as fmtHoras, horimetro as fmtHorimetro, hoje, inicioDoMes, mesPorExtenso, reais, trimestreDe } from "@/lib/formato";
 import { veValores } from "@/lib/tipos";
@@ -51,12 +51,15 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
 
   // Horas por sócio: mês, trimestre e o ciclo de cada revisão (desde a última execução).
   const trimestre = trimestreDe(hoje());
-  const plano = await listarPlano(aeronave.id);
+  const [plano, ciclos] = await Promise.all([listarPlano(aeronave.id), ciclosRevisao(aeronave.id)]);
   const revisoes = plano.filter((p) => /^REVIS[ÃA]O \d+ ?H$/.test(p.descricao)).sort((a, b) => (a.intervalo_horas ?? 0) - (b.intervalo_horas ?? 0));
+  const anteriores = revisoes.map((r) => ciclos.find((c) => c.plano_item_id === r.id)?.anterior ?? null);
   const [horasTrimestre, ...horasRevisoes] = await Promise.all([
     horasPorSocio(aeronave.id, trimestre.inicio, trimestre.fim),
     ...revisoes.map((r) => horasPorSocio(aeronave.id, r.ultima_data ?? "2000-01-01", "2099-12-31")),
+    ...anteriores.map((c) => (c ? horasPorSocio(aeronave.id, c.inicio, c.fim) : Promise.resolve([]))),
   ]);
+  const horasAnteriores = horasRevisoes.splice(revisoes.length);
   const linhas = (h: { socio_id: string; horas: number; custo?: number }[], comCusto: boolean) =>
     socios.map((s) => {
       const x = h.find((l) => l.socio_id === s.id);
@@ -71,6 +74,12 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
       subtitulo: r.ultima_data ? `desde a última revisão, em ${fmtData(r.ultima_data)}` : "desde o início (última execução não informada no plano)",
       meta: r.intervalo_horas,
       linhas: linhas(horasRevisoes[i], false),
+      anterior: anteriores[i]
+        ? {
+            subtitulo: `Última revisão: voos de ${fmtData(anteriores[i].inicio)} a ${fmtData(anteriores[i].fim)} — é essa divisão que a nota da oficina usa nos itens por uso`,
+            linhas: linhas(horasAnteriores[i], false),
+          }
+        : null,
     })),
   ];
   const minhaVezEm = [vezAtual === usuario.socioId && usuario.socioId ? mes : null, vezProxima === usuario.socioId && usuario.socioId ? mesProximo : null].filter(Boolean) as string[];

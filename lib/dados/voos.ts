@@ -102,7 +102,7 @@ export async function listarVoos(aeronaveId: string, filtro: FiltroVoos = {}, li
   if (filtro.ate) q = q.lte("data", filtro.ate);
   if (filtro.natureza) q = q.eq("natureza", filtro.natureza);
   if (filtro.aerodromo) q = q.or(`origem.eq.${filtro.aerodromo},destino.eq.${filtro.aerodromo},escalas.cs.{${filtro.aerodromo}}`);
-  if (filtro.pendentes) q = q.or("status.eq.RASCUNHO,pendente_horimetro.eq.true,horimetro_final.is.null");
+  if (filtro.pendentes) q = q.or("status.eq.RASCUNHO,pendente_horimetro.eq.true,and(horimetro_final.is.null,horimetro_inicial.not.is.null)");
 
   const { data, error } = await q;
   if (error) throw new Error(`Voos: ${error.message}`);

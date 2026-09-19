@@ -14,8 +14,12 @@ export type AbaHoras = {
   subtitulo: string;
   /** Meta do ciclo (intervalo da revisão) para mostrar "12,3 de 50 h". */
   meta: number | null;
-  linhas: { socio_id: string; apelido: string; cor: string; horas: number; custo: number | null }[];
+  linhas: LinhaHoras[];
+  /** Ciclo da última revisão feita (só nas abas de revisão). */
+  anterior?: { subtitulo: string; linhas: LinhaHoras[] } | null;
 };
+
+export type LinhaHoras = { socio_id: string; apelido: string; cor: string; horas: number; custo: number | null };
 
 /**
  * Horas por sócio no Início, em abas: mês, trimestre e o ciclo de cada
@@ -79,6 +83,29 @@ export function HorasPorSocio({ abas, meuSocioId }: { abas: AbaHoras[]; meuSocio
           );
         })}
       </div>
+      {aba.anterior && <CicloAnterior subtitulo={aba.anterior.subtitulo} linhas={aba.anterior.linhas} />}
+    </div>
+  );
+}
+
+function CicloAnterior({ subtitulo, linhas }: { subtitulo: string; linhas: LinhaHoras[] }) {
+  const total = linhas.reduce((s, l) => s + l.horas, 0);
+  return (
+    <div className="mt-4 rounded-lg border border-marinho-100 p-4 dark:border-marinho-300">
+      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+        <p className="text-sm text-marinho-300">{subtitulo}</p>
+        <p className="tabular text-sm font-semibold">{fmtHoras(total)}</p>
+      </div>
+      <ul className="grid gap-1 sm:grid-cols-4">
+        {linhas.map((l) => (
+          <li key={l.socio_id} className="flex items-center gap-2 text-sm">
+            <span className="size-2.5 shrink-0 rounded-full" style={{ background: l.cor }} />
+            <span className="flex-1 font-semibold">{l.apelido}</span>
+            <span className="tabular">{fmtHoras(l.horas)}</span>
+            <span className="tabular w-12 text-right text-marinho-300">{total > 0 ? ((l.horas / total) * 100).toFixed(0) : 0} %</span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
