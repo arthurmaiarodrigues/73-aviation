@@ -62,7 +62,7 @@ export default async function PaginaDespesa({
         <CardHeader className="flex-row items-baseline justify-between">
           <CardTitle>{reais(despesa.valor)}</CardTitle>
           <span className="text-sm text-marinho-300">
-            {ROTULO_CRITERIO[despesa.criterio]}
+            {despesa.tanque === "COMPRA" ? (despesa.rateios.some((r) => r.litros_base) ? "Por litros retirados do tanque desde a compra anterior" : "Igual — estoque inicial do tanque") : ROTULO_CRITERIO[despesa.criterio]}
             {despesa.socio_direto ? ` — ${despesa.socio_direto}` : ""}
           </span>
         </CardHeader>
@@ -72,6 +72,7 @@ export default async function PaginaDespesa({
               <tr>
                 <Cabecalho>Sócio</Cabecalho>
                 {despesa.criterio === "POR_HORAS" && <Cabecalho numerico>Horas base</Cabecalho>}
+                {despesa.tanque === "COMPRA" && <Cabecalho numerico>Litros</Cabecalho>}
                 <Cabecalho numerico>%</Cabecalho>
                 <Cabecalho numerico>Parte</Cabecalho>
               </tr>
@@ -81,6 +82,7 @@ export default async function PaginaDespesa({
                 <TabelaLinha key={r.socio_id}>
                   <Celula>{r.apelido}</Celula>
                   {despesa.criterio === "POR_HORAS" && <Celula numerico>{fmtHoras(r.horas_base)}</Celula>}
+                  {despesa.tanque === "COMPRA" && <Celula numerico>{r.litros_base !== null ? `${String(r.litros_base).replace(".", ",")} L` : "—"}</Celula>}
                   <Celula numerico>{percentual(r.percentual, 2)}</Celula>
                   <Celula numerico className="font-semibold">{reais(r.valor)}</Celula>
                 </TabelaLinha>

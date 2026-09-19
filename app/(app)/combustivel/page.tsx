@@ -5,7 +5,7 @@ import { Download } from "lucide-react";
 import { exigirSessao } from "@/lib/perfil";
 import { aeronaveAtiva, listarFornecedores, listarSocios } from "@/lib/dados/cadastros";
 import { listarAbastecimentos } from "@/lib/dados/financeiro";
-import { ROTULO_MOVIMENTO, movimentosDoTanque, retiradasRecentes, saldoDoTanque, saldoLitrosTanque, tanquePorSocio } from "@/lib/dados/tanque";
+import { ROTULO_MOVIMENTO, movimentosDoTanque, retiradasRecentes, saldoDoTanque, saldoLitrosTanque, tanquePorSocio, usoDesdeUltimaCompra } from "@/lib/dados/tanque";
 import { listarVoos } from "@/lib/dados/voos";
 import { data as fmtData, hoje, inicioDoMes, litros as fmtLitros, mesPorExtenso, reais } from "@/lib/formato";
 import { veValores } from "@/lib/tipos";
@@ -32,6 +32,8 @@ export default async function PaginaCombustivel() {
     listarAbastecimentos(aeronave.id, 50),
   ]);
   const pct = saldo.capacidade_l > 0 ? Math.min(100, (saldo.litros / saldo.capacidade_l) * 100) : 0;
+  const desdeCompra = await usoDesdeUltimaCompra(aeronave.id, saldo.ultima_compra);
+  const totalDesde = desdeCompra.reduce((t, l) => t + l.litros, 0);
 
   // Uso por sócio: no mês e no total (a parte da sociedade já dividida).
   const uso = socios.map((s) => {
@@ -53,7 +55,7 @@ export default async function PaginaCombustivel() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Combustível</h1>
-          <p className="mt-1 text-sm text-marinho-300">Tanque do hangar: cada litro que vai para o avião é cobrado do sócio pelo preço médio das compras.</p>
+          <p className="mt-1 text-sm text-marinho-300">Tanque do hangar: as retiradas registram o uso de cada sócio; a próxima compra de combustível é dividida na proporção desse uso.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button asChild variant="secundario">
@@ -100,6 +102,32 @@ export default async function PaginaCombustivel() {
         precoLitro={saldo.preco_litro}
       />
 
+      {/* Próxima compra */}
+      <Card className="border-info">
+        <CardHeader className="p-5">
+          <p className="text-xs uppercase tracking-wide text-marinho-300">Como a próxima compra será dividida</p>
+          <p className="text-sm text-marinho-300">
+            Litros retirados {saldo.ultima_compra ? `desde a compra de ${fmtData(saldo.ultima_compra)}` : "até agora"}: <strong className="tabular">{fmtLitros(totalDesde)}</strong>
+            {totalDesde === 0 ? " — sem retirada ainda; se comprar agora, divide igual." : ""}
+          </p>
+          {totalDesde > 0 && (
+            <ul className="mt-2 grid gap-1 sm:grid-cols-4">
+              {socios.map((s) => {
+                const l = desdeCompra.find((x) => x.socio_id === s.id)?.litros ?? 0;
+                return (
+                  <li key={s.id} className="flex items-center gap-2 text-sm">
+                    <span className="size-2.5 shrink-0 rounded-full" style={{ background: s.cor }} />
+                    <span className="flex-1 font-semibold">{s.apelido}</span>
+                    <span className="tabular">{fmtLitros(l)}</span>
+                    <span className="tabular w-12 text-right text-marinho-300">{((l / totalDesde) * 100).toFixed(0)} %</span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </CardHeader>
+      </Card>
+
       {/* Uso por sócio */}
       <div>
         <h2 className="mb-3 text-lg font-semibold">Uso do tanque por sócio</h2>
@@ -113,13 +141,13 @@ export default async function PaginaCombustivel() {
                 </div>
                 <CardTitle className="tabular text-xl">{fmtLitros(u.mesLitros)}</CardTitle>
                 <p className="text-xs text-marinho-300 tabular">
-                  {mesPorExtenso(mes)} · {reais(u.mesValor)}
+                  {mesPorExtenso(mes)} · ≈ {reais(u.mesValor)}
                 </p>
                 <div className="h-1.5 w-full rounded bg-marinho-100 dark:bg-marinho-300">
                   <div className="h-1.5 rounded" style={{ width: `${totalRetirado > 0 ? (u.totalLitros / totalRetirado) * 100 : 0}%`, background: u.socio.cor }} />
                 </div>
                 <p className="text-xs text-marinho-300 tabular">
-                  total {fmtLitros(u.totalLitros)} · {reais(u.totalValor)} · {totalRetirado > 0 ? ((u.totalLitros / totalRetirado) * 100).toFixed(0) : 0} %
+                  total {fmtLitros(u.totalLitros)} · ≈ {reais(u.totalValor)} · {totalRetirado > 0 ? ((u.totalLitros / totalRetirado) * 100).toFixed(0) : 0} %
                 </p>
               </CardHeader>
             </Card>

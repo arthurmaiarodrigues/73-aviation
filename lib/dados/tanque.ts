@@ -103,3 +103,11 @@ export async function retiradasRecentes(aeronaveId: string, limite = 10): Promis
   if (error) throw new Error(`Retiradas: ${error.message}`);
   return ((data ?? []) as { id: string; data: string; litros: string | number; socio: string | null; observacao: string | null }[]).map((r) => ({ ...r, litros: Number(r.litros) }));
 }
+
+/** Litros de cada sócio desde a última compra (a parte da sociedade dividida): é como a próxima compra será rateada. */
+export async function usoDesdeUltimaCompra(aeronaveId: string, ultimaCompra: string | null): Promise<{ socio_id: string; litros: number }[]> {
+  const supabase = await criarClienteServidor();
+  const { data, error } = await supabase.rpc("litros_tanque_por_socio", { p_aeronave: aeronaveId, p_depois_de: ultimaCompra, p_ate: "2099-12-31" });
+  if (error) throw new Error(`Uso do tanque: ${error.message}`);
+  return ((data ?? []) as { socio_id: string; litros: string | number }[]).map((l) => ({ socio_id: l.socio_id, litros: Number(l.litros) }));
+}

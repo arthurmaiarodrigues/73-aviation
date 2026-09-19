@@ -103,7 +103,7 @@ export default async function PaginaDespesas({ searchParams }: { searchParams: P
               <Celula>{d.fornecedor ?? ""}</Celula>
               <Celula>{d.pagador}</Celula>
               <Celula className="whitespace-nowrap">
-                {ROTULO_CRITERIO[d.criterio]}
+                {d.tanque === "COMPRA" ? (d.rateios.some((r) => r.litros_base) ? "Por litros do tanque" : "Igual (estoque inicial)") : ROTULO_CRITERIO[d.criterio]}
                 {d.socio_direto ? ` → ${d.socio_direto}` : ""}
               </Celula>
               <Celula numerico className="font-semibold">{reais(d.valor)}</Celula>

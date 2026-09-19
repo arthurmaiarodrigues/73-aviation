@@ -24,7 +24,9 @@ export type DespesaLinha = {
   voo_id: string | null;
   observacao: string | null;
   autor_id: string | null;
-  rateios: { socio_id: string; apelido: string; percentual: number; valor: number; horas_base: number | null }[];
+  /** Compra para o tanque do hangar: rateio por litros retirados desde a compra anterior. */
+  tanque: "COMPRA" | "RETIRADA" | null;
+  rateios: { socio_id: string; apelido: string; percentual: number; valor: number; horas_base: number | null; litros_base: number | null }[];
 };
 
 export type FiltroDespesas = {
@@ -37,11 +39,11 @@ export type FiltroDespesas = {
 };
 
 const SELECT = `id, data, descricao, categoria_id, fornecedor_id, valor, pagador_socio_id, criterio, socio_direto_id,
-  periodo_inicio, periodo_fim, status, comprovante_path, voo_id, observacao, autor_id,
+  periodo_inicio, periodo_fim, status, comprovante_path, voo_id, observacao, autor_id, tanque,
   categorias_despesa ( nome ), fornecedores ( nome ),
   pagador:socios!despesas_pagador_socio_id_fkey ( apelido ),
   direto:socios!despesas_socio_direto_id_fkey ( apelido ),
-  rateios ( socio_id, percentual, valor, horas_base, socios ( apelido ) )`;
+  rateios ( socio_id, percentual, valor, horas_base, litros_base, socios ( apelido ) )`;
 
 type Bruta = {
   id: string; data: string; descricao: string; categoria_id: number; fornecedor_id: string | null; valor: string;
@@ -50,7 +52,8 @@ type Bruta = {
   voo_id: string | null; observacao: string | null; autor_id: string | null;
   categorias_despesa: { nome: string } | null; fornecedores: { nome: string } | null;
   pagador: { apelido: string } | null; direto: { apelido: string } | null;
-  rateios: { socio_id: string; percentual: string; valor: string; horas_base: string | null; socios: { apelido: string } | null }[];
+  tanque?: "COMPRA" | "RETIRADA" | null;
+  rateios: { socio_id: string; percentual: string; valor: string; horas_base: string | null; litros_base?: string | null; socios: { apelido: string } | null }[];
 };
 
 function mapear(d: Bruta): DespesaLinha {
@@ -66,6 +69,7 @@ function mapear(d: Bruta): DespesaLinha {
     pagador_socio_id: d.pagador_socio_id,
     pagador: d.pagador?.apelido ?? "CAIXA",
     criterio: d.criterio,
+    tanque: d.tanque ?? null,
     socio_direto_id: d.socio_direto_id,
     socio_direto: d.direto?.apelido ?? null,
     periodo_inicio: d.periodo_inicio,
@@ -82,6 +86,7 @@ function mapear(d: Bruta): DespesaLinha {
         percentual: Number(r.percentual),
         valor: Number(r.valor),
         horas_base: r.horas_base === null ? null : Number(r.horas_base),
+        litros_base: r.litros_base === null || r.litros_base === undefined ? null : Number(r.litros_base),
       }))
       .sort((a, b) => a.apelido.localeCompare(b.apelido)),
   };
