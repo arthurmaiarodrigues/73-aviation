@@ -173,7 +173,7 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
       </Card>
 
       {/* Manutenção e documentos */}
-      {(manutencao.proximo || manutencao.documentosAlerta.length > 0 || manutencao.semRegistro > 0) && (
+      {(manutencao.proximo || manutencao.documentosAlerta.length > 0 || (manutencao.semRegistro > 0 && usuario.perfil === "admin")) && (
         <Alerta tom={manutencao.proximo?.situacao === "VENCIDO" || manutencao.documentosAlerta.some((d) => d.situacao === "VENCIDO") ? "erro" : manutencao.proximo?.situacao === "AVISO" || manutencao.documentosAlerta.length > 0 ? "atencao" : "info"}>
           {manutencao.proximo && (
             <p>
