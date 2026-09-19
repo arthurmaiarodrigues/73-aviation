@@ -11,7 +11,11 @@ import { lerCsvExtrato } from "@/lib/extrato-csv";
 export type Resultado = { ok: boolean; mensagem: string };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const traduzir = (m: string) => m.replace(/^.*?(?:ERROR|error):\s*/, "").replace(/\s*\(SQLSTATE.*\)$/, "");
+const traduzir = (m: string) => {
+  if (/extrato_banco_despesa_unq/.test(m)) return "Essa despesa já está conciliada com outra linha do extrato.";
+  if (/extrato_banco_aporte_unq/.test(m)) return "Esse aporte já está conciliado com outra linha do extrato.";
+  return m.replace(/^.*?(?:ERROR|error):s*/, "").replace(/s*(SQLSTATE.*)$/, "");
+};
 
 async function exigirAdminAcao(): Promise<{ ok: true; id: string } | { ok: false; mensagem: string }> {
   const { user, usuario } = await usuarioDaSessao();
