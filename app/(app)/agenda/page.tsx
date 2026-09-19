@@ -84,7 +84,7 @@ export default async function PaginaAgenda({ searchParams }: { searchParams: Pro
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Agenda</h1>
-          <p className="text-sm text-marinho-300">Cada sócio tem por mês uma semana (seg–qui) e um fim de semana (sex–dom). O resto é pedido, com o OK dos outros.</p>
+          <p className="text-sm text-marinho-300">Cada sócio tem por mês uma semana (seg–qui) e um fim de semana (sex–dom). Reservou num bloco livre com o direito ainda não usado? O bloco vira seu. Além disso, é pedido com o OK dos outros.</p>
         </div>
         <div className="flex items-center gap-1">
           <Button asChild variant="fantasma" size="icone">
@@ -138,7 +138,7 @@ export default async function PaginaAgenda({ searchParams }: { searchParams: Pro
         <Card className="border-atencao">
           <CardHeader>
             <CardTitle className="text-lg">Pedidos aguardando resposta</CardTitle>
-            <CardDescription>Reserva fora dos blocos do sócio. Dia comum: sem objeção em 48 h, confirma. Feriado: só com o OK de todos.</CardDescription>
+            <CardDescription>Reserva além do direito do mês do sócio. Dia comum: sem objeção em 48 h, confirma. Feriado: só com o OK de todos.</CardDescription>
           </CardHeader>
           <CardContent>
             <ul className="divide-y divide-marinho-100 text-sm dark:divide-marinho-300">
@@ -276,7 +276,7 @@ export default async function PaginaAgenda({ searchParams }: { searchParams: Pro
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Reservas do mês</CardTitle>
-            <CardDescription>Nos seus blocos confirma na hora. Fora deles vira pedido aos outros sócios. Até 60 dias à frente.</CardDescription>
+            <CardDescription>Bloco livre com o seu direito do mês ainda não usado: confirma na hora e o bloco vira seu. Direito já usado: vira pedido aos outros sócios. Até 60 dias à frente.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {podeReservar ? <FormularioReserva hoje={h} aerodromos={aerodromos} socios={opcoesSocios} meuSocioId={socioLogado} /> : <p className="text-sm text-marinho-300">Só sócio reserva.</p>}
@@ -352,7 +352,8 @@ export default async function PaginaAgenda({ searchParams }: { searchParams: Pro
             <li>Cada sócio tem por mês <strong>uma semana (seg–qui)</strong> e <strong>um fim de semana (sex–dom)</strong>, escolhidos na fila.</li>
             <li>A ordem da fila é por <strong>menos uso</strong> nos 3 meses anteriores: dias reservados + horas voadas. Empate: quem escolheu por último fica atrás.</li>
             <li>A escolha abre no dia 15 do mês anterior; cada um tem <strong>48 h</strong> na sua vez. Quem não escolhe passa a vez e pega o que sobrar.</li>
-            <li>Reserva fora dos seus blocos é um <strong>pedido</strong>: os outros sócios recebem aviso. Sem ninguém dizer "preciso" em 48 h, confirma.</li>
+            <li>Reservar dias de um bloco <strong>livre</strong> quando você ainda não usou o direito daquele tipo no mês confirma na hora — o bloco passa a ser seu (vale como a sua escolha).</li>
+            <li>Já usou o direito do mês? Reserva a mais é um <strong>pedido</strong>: os outros sócios recebem aviso. Sem ninguém dizer "preciso" em 48 h, confirma.</li>
             <li><strong>Feriado prolongado, Natal e Ano Novo</strong> só confirmam com o "concordo" de todos os outros sócios.</li>
             <li>Reservas só até <strong>60 dias</strong> à frente e no máximo 30 dias seguidos.</li>
             <li>Sócios podem <strong>trocar</strong> períodos entre si (semana por semana, fim de semana por fim de semana): um propõe, o outro aceita.</li>
