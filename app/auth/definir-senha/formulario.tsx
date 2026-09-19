@@ -50,8 +50,15 @@ export function FormularioDefinirSenha() {
       const access = hash.get("access_token");
       const refresh = hash.get("refresh_token");
       const code = query.get("code");
+      // Link "#th=…": o token fica no fragmento, que o WhatsApp não lê ao
+      // montar a prévia — só o navegador da pessoa gasta o link, aqui.
+      const tokenHash = hash.get("th");
       try {
-        if (access && refresh) {
+        if (tokenHash) {
+          const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: "magiclink" });
+          if (error) throw error;
+          window.history.replaceState(null, "", window.location.pathname);
+        } else if (access && refresh) {
           const { error } = await supabase.auth.setSession({ access_token: access, refresh_token: refresh });
           if (error) throw error;
           // Tira o token da barra de endereço: não fica no histórico.
@@ -62,7 +69,8 @@ export function FormularioDefinirSenha() {
           window.history.replaceState(null, "", window.location.pathname);
         }
       } catch (e) {
-        setEstado({ fase: "invalido", motivo: e instanceof Error ? e.message : "Não consegui validar o link." });
+        const m = e instanceof Error ? e.message : "";
+        setEstado({ fase: "invalido", motivo: /expired|invalid|not found/i.test(m) ? "O link venceu ou já foi usado. Peça um convite novo ao administrador." : m || "Não consegui validar o link." });
         return;
       }
 

@@ -13,7 +13,8 @@
     "importar-horimetro": "node --env-file=.env.local scripts/importar-horimetro.mjs",
     "gerar-icones": "node scripts/gerar-icones.mjs",
     "testar-horimetro": "node --env-file=.env.local --experimental-strip-types scripts/testar-horimetro.mjs",
-    "importar-aerodromos": "node --env-file=.env.local scripts/importar-aerodromos.mjs"
+    "importar-aerodromos": "node --env-file=.env.local scripts/importar-aerodromos.mjs",
+    "link-acesso": "node --env-file=.env.local scripts/link-acesso.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",
