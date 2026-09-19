@@ -6,12 +6,20 @@ import { criarClienteAdmin } from "@/lib/supabase/admin";
 
 export type Aviso = { titulo: string; corpo: string; url?: string; tag?: string };
 
+/** Chaves VAPID válidas? Nunca lança: aviso é acessório, a ação principal não pode cair por causa dele. */
 function configurado(): boolean {
-  const pub = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-  const priv = process.env.VAPID_PRIVATE_KEY;
+  const pub = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY?.trim();
+  const priv = process.env.VAPID_PRIVATE_KEY?.trim();
   if (!pub || !priv) return false;
-  webpush.setVapidDetails(process.env.VAPID_SUBJECT ?? "mailto:contato@ppznm.app", pub, priv);
-  return true;
+  const assunto = process.env.VAPID_SUBJECT?.trim();
+  const subject = assunto && /^(mailto:|https?:\/\/)/.test(assunto) ? assunto : "mailto:arthurmaiarodrigues@gmail.com";
+  try {
+    webpush.setVapidDetails(subject, pub, priv);
+    return true;
+  } catch (e) {
+    console.error("push: chaves VAPID inválidas —", e instanceof Error ? e.message : e);
+    return false;
+  }
 }
 
 /**
@@ -20,8 +28,8 @@ function configurado(): boolean {
  * Inscrição morta (410/404) é apagada.
  */
 export async function notificar(destino: { usuarios?: string[]; perfis?: ("admin" | "socio" | "piloto")[] }, aviso: Aviso): Promise<number> {
-  if (!configurado()) return 0;
   try {
+    if (!configurado()) return 0;
     const admin = criarClienteAdmin();
     let ids = destino.usuarios ?? [];
     if (destino.perfis?.length) {
