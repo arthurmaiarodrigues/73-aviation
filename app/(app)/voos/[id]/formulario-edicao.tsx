@@ -92,7 +92,7 @@ export function FormularioEdicao({
           </div>
           <SeletorAerodromo nome="origem" rotulo="Origem" opcoes={aerodromos} valorInicial={voo.origem ?? ""} />
           <SeletorAerodromo nome="destino" rotulo="Destino" opcoes={aerodromos} valorInicial={voo.destino ?? ""} />
-          <ListaEscalas opcoes={aerodromos} iniciais={voo.escalas} />
+          <ListaEscalas opcoes={aerodromos} iniciais={voo.escalas} horasIniciais={voo.horas_pernas} />
           <div className="space-y-1.5">
             <Label htmlFor="horimetro_inicial">Horímetro inicial</Label>
             <Input id="horimetro_inicial" name="horimetro_inicial" inputMode="decimal" defaultValue={dec(voo.horimetro_inicial)} className="tabular" />

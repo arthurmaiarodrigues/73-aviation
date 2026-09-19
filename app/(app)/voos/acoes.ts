@@ -35,6 +35,16 @@ function escalas(form: FormData): string[] {
     .filter((v) => ICAO.test(v));
 }
 
+/** Horas de cada perna (campos `horas_perna`); vazio → []. Soma só se todas preenchidas. */
+function horasPernas(form: FormData, qtdEscalas: number): { lista: number[]; soma: number | null } {
+  const lista = form
+    .getAll("horas_perna")
+    .map((v) => lerNumero(String(v)))
+    .filter((v): v is number => v !== null && v > 0);
+  if (qtdEscalas === 0 || lista.length !== qtdEscalas + 1) return { lista: [], soma: null };
+  return { lista, soma: Math.round(lista.reduce((s, v) => s + v, 0) * 10) / 10 };
+}
+
 function leituraJson(form: FormData, campo: string): unknown {
   const t = texto(form, campo);
   if (!t) return null;
@@ -83,8 +93,10 @@ export async function salvarVoo(_anterior: Resultado, form: FormData): Promise<R
 
   const hInicial = lerNumero(form.get("horimetro_inicial"));
   const hFinal = lerNumero(form.get("horimetro_final"));
-  const horasInformadas = lerNumero(form.get("horas_informadas"));
-  if (hInicial === null && horasInformadas === null) return { ok: false, mensagem: "Informe o horímetro inicial." };
+  const escalasLista = escalas(form);
+  const pernas = horasPernas(form, escalasLista.length);
+  const horasInformadas = lerNumero(form.get("horas_informadas")) ?? pernas.soma;
+  if (hInicial === null && horasInformadas === null) return { ok: false, mensagem: "Informe o horímetro inicial (ou as horas de cada perna)." };
   if (hFinal !== null && hInicial !== null && hFinal < hInicial) return { ok: false, mensagem: "O horímetro final tem de ser maior que o inicial." };
   if (hFinal !== null && hInicial !== null && hFinal - hInicial > 12) return { ok: false, mensagem: "Mais de 12 h num voo só? Confira os horímetros." };
 
@@ -125,7 +137,8 @@ export async function salvarVoo(_anterior: Resultado, form: FormData): Promise<R
       piloto_id: pilotoId,
       origem,
       destino,
-      escalas: escalas(form),
+      escalas: escalasLista,
+      horas_pernas: pernas.lista,
       horimetro_inicial: hInicial,
       horimetro_final: hFinal,
       horas_informadas: hInicial === null ? horasInformadas : null,
@@ -177,7 +190,7 @@ export async function registrarPouso(_anterior: Resultado, form: FormData): Prom
     .update({
       horimetro_final: hFinal,
       destino,
-      ...(form.has("escala") ? { escalas: escalas(form) } : {}),
+      ...(form.has("escala") ? { escalas: escalas(form), horas_pernas: horasPernas(form, escalas(form).length).lista } : {}),
       combustivel_final_l: lerNumero(form.get("combustivel_final_l")),
       pousos: Math.max(0, Math.round(lerNumero(form.get("pousos")) ?? 1)),
       foto_horimetro_final: texto(form, "foto_final"),
@@ -211,7 +224,9 @@ export async function editarVoo(_anterior: Resultado, form: FormData): Promise<R
 
   const hInicial = lerNumero(form.get("horimetro_inicial"));
   const hFinal = lerNumero(form.get("horimetro_final"));
-  const horasInformadas = lerNumero(form.get("horas_informadas"));
+  const escalasLista = escalas(form);
+  const pernas = horasPernas(form, escalasLista.length);
+  const horasInformadas = lerNumero(form.get("horas_informadas")) ?? pernas.soma;
   if (hInicial !== null && hFinal !== null && hFinal < hInicial) return { ok: false, mensagem: "O horímetro final tem de ser maior que o inicial." };
 
   const supabase = await criarClienteServidor();
@@ -223,7 +238,8 @@ export async function editarVoo(_anterior: Resultado, form: FormData): Promise<R
       piloto_id: pilotoBruto && UUID.test(pilotoBruto) ? pilotoBruto : null,
       origem: icao(form, "origem"),
       destino: icao(form, "destino"),
-      escalas: escalas(form),
+      escalas: escalasLista,
+      horas_pernas: pernas.lista,
       horimetro_inicial: hInicial,
       horimetro_final: hFinal,
       horas_informadas: hInicial === null ? horasInformadas : null,

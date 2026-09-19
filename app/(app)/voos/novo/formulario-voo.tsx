@@ -58,6 +58,8 @@ export function FormularioVoo({
   const [fotoInicial, setFotoInicial] = useState<EstadoFoto>({ caminho: null, leitura: null, valor: "" });
   const [fotoFinal, setFotoFinal] = useState<EstadoFoto>({ caminho: null, leitura: null, valor: "" });
   const [pousos, setPousos] = useState("1");
+  const [horasDigitadas, setHorasDigitadas] = useState("");
+  const [somaPernas, setSomaPernas] = useState<number | null>(null);
 
   const usoComum = ehUsoComum(natureza);
   const inicialNumero = Number(fotoInicial.valor.replace(/\./g, "").replace(",", "."));
@@ -87,8 +89,20 @@ export function FormularioVoo({
       ) : (
         <div className="space-y-1.5 rounded-lg border border-atencao/40 bg-atencao/10 p-4">
           <Label htmlFor="horas_informadas">Horas voadas (sem horímetro)</Label>
-          <Input id="horas_informadas" name="horas_informadas" inputMode="decimal" placeholder="1,5" className="h-12 text-lg tabular" required />
-          <p className="text-xs text-atencao">O voo fica marcado como pendente de horímetro até o administrador conferir.</p>
+          <Input
+            id="horas_informadas"
+            name="horas_informadas"
+            inputMode="decimal"
+            placeholder="1,5"
+            value={somaPernas !== null ? String(somaPernas).replace(".", ",") : horasDigitadas}
+            onChange={(e) => setHorasDigitadas(e.target.value)}
+            readOnly={somaPernas !== null}
+            className="h-12 text-lg tabular"
+            required
+          />
+          <p className="text-xs text-atencao">
+            {somaPernas !== null ? "Soma das pernas (edite as horas de cada perna abaixo). " : ""}O voo fica marcado como pendente de horímetro até o administrador conferir.
+          </p>
         </div>
       )}
       {perfil === "admin" && (
@@ -151,7 +165,13 @@ export function FormularioVoo({
 
         <SeletorAerodromo nome="origem" rotulo="Origem" opcoes={aerodromos} valorInicial={base} />
         <SeletorAerodromo nome="destino" rotulo="Destino" opcoes={aerodromos} />
-        <ListaEscalas opcoes={aerodromos} aoMudar={(n) => setPousos(String(n + 1))} />
+        <ListaEscalas
+          opcoes={aerodromos}
+          aoMudar={(n, total) => {
+            setPousos(String(n + 1));
+            setSomaPernas(total);
+          }}
+        />
 
         <div className="space-y-1.5">
           <Label htmlFor="combustivel_inicial_l">Combustível na decolagem (L)</Label>
@@ -165,6 +185,13 @@ export function FormularioVoo({
           <p className="text-xs text-marinho-300">Escalas + destino. Ajuste se fez toque-e-arremetida.</p>
         </div>
       </div>
+
+      {!semHorimetro && somaPernas !== null && pousou && fotoFinal.valor && fotoInicial.valor && (
+        <p className="text-xs text-marinho-300">
+          Soma das pernas: {String(somaPernas).replace(".", ",")} h · pelo horímetro:{" "}
+          {(Math.round((Number(fotoFinal.valor.replace(/\./g, "").replace(",", ".")) - Number(fotoInicial.valor.replace(/\./g, "").replace(",", "."))) * 10) / 10).toFixed(1).replace(".", ",")} h — vale o horímetro.
+        </p>
+      )}
 
       {/* 3. Pouso — agora ou depois */}
       <label className="flex items-center gap-3 rounded-lg border border-marinho-100 bg-areia-200 p-4 text-sm font-semibold dark:border-marinho-300 dark:bg-marinho-700">

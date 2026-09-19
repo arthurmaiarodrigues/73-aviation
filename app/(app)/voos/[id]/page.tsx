@@ -82,6 +82,14 @@ export default async function PaginaVoo({
                   : "—"
             }
           />
+          {voo.escalas.length > 0 && (
+            <Dado
+              rotulo="Pernas"
+              valor={[voo.origem ?? "?", ...voo.escalas]
+                .map((de, i) => `${de} → ${[...voo.escalas, voo.destino ?? "?"][i]}${voo.horas_pernas[i] !== undefined ? ` (${fmtHoras(voo.horas_pernas[i])})` : ""}`)
+                .join(" · ")}
+            />
+          )}
           {voo.observacao && <Dado rotulo="Observação" valor={voo.observacao} />}
         </CardContent>
       </Card>
@@ -104,6 +112,7 @@ export default async function PaginaVoo({
               horimetroInicial={voo.horimetro_inicial}
               destino={voo.destino}
               escalas={voo.escalas}
+              horasPernas={voo.horas_pernas}
               aerodromos={aerodromos}
               observacao={voo.observacao}
               leituraAutomatica={temChave()}
