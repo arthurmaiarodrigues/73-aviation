@@ -58,6 +58,24 @@ export default async function PaginaDespesa({
 
       {busca.salvo && <Alerta tom="ok">Despesa lançada.</Alerta>}
 
+      {despesa.itens.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Itens da nota</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="divide-y divide-marinho-100 text-sm dark:divide-marinho-300">
+              {despesa.itens.map((i, idx) => (
+                <li key={idx} className="flex items-center justify-between gap-3 py-1.5">
+                  <span>{i.descricao}</span>
+                  <span className="tabular font-semibold">{reais(i.valor)}</span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader className="flex-row items-baseline justify-between">
           <CardTitle>{reais(despesa.valor)}</CardTitle>

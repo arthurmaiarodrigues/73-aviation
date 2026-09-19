@@ -11,7 +11,7 @@ import { Select, Textarea } from "@/components/ui/select";
 import { Alerta } from "@/components/ui/alerta";
 import { enviarArquivo } from "@/lib/upload-cliente";
 import { CRITERIOS, ROTULO_CRITERIO, type CriterioRateio } from "@/lib/tipos";
-import { data as fmtData } from "@/lib/formato";
+import { data as fmtData, reais } from "@/lib/formato";
 import type { DespesaLinha } from "@/lib/dados/financeiro";
 import { apagarDespesa, criarFornecedor, editarDespesa, salvarDespesa, type Resultado } from "./acoes";
 
@@ -70,6 +70,9 @@ export function FormularioDespesa({
   const [descricao, setDescricao] = useState(despesa?.descricao ?? "");
   const [valor, setValor] = useState(despesa ? despesa.valor.toFixed(2).replace(".", ",") : "");
   const [leitura, setLeitura] = useState<{ confianca: number; observacao: string; fornecedor: string | null } | null>(null);
+  const [itens, setItens] = useState<{ descricao: string; valor: string }[]>((despesa?.itens ?? []).map((i) => ({ descricao: i.descricao, valor: i.valor.toFixed(2).replace(".", ",") })));
+  const numero = (t: string) => Number(t.replace(/\./g, "").replace(",", ".")) || 0;
+  const somaItens = itens.reduce((t, i) => t + numero(i.valor), 0);
   const [lendo, setLendo] = useState(false);
 
   const categoriaNome = categorias.find((c) => String(c.id) === categoriaId)?.nome ?? "";
@@ -121,13 +124,14 @@ export function FormularioDespesa({
       const form = new FormData();
       form.append("arquivo", arquivo);
       const resp = await fetch("/api/comprovante", { method: "POST", body: form });
-      const lido = (await resp.json()) as { erro?: string; legivel: boolean; fornecedor: string | null; data: string | null; valor: number | null; descricao: string | null; categoria: string | null; confianca: number; observacao: string };
+      const lido = (await resp.json()) as { erro?: string; legivel: boolean; fornecedor: string | null; data: string | null; valor: number | null; descricao: string | null; categoria: string | null; itens?: { descricao: string; valor: number }[]; confianca: number; observacao: string };
       if (!resp.ok) throw new Error(lido.erro ?? "Falha na leitura.");
       if (lido.data) setData(lido.data);
       if (lido.valor !== null) setValor(lido.valor.toFixed(2).replace(".", ","));
       if (lido.descricao) setDescricao(lido.descricao);
       const cat = categorias.find((c) => c.nome === lido.categoria);
       if (cat) setCategoriaId(String(cat.id));
+      setItens((lido.itens ?? []).map((i) => ({ descricao: i.descricao, valor: i.valor.toFixed(2).replace(".", ",") })));
       if (lido.fornecedor) {
         const existente = listaFornecedores.find((f) => f.nome === lido.fornecedor || f.nome.startsWith(lido.fornecedor!.split(" ")[0]) && lido.fornecedor!.split(" ").length > 1 && f.nome.includes(lido.fornecedor!.split(" ")[1]));
         if (existente) setFornecedorId(existente.id);
@@ -306,6 +310,33 @@ export function FormularioDespesa({
           </div>
         </div>
         )}
+
+        {/* Itens discriminados na nota: ficam na despesa, para registro; o rateio é do total. */}
+        <div className="space-y-2 rounded-lg border border-marinho-100 p-4 dark:border-marinho-300">
+          <input type="hidden" name="itens_json" value={JSON.stringify(itens.map((i) => ({ descricao: i.descricao, valor: numero(i.valor) })))} />
+          <div className="flex items-center justify-between">
+            <Label>Itens da nota {itens.length > 0 && <span className="text-marinho-300">({itens.length})</span>}</Label>
+            <Button type="button" variant="fantasma" size="pequeno" onClick={() => setItens((l) => [...l, { descricao: "", valor: "" }])}>
+              + item
+            </Button>
+          </div>
+          {itens.length === 0 && <p className="text-xs text-marinho-300">A foto da nota preenche os itens sozinha quando ela discrimina mais de um. Opcional.</p>}
+          {itens.map((i, idx) => (
+            <div key={idx} className="grid grid-cols-[1fr_7rem_auto] gap-2">
+              <Input value={i.descricao} onChange={(e) => setItens((l) => l.map((x, j) => (j === idx ? { ...x, descricao: e.target.value } : x)))} placeholder="item" className="uppercase" aria-label="Item" />
+              <Input value={i.valor} onChange={(e) => setItens((l) => l.map((x, j) => (j === idx ? { ...x, valor: e.target.value } : x)))} inputMode="decimal" placeholder="0,00" className="tabular" aria-label="Valor do item" />
+              <Button type="button" variant="fantasma" size="pequeno" onClick={() => setItens((l) => l.filter((_, j) => j !== idx))} aria-label="Tirar item">
+                tirar
+              </Button>
+            </div>
+          ))}
+          {itens.length > 0 && (
+            <p className={"text-right text-sm " + (Math.abs(somaItens - numero(valor)) > 0.01 ? "text-atencao" : "text-marinho-300")}>
+              Soma dos itens: <strong className="tabular">{reais(somaItens)}</strong>
+              {Math.abs(somaItens - numero(valor)) > 0.01 ? ` · difere do valor da despesa (${reais(numero(valor))})` : " · bate com o valor da despesa"}
+            </p>
+          )}
+        </div>
 
         <div className="space-y-1.5">
           <Label htmlFor="observacao">Observação</Label>

@@ -26,6 +26,8 @@ export type ComprovanteLido = {
   descricao: string | null;
   categoria: (typeof CATEGORIAS_VALIDAS)[number] | null;
   aerodromo: string | null;
+  /** Linhas da nota quando ela discrimina mais de um item com valor. */
+  itens: { descricao: string; valor: number }[];
   confianca: number;
   observacao: string;
 };
@@ -44,6 +46,7 @@ Regras:
 - categoria: uma das opções válidas; combustível de aviação é COMBUSTÍVEL; pouso, estadia, navegação e DECEA são TAXAS DE POUSO E NAVEGAÇÃO.
 - aerodromo: o código ICAO de 4 letras se o documento indicar o aeroporto (SBSV, SNTF…); se só houver o nome da cidade, deixe nulo.
 - confianca de 0 a 1 sobre o conjunto; legivel = false se a imagem não permite ler valor OU fornecedor.
+- itens: quando a nota discrimina DOIS OU MAIS itens com valor (nota de peças, oficina, loja), liste cada linha com descricao curta em CAIXA ALTA e o valor total daquela linha (quantidade × unitário, com desconto do item se houver). Frete e impostos destacados entram como itens próprios. A soma dos itens deve bater com o valor total; se não bater, avise em observacao. Nota com um item só (ou cupom de combustível, taxa, boleto): lista vazia.
 - observacao em português, curta, em CAIXA ALTA, só quando houver algo a avisar (várias notas na imagem, valor com desconto, parcelas).`;
 
 const FERRAMENTA: Anthropic.Tool = {
@@ -61,10 +64,14 @@ const FERRAMENTA: Anthropic.Tool = {
       descricao: { type: ["string", "null"] },
       categoria: { type: ["string", "null"], enum: [...CATEGORIAS_VALIDAS, null] },
       aerodromo: { type: ["string", "null"] },
+      itens: {
+        type: "array",
+        items: { type: "object", properties: { descricao: { type: "string" }, valor: { type: "number" } }, required: ["descricao", "valor"] },
+      },
       confianca: { type: "number", minimum: 0, maximum: 1 },
       observacao: { type: "string" },
     },
-    required: ["legivel", "fornecedor", "cnpj_cpf", "data", "valor", "litros", "descricao", "categoria", "aerodromo", "confianca", "observacao"],
+    required: ["legivel", "fornecedor", "cnpj_cpf", "data", "valor", "litros", "descricao", "categoria", "aerodromo", "itens", "confianca", "observacao"],
   },
 };
 
@@ -112,6 +119,9 @@ export async function lerComprovante(bytes: Buffer, tipo: string): Promise<Compr
   const categoria = CATEGORIAS_VALIDAS.find((c) => c === b.categoria) ?? null;
   const dataOk = typeof b.data === "string" && /^\d{4}-\d{2}-\d{2}$/.test(b.data) ? b.data : null;
   const aerodromo = txt(b.aerodromo);
+  const itens = (Array.isArray(b.itens) ? b.itens : [])
+    .map((i) => ({ descricao: txt((i as { descricao?: unknown }).descricao) ?? "", valor: num((i as { valor?: unknown }).valor) }))
+    .filter((i): i is { descricao: string; valor: number } => i.descricao !== "" && i.valor !== null && i.valor > 0);
 
   return {
     legivel: Boolean(b.legivel) && num(b.valor) !== null,
@@ -123,6 +133,7 @@ export async function lerComprovante(bytes: Buffer, tipo: string): Promise<Compr
     descricao: txt(b.descricao),
     categoria,
     aerodromo: aerodromo && /^[A-Z0-9]{4}$/.test(aerodromo) ? aerodromo : null,
+    itens: itens.length >= 2 ? itens : [],
     confianca: Math.max(0, Math.min(1, Number(b.confianca ?? 0))),
     observacao: String(b.observacao ?? "").trim(),
     modelo: MODELO,

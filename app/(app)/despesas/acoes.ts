@@ -57,6 +57,7 @@ type Campos = {
   periodo_fim: string | null;
   comprovante_path: string | null;
   observacao: string | null;
+  itens: { descricao: string; valor: number }[];
 };
 
 function lerCampos(form: FormData): { ok: true; campos: Campos; manuais: { socio_id: string; percentual: number }[] } | { ok: false; mensagem: string } {
@@ -94,8 +95,24 @@ function lerCampos(form: FormData): { ok: true; campos: Campos; manuais: { socio
       periodo_fim: criterio === "POR_HORAS" ? texto(form, "periodo_fim") : null,
       comprovante_path: texto(form, "comprovante_path"),
       observacao: texto(form, "observacao"),
+      itens: itensDaNota(form),
     },
   };
+}
+
+/** Itens discriminados na nota (campo `itens_json`): ficam na própria despesa, só para registro. */
+function itensDaNota(form: FormData): { descricao: string; valor: number }[] {
+  const bruto = texto(form, "itens_json");
+  if (!bruto) return [];
+  try {
+    const lista = JSON.parse(bruto) as { descricao?: string; valor?: number }[];
+    return lista
+      .map((i) => ({ descricao: String(i.descricao ?? "").trim().toUpperCase().slice(0, 120), valor: Math.round(Number(i.valor ?? 0) * 100) / 100 }))
+      .filter((i) => i.descricao && Number.isFinite(i.valor) && i.valor > 0)
+      .slice(0, 100);
+  } catch {
+    return [];
+  }
 }
 
 /** Rateio MANUAL: o banco grava os percentuais e fecha os centavos. */
