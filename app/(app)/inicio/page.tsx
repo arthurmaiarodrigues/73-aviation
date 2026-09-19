@@ -89,7 +89,7 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
   ];
   const minhaVezEm = [vezAtual === usuario.socioId && usuario.socioId ? mes : null, vezProxima === usuario.socioId && usuario.socioId ? mesProximo : null].filter(Boolean) as string[];
   const puladoEm = [filaAtual, filaProxima]
-    .map((f, i) => (f.find((l) => l.socio_id === usuario.socioId && l.pulado && !l.semana_id) ? (i === 0 ? mes : mesProximo) : null))
+    .map((f, i) => (f.find((l) => l.socio_id === usuario.socioId && l.pulado && (!l.semana_id || !l.fds_id)) ? (i === 0 ? mes : mesProximo) : null))
     .filter(Boolean) as string[];
 
   const meuSaldo = saldos.find((s) => s.socio_id === usuario.socioId);

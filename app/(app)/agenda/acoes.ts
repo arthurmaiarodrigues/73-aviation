@@ -73,7 +73,7 @@ export async function reservar(_a: Resultado, form: FormData): Promise<Resultado
   const socioBruto = texto(form, "socio_id");
   const socioId = usuario.perfil === "admin" && socioBruto && UUID.test(socioBruto) ? socioBruto : null;
   const supabase = await criarClienteServidor();
-  const { error } = await supabase.rpc("reservar", {
+  const { data: reservaId, error } = await supabase.rpc("reservar", {
     p_inicio: inicio,
     p_fim: fim,
     p_destino: texto(form, "destino"),
@@ -83,17 +83,96 @@ export async function reservar(_a: Resultado, form: FormData): Promise<Resultado
   if (error) return { ok: false, mensagem: traduzir(error.message) };
   const destino = texto(form, "destino");
   const apelido = await apelidoDoSocio(socioId, usuario.socioApelido);
-  await notificar(
-    { perfis: ["piloto"] },
-    {
-      titulo: "Voo agendado",
-      corpo: `${apelido}: ${fmtData(inicio)}${fim && fim !== inicio ? ` a ${fmtData(fim)}` : ""}${destino ? ` → ${destino.toUpperCase()}` : ""}.`,
+  const quando = `${fmtData(inicio)}${fim && fim !== inicio ? ` a ${fmtData(fim)}` : ""}${destino ? ` → ${destino.toUpperCase()}` : ""}`;
+  const { data: feita } = await supabase.from("reservas").select("pendente, feriado, socio_id").eq("id", reservaId as string).maybeSingle();
+
+  if (feita?.pendente) {
+    // Fora dos blocos: pedido. Os outros sócios decidem.
+    await notificarOutrosSocios(feita.socio_id, {
+      titulo: feita.feriado ? "Pedido de feriado — precisa do seu OK" : "Pedido de reserva",
+      corpo: `${apelido} pediu o avião ${quando}. ${feita.feriado ? "Feriado: só confirma com o OK de todos." : "Alguém precisa? Sem objeção em 48 h, confirma."}`,
       url: "/agenda",
-      tag: "agenda",
-    },
-  );
+      tag: "pedido",
+    });
+    revalidar();
+    return {
+      ok: true,
+      mensagem: feita.feriado
+        ? "Pedido enviado: por ser feriado prolongado, só confirma quando todos os outros sócios concordarem."
+        : "Pedido enviado aos sócios: se ninguém precisar do avião em 48 h, confirma sozinho.",
+    };
+  }
+
+  await notificar({ perfis: ["piloto"] }, { titulo: "Voo agendado", corpo: `${apelido}: ${quando}.`, url: "/agenda", tag: "agenda" });
   revalidar();
   return { ok: true, mensagem: socioId && socioId !== usuario.socioId ? `Reserva feita em nome de ${apelido}.` : "Reserva feita." };
+}
+
+/** Avisa os sócios (menos um) — os logins ligados a eles. */
+async function notificarOutrosSocios(excetoSocioId: string | null, aviso: { titulo: string; corpo: string; url: string; tag: string }) {
+  const supabase = await criarClienteServidor();
+  const { data } = await supabase.from("socios").select("id, usuario_id").eq("ativo", true).not("usuario_id", "is", null);
+  const ids = (data ?? []).filter((so) => so.id !== excetoSocioId).map((so) => so.usuario_id as string);
+  if (ids.length) await notificar({ usuarios: ids }, aviso);
+}
+
+/** Outro sócio responde ao pedido: concordo / preciso do avião. */
+export async function responderPedido(id: string, concorda: boolean): Promise<Resultado> {
+  const { user, usuario } = await usuarioDaSessao();
+  if (!user || !usuario?.ativo || !usuario.socioId) return { ok: false, mensagem: "Só sócio responde." };
+  if (!UUID.test(id)) return { ok: false, mensagem: "Pedido inválido." };
+  const supabase = await criarClienteServidor();
+  const { error } = await supabase.rpc("responder_pedido", { p_reserva: id, p_concorda: concorda });
+  if (error) return { ok: false, mensagem: traduzir(error.message) };
+
+  const { data: r } = await supabase.from("reservas").select("inicio, fim, destino, status, pendente, socios!reservas_socio_id_fkey ( apelido, usuario_id )").eq("id", id).maybeSingle();
+  if (r) {
+    const so = r.socios as unknown as { apelido: string; usuario_id: string | null } | null;
+    const quando = `${fmtData(r.inicio)}${r.fim !== r.inicio ? ` a ${fmtData(r.fim)}` : ""}${r.destino ? ` → ${r.destino}` : ""}`;
+    if (r.status === "CANCELADA") {
+      if (so?.usuario_id) await notificar({ usuarios: [so.usuario_id] }, { titulo: "Pedido negado", corpo: `${usuario.socioApelido} precisa do avião ${quando}. Seu pedido foi cancelado.`, url: "/agenda", tag: "agenda" });
+    } else if (!r.pendente) {
+      if (so?.usuario_id) await notificar({ usuarios: [so.usuario_id] }, { titulo: "Pedido aprovado", corpo: `Todos concordaram: ${quando} é seu.`, url: "/agenda", tag: "agenda" });
+      await notificar({ perfis: ["piloto"] }, { titulo: "Voo agendado", corpo: `${so?.apelido ?? "Sócio"}: ${quando}.`, url: "/agenda", tag: "agenda" });
+    }
+  }
+  revalidar();
+  return { ok: true, mensagem: concorda ? "Resposta registrada: você concorda." : "Registrado: você precisa do avião. O pedido foi cancelado." };
+}
+
+/** Propor troca de bloco (semana por semana, fim de semana por fim de semana). */
+export async function proporTroca(meuBloco: string, blocoDele: string): Promise<Resultado> {
+  const { user, usuario } = await usuarioDaSessao();
+  if (!user || !usuario?.ativo || !usuario.socioId) return { ok: false, mensagem: "Só sócio propõe troca." };
+  if (!UUID.test(meuBloco) || !UUID.test(blocoDele)) return { ok: false, mensagem: "Período inválido." };
+  const supabase = await criarClienteServidor();
+  const { error } = await supabase.rpc("propor_troca", { p_meu_bloco: meuBloco, p_bloco_dele: blocoDele });
+  if (error) return { ok: false, mensagem: traduzir(error.message) };
+  const { data: b } = await supabase.from("semanas").select("inicio, fim, socios!semanas_socio_id_fkey ( apelido, usuario_id )").eq("id", blocoDele).maybeSingle();
+  const { data: meu } = await supabase.from("semanas").select("inicio, fim").eq("id", meuBloco).maybeSingle();
+  const so = b?.socios as unknown as { apelido: string; usuario_id: string | null } | null;
+  if (so?.usuario_id && b && meu) {
+    await notificar({ usuarios: [so.usuario_id] }, { titulo: "Proposta de troca", corpo: `${usuario.socioApelido} quer trocar ${fmtData(meu.inicio)}–${fmtData(meu.fim)} pelo seu ${fmtData(b.inicio)}–${fmtData(b.fim)}. Aceita?`, url: "/agenda", tag: "troca" });
+  }
+  revalidar();
+  return { ok: true, mensagem: `Proposta enviada a ${so?.apelido ?? "sócio"}. Vale quando ele aceitar.` };
+}
+
+export async function responderTroca(id: string, aceita: boolean): Promise<Resultado> {
+  const { user, usuario } = await usuarioDaSessao();
+  if (!user || !usuario?.ativo) return { ok: false, mensagem: "Sem sessão." };
+  if (!UUID.test(id)) return { ok: false, mensagem: "Proposta inválida." };
+  const supabase = await criarClienteServidor();
+  const { data: t } = await supabase.from("trocas").select("de_socio_id, para_socio_id, de:socios!trocas_de_socio_id_fkey ( apelido, usuario_id )").eq("id", id).maybeSingle();
+  const { error } = await supabase.rpc("responder_troca", { p_troca: id, p_aceita: aceita });
+  if (error) return { ok: false, mensagem: traduzir(error.message) };
+  const de = t?.de as unknown as { apelido: string; usuario_id: string | null } | null;
+  if (de?.usuario_id && t?.de_socio_id !== usuario.socioId) {
+    await notificar({ usuarios: [de.usuario_id] }, { titulo: aceita ? "Troca aceita" : "Troca recusada", corpo: `${usuario.socioApelido} ${aceita ? "aceitou" : "recusou"} a troca de períodos.`, url: "/agenda", tag: "troca" });
+  }
+  if (aceita) await notificar({ perfis: ["piloto"] }, { titulo: "Agenda alterada", corpo: "Dois sócios trocaram de período. Confira a agenda.", url: "/agenda", tag: "agenda" });
+  revalidar();
+  return { ok: true, mensagem: aceita ? "Troca feita: os períodos foram invertidos." : t?.de_socio_id === usuario.socioId ? "Proposta cancelada." : "Troca recusada." };
 }
 
 /** Quem reservou (ou o admin) muda datas, destino e — só o admin — o sócio. */
