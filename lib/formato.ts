@@ -88,6 +88,26 @@ export function caixaAlta(texto: string): string {
   return texto.trim().replace(/\s+/g, " ").toLocaleUpperCase("pt-BR");
 }
 
+/** "1:30" → 1.5; "1,5" → 1.5. Horas de perna aceitam h:mm ou decimal. */
+export function lerHorasHm(texto: FormDataEntryValue | string | null | undefined): number | null {
+  if (texto === null || texto === undefined) return null;
+  const t = String(texto).trim();
+  const m = t.match(/^(d{1,3})[:h](d{1,2})$/i);
+  if (m) {
+    const min = Number(m[2]);
+    if (min >= 60) return null;
+    return Math.round((Number(m[1]) + min / 60) * 10) / 10;
+  }
+  return lerNumero(t);
+}
+
+/** 1.5 → "1h30". */
+export function horasHm(valor: number | null | undefined): string {
+  if (valor === null || valor === undefined || !Number.isFinite(valor)) return "—";
+  const total = Math.round(valor * 60);
+  return `${Math.floor(total / 60)}h${String(total % 60).padStart(2, "0")}`;
+}
+
 /** "1.131,7" ou "1131.7" → 1131.7. Aceita vírgula e ponto. */
 export function lerNumero(texto: FormDataEntryValue | string | null | undefined): number | null {
   if (texto === null || texto === undefined) return null;

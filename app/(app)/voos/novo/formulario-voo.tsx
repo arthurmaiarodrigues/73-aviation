@@ -13,7 +13,7 @@ import { FotoHorimetro, type EstadoFoto } from "@/components/foto-horimetro";
 import { SeletorAerodromo } from "@/components/seletor-aerodromo";
 import { ListaEscalas } from "@/components/lista-escalas";
 import { NATUREZAS, ROTULO_NATUREZA, ehUsoComum, type NaturezaVoo, type Perfil } from "@/lib/tipos";
-import { horimetro as fmtHorimetro } from "@/lib/formato";
+import { horasHm, horimetro as fmtHorimetro } from "@/lib/formato";
 import { salvarVoo, type Resultado } from "../acoes";
 
 const INICIAL: Resultado = { ok: true, mensagem: "" };
@@ -60,6 +60,7 @@ export function FormularioVoo({
   const [pousos, setPousos] = useState("1");
   const [horasDigitadas, setHorasDigitadas] = useState("");
   const [somaPernas, setSomaPernas] = useState<number | null>(null);
+  const [temEscalas, setTemEscalas] = useState(false);
 
   const usoComum = ehUsoComum(natureza);
   const inicialNumero = Number(fotoInicial.valor.replace(/\./g, "").replace(",", "."));
@@ -101,7 +102,7 @@ export function FormularioVoo({
             required
           />
           <p className="text-xs text-atencao">
-            {somaPernas !== null ? "Soma das pernas (edite as horas de cada perna abaixo). " : ""}O voo fica marcado como pendente de horímetro até o administrador conferir.
+            {somaPernas !== null ? `Soma das pernas: ${horasHm(somaPernas)} (edite as horas de cada perna abaixo). ` : ""}O voo fica marcado como pendente de horímetro até o administrador conferir.
           </p>
         </div>
       )}
@@ -170,14 +171,17 @@ export function FormularioVoo({
           aoMudar={(n, total) => {
             setPousos(String(n + 1));
             setSomaPernas(total);
+            setTemEscalas(n > 0);
           }}
         />
 
-        <div className="space-y-1.5">
-          <Label htmlFor="combustivel_inicial_l">Combustível na decolagem (L)</Label>
-          <Input id="combustivel_inicial_l" name="combustivel_inicial_l" inputMode="decimal" placeholder="ex.: 195" className="h-12 tabular" />
-          <p className="text-xs text-marinho-300">Sem a leitura, o consumo é estimado pelo consumo médio.</p>
-        </div>
+        {!temEscalas && (
+          <div className="space-y-1.5">
+            <Label htmlFor="combustivel_inicial_l">Combustível na decolagem (L)</Label>
+            <Input id="combustivel_inicial_l" name="combustivel_inicial_l" inputMode="decimal" placeholder="ex.: 195" className="h-12 tabular" />
+            <p className="text-xs text-marinho-300">Sem a leitura, o consumo é estimado pelo consumo médio.</p>
+          </div>
+        )}
 
         <div className="space-y-1.5">
           <Label htmlFor="pousos">Pousos</Label>
@@ -188,7 +192,7 @@ export function FormularioVoo({
 
       {!semHorimetro && somaPernas !== null && pousou && fotoFinal.valor && fotoInicial.valor && (
         <p className="text-xs text-marinho-300">
-          Soma das pernas: {String(somaPernas).replace(".", ",")} h · pelo horímetro:{" "}
+          Soma das pernas: {horasHm(somaPernas)} ({String(somaPernas).replace(".", ",")} h) · pelo horímetro:{" "}
           {(Math.round((Number(fotoFinal.valor.replace(/\./g, "").replace(",", ".")) - Number(fotoInicial.valor.replace(/\./g, "").replace(",", "."))) * 10) / 10).toFixed(1).replace(".", ",")} h — vale o horímetro.
         </p>
       )}

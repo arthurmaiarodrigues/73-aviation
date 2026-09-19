@@ -7,7 +7,7 @@ import { exigirSessao } from "@/lib/perfil";
 import { aeronaveAtiva, aerodromosRecentes, listarPilotos, listarSocios } from "@/lib/dados/cadastros";
 import { buscarVoo, trecho, urlDaFoto } from "@/lib/dados/voos";
 import { temChave } from "@/lib/horimetro/ler";
-import { data as fmtData, horas as fmtHoras, horimetro as fmtHorimetro, litros as fmtLitros } from "@/lib/formato";
+import { data as fmtData, horas as fmtHoras, horasHm, horimetro as fmtHorimetro, litros as fmtLitros } from "@/lib/formato";
 import { ROTULO_NATUREZA } from "@/lib/tipos";
 import { Alerta } from "@/components/ui/alerta";
 import { Badge } from "@/components/ui/badge";
@@ -86,7 +86,7 @@ export default async function PaginaVoo({
             <Dado
               rotulo="Pernas"
               valor={[voo.origem ?? "?", ...voo.escalas]
-                .map((de, i) => `${de} → ${[...voo.escalas, voo.destino ?? "?"][i]}${voo.horas_pernas[i] !== undefined ? ` (${fmtHoras(voo.horas_pernas[i])})` : ""}`)
+                .map((de, i) => `${de} → ${[...voo.escalas, voo.destino ?? "?"][i]}${voo.horas_pernas[i] !== undefined ? ` ${horasHm(voo.horas_pernas[i])}` : ""}${voo.combustivel_pernas[i] ? ` · ${fmtLitros(voo.combustivel_pernas[i])} na decolagem` : ""}`)
                 .join(" · ")}
             />
           )}
@@ -113,6 +113,7 @@ export default async function PaginaVoo({
               destino={voo.destino}
               escalas={voo.escalas}
               horasPernas={voo.horas_pernas}
+              combustivelPernas={voo.combustivel_pernas}
               aerodromos={aerodromos}
               observacao={voo.observacao}
               leituraAutomatica={temChave()}

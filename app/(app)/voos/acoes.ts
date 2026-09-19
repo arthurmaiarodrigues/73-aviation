@@ -7,7 +7,7 @@ import { usuarioDaSessao } from "@/lib/perfil";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { aeronaveAtiva } from "@/lib/dados/cadastros";
 import { ultimoHorimetro } from "@/lib/dados/voos";
-import { hoje, lerNumero } from "@/lib/formato";
+import { hoje, lerHorasHm, lerNumero } from "@/lib/formato";
 import { NATUREZAS, ehUsoComum, type NaturezaVoo } from "@/lib/tipos";
 
 export type Resultado = { ok: boolean; mensagem: string };
@@ -35,14 +35,17 @@ function escalas(form: FormData): string[] {
     .filter((v) => ICAO.test(v));
 }
 
-/** Horas de cada perna (campos `horas_perna`); vazio → []. Soma só se todas preenchidas. */
-function horasPernas(form: FormData, qtdEscalas: number): { lista: number[]; soma: number | null } {
-  const lista = form
-    .getAll("horas_perna")
-    .map((v) => lerNumero(String(v)))
-    .filter((v): v is number => v !== null && v > 0);
-  if (qtdEscalas === 0 || lista.length !== qtdEscalas + 1) return { lista: [], soma: null };
-  return { lista, soma: Math.round(lista.reduce((s, v) => s + v, 0) * 10) / 10 };
+/** Horas (h:mm ou decimal) e combustível de cada perna; soma só se todas as horas estão preenchidas. */
+function pernasDoForm(form: FormData, qtdEscalas: number): { horas: number[]; soma: number | null; combustivel: number[] } {
+  if (qtdEscalas === 0) return { horas: [], soma: null, combustivel: [] };
+  const horas = form.getAll("horas_perna").map((v) => lerHorasHm(String(v)));
+  const combustivel = form.getAll("combustivel_perna").map((v) => lerNumero(String(v)));
+  const horasOk = horas.length === qtdEscalas + 1 && horas.every((v): v is number => v !== null && v > 0);
+  return {
+    horas: horasOk ? (horas as number[]) : [],
+    soma: horasOk ? Math.round((horas as number[]).reduce((s, v) => s + v, 0) * 10) / 10 : null,
+    combustivel: combustivel.length === qtdEscalas + 1 ? combustivel.map((v) => v ?? 0) : [],
+  };
 }
 
 function leituraJson(form: FormData, campo: string): unknown {
@@ -94,13 +97,13 @@ export async function salvarVoo(_anterior: Resultado, form: FormData): Promise<R
   const hInicial = lerNumero(form.get("horimetro_inicial"));
   const hFinal = lerNumero(form.get("horimetro_final"));
   const escalasLista = escalas(form);
-  const pernas = horasPernas(form, escalasLista.length);
+  const pernas = pernasDoForm(form, escalasLista.length);
   const horasInformadas = lerNumero(form.get("horas_informadas")) ?? pernas.soma;
   if (hInicial === null && horasInformadas === null) return { ok: false, mensagem: "Informe o horímetro inicial (ou as horas de cada perna)." };
   if (hFinal !== null && hInicial !== null && hFinal < hInicial) return { ok: false, mensagem: "O horímetro final tem de ser maior que o inicial." };
   if (hFinal !== null && hInicial !== null && hFinal - hInicial > 12) return { ok: false, mensagem: "Mais de 12 h num voo só? Confira os horímetros." };
 
-  const combInicial = lerNumero(form.get("combustivel_inicial_l"));
+  const combInicial = (pernas.combustivel[0] ?? null) || lerNumero(form.get("combustivel_inicial_l"));
   const combFinal = lerNumero(form.get("combustivel_final_l"));
   const pousos = Math.max(0, Math.round(lerNumero(form.get("pousos")) ?? 1));
 
@@ -138,7 +141,8 @@ export async function salvarVoo(_anterior: Resultado, form: FormData): Promise<R
       origem,
       destino,
       escalas: escalasLista,
-      horas_pernas: pernas.lista,
+      horas_pernas: pernas.horas,
+      combustivel_pernas: pernas.combustivel,
       horimetro_inicial: hInicial,
       horimetro_final: hFinal,
       horas_informadas: hInicial === null ? horasInformadas : null,
@@ -190,7 +194,13 @@ export async function registrarPouso(_anterior: Resultado, form: FormData): Prom
     .update({
       horimetro_final: hFinal,
       destino,
-      ...(form.has("escala") ? { escalas: escalas(form), horas_pernas: horasPernas(form, escalas(form).length).lista } : {}),
+      ...(form.has("escala")
+        ? (() => {
+            const e = escalas(form);
+            const p = pernasDoForm(form, e.length);
+            return { escalas: e, horas_pernas: p.horas, combustivel_pernas: p.combustivel };
+          })()
+        : {}),
       combustivel_final_l: lerNumero(form.get("combustivel_final_l")),
       pousos: Math.max(0, Math.round(lerNumero(form.get("pousos")) ?? 1)),
       foto_horimetro_final: texto(form, "foto_final"),
@@ -225,7 +235,7 @@ export async function editarVoo(_anterior: Resultado, form: FormData): Promise<R
   const hInicial = lerNumero(form.get("horimetro_inicial"));
   const hFinal = lerNumero(form.get("horimetro_final"));
   const escalasLista = escalas(form);
-  const pernas = horasPernas(form, escalasLista.length);
+  const pernas = pernasDoForm(form, escalasLista.length);
   const horasInformadas = lerNumero(form.get("horas_informadas")) ?? pernas.soma;
   if (hInicial !== null && hFinal !== null && hFinal < hInicial) return { ok: false, mensagem: "O horímetro final tem de ser maior que o inicial." };
 
@@ -239,11 +249,12 @@ export async function editarVoo(_anterior: Resultado, form: FormData): Promise<R
       origem: icao(form, "origem"),
       destino: icao(form, "destino"),
       escalas: escalasLista,
-      horas_pernas: pernas.lista,
+      horas_pernas: pernas.horas,
+      combustivel_pernas: pernas.combustivel,
       horimetro_inicial: hInicial,
       horimetro_final: hFinal,
       horas_informadas: hInicial === null ? horasInformadas : null,
-      combustivel_inicial_l: lerNumero(form.get("combustivel_inicial_l")),
+      combustivel_inicial_l: (pernas.combustivel[0] ?? null) || lerNumero(form.get("combustivel_inicial_l")),
       combustivel_final_l: lerNumero(form.get("combustivel_final_l")),
       pousos: Math.max(0, Math.round(lerNumero(form.get("pousos")) ?? 1)),
       natureza,

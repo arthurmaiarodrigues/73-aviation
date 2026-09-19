@@ -32,6 +32,7 @@ export function FormularioPouso({
   destino,
   escalas,
   horasPernas,
+  combustivelPernas,
   aerodromos,
   observacao,
   leituraAutomatica,
@@ -41,6 +42,7 @@ export function FormularioPouso({
   destino: string | null;
   escalas: string[];
   horasPernas: number[];
+  combustivelPernas: number[];
   aerodromos: string[];
   observacao: string | null;
   leituraAutomatica: boolean;
@@ -66,7 +68,7 @@ export function FormularioPouso({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <SeletorAerodromo nome="destino" rotulo="Destino" opcoes={aerodromos} valorInicial={destino ?? ""} />
-        <ListaEscalas opcoes={aerodromos} iniciais={escalas} horasIniciais={horasPernas} aoMudar={(n) => setPousos(String(n + 1))} />
+        <ListaEscalas opcoes={aerodromos} iniciais={escalas} horasIniciais={horasPernas} combustivelIniciais={combustivelPernas} aoMudar={(n) => setPousos(String(n + 1))} />
         <div className="space-y-1.5">
           <Label htmlFor="combustivel_final_l">Combustível no pouso (L)</Label>
           <Input id="combustivel_final_l" name="combustivel_final_l" inputMode="decimal" placeholder="ex.: 125" className="h-12 tabular" />
