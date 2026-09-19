@@ -13,6 +13,7 @@ import { Alerta } from "@/components/ui/alerta";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormularioPouso } from "./formulario-pouso";
+import { FormularioPerna } from "./formulario-perna";
 import { FormularioEdicao } from "./formulario-edicao";
 
 export const metadata: Metadata = { title: "Voo" };
@@ -22,7 +23,7 @@ export default async function PaginaVoo({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ salvo?: string; decolou?: string; aberto?: string; editar?: string }>;
+  searchParams: Promise<{ salvo?: string; decolou?: string; aberto?: string; editar?: string; perna?: string }>;
 }) {
   const [{ id }, busca] = await Promise.all([params, searchParams]);
   const usuario = await exigirSessao();
@@ -32,6 +33,11 @@ export default async function PaginaVoo({
   const aeronave = await aeronaveAtiva();
   const emAberto = voo.horimetro_final === null && voo.horimetro_inicial !== null;
   const podeEditar = usuario.perfil === "admin" || voo.autor_id === usuario.id;
+  // pernas: escalas ainda não pousadas vêm antes do pouso final
+  const pontos = [voo.origem ?? "?", ...voo.escalas, voo.destino ?? "?"];
+  const pernaAtual = voo.pernas_concluidas; // índice da perna em curso
+  const faltaEscala = emAberto && pernaAtual < voo.escalas.length;
+  const horimetroAnterior = voo.horimetro_pernas.length > 0 ? voo.horimetro_pernas[voo.horimetro_pernas.length - 1] : voo.horimetro_inicial;
 
   const [fotoInicial, fotoFinal, aerodromos, socios, pilotos] = await Promise.all([
     urlDaFoto(voo.foto_horimetro_inicial),
@@ -61,7 +67,8 @@ export default async function PaginaVoo({
       </div>
 
       {busca.salvo && <Alerta tom="ok">Voo registrado.</Alerta>}
-      {busca.decolou && <Alerta tom="info">Decolagem registrada. Quando pousar, volte aqui e registre o horímetro final.</Alerta>}
+      {busca.decolou && <Alerta tom="info">Decolagem registrada. A cada pouso, volte aqui (o Início também leva) e registre o horímetro.</Alerta>}
+      {busca.perna && <Alerta tom="ok">Pouso registrado. Boa próxima perna!</Alerta>}
       {busca.aberto && <Alerta tom="atencao">Você tem este voo em aberto. Registre o pouso antes de começar outro.</Alerta>}
 
       <Card>
@@ -101,15 +108,55 @@ export default async function PaginaVoo({
         </div>
       )}
 
-      {emAberto && podeEditar && (
-        <Card>
+      {emAberto && voo.escalas.length > 0 && (
+        <ol className="flex flex-wrap gap-2 text-sm">
+          {voo.escalas.map((_, i) => {
+            const feita = i < pernaAtual;
+            const atual = i === pernaAtual;
+            return (
+              <li key={i} className={`rounded-full border px-3 py-1 ${feita ? "border-ok bg-ok/10 text-ok" : atual ? "border-laranja bg-laranja/10 font-semibold" : "border-marinho-100 text-marinho-300 dark:border-marinho-300"}`}>
+                {pontos[i]} → {pontos[i + 1]}
+                {feita && voo.horas_pernas[i] !== undefined ? ` · ${horasHm(voo.horas_pernas[i])}` : ""}
+              </li>
+            );
+          })}
+          <li className={`rounded-full border px-3 py-1 ${pernaAtual >= voo.escalas.length ? "border-laranja bg-laranja/10 font-semibold" : "border-marinho-100 text-marinho-300 dark:border-marinho-300"}`}>
+            {pontos[pontos.length - 2]} → {pontos[pontos.length - 1]}
+          </li>
+        </ol>
+      )}
+
+      {faltaEscala && podeEditar && (
+        <Card className="border-laranja">
           <CardHeader>
-            <CardTitle>Registrar pouso</CardTitle>
+            <CardTitle>Pouso em {voo.escalas[pernaAtual]}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <FormularioPerna
+              id={voo.id}
+              numero={pernaAtual + 1}
+              total={voo.escalas.length + 1}
+              de={pontos[pernaAtual]}
+              para={voo.escalas[pernaAtual]}
+              proxima={pontos[pernaAtual + 2]}
+              horimetroAnterior={horimetroAnterior}
+              aerodromos={aerodromos}
+              leituraAutomatica={temChave()}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {emAberto && !faltaEscala && podeEditar && (
+        <Card className="border-laranja">
+          <CardHeader>
+            <CardTitle>{voo.escalas.length > 0 ? `Pouso final em ${voo.destino ?? "?"}` : "Registrar pouso"}</CardTitle>
           </CardHeader>
           <CardContent>
             <FormularioPouso
               id={voo.id}
-              horimetroInicial={voo.horimetro_inicial}
+              horimetroInicial={horimetroAnterior}
+              pernasConcluidas={voo.pernas_concluidas}
               destino={voo.destino}
               escalas={voo.escalas}
               horasPernas={voo.horas_pernas}

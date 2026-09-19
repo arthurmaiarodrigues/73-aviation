@@ -98,6 +98,11 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
     .filter(Boolean) as string[];
 
   const meuSaldo = saldos.find((s) => s.socio_id === usuario.socioId);
+  // perna em curso do voo aberto (ida e volta: SNTF → X → SNTF)
+  const pontosAberto = aberto ? [aberto.origem ?? "?", ...aberto.escalas, aberto.destino ?? "?"] : [];
+  const pernaAberta = aberto ? Math.min(aberto.pernas_concluidas, aberto.escalas.length) : 0;
+  const pousoEm = aberto ? pontosAberto[pernaAberta + 1] : "";
+  const podePousar = Boolean(aberto && (aberto.autor_id === usuario.id || usuario.perfil === "admin"));
   const pendentesReais = pendentes.filter((v) => !(v.horimetro_final === null && v.horimetro_inicial !== null && v.id === aberto?.id));
 
   return (
@@ -111,8 +116,8 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
         </div>
         <div className="flex flex-wrap gap-2">
           <Button asChild size="campo" className="w-auto">
-            <Link href={aberto && aberto.autor_id === usuario.id ? `/voos/${aberto.id}` : "/voos/novo"}>
-              <Camera /> {aberto && aberto.autor_id === usuario.id ? "Registrar pouso" : "Registrar voo"}
+            <Link href={podePousar && aberto ? `/voos/${aberto.id}` : "/voos/novo"}>
+              <Camera /> {podePousar ? `Pousei em ${pousoEm}` : "Registrar voo"}
             </Link>
           </Button>
           <Button asChild variant="secundario">
@@ -144,9 +149,16 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
               <>
                 <p className="font-semibold">Avião em voo — {aberto.socio ?? "sociedade"}</p>
                 <p className="text-sm text-marinho-300">
-                  Decolou de {aberto.origem ?? "?"} em {fmtData(aberto.data)}
-                  {aberto.destino ? ` para ${aberto.destino}` : ""}. Pouso ainda não registrado.
+                  {aberto.escalas.length > 0
+                    ? `Perna ${pernaAberta + 1} de ${aberto.escalas.length + 1}: ${pontosAberto[pernaAberta]} → ${pousoEm}`
+                    : `Decolou de ${aberto.origem ?? "?"}${aberto.destino ? ` para ${aberto.destino}` : ""}`}{" "}
+                  em {fmtData(aberto.data)}. Pouso ainda não registrado.
                 </p>
+                {podePousar && (
+                  <Link href={`/voos/${aberto.id}`} className="mt-1 inline-block text-sm font-semibold text-laranja-700">
+                    Pousei em {pousoEm} →
+                  </Link>
+                )}
               </>
             ) : diaHoje?.bloqueio_id ? (
               <>

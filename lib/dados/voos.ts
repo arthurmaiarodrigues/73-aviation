@@ -14,6 +14,9 @@ export type VooLinha = {
   escalas: string[];
   horas_pernas: number[];
   combustivel_pernas: number[];
+  /** Leitura do horímetro no pouso de cada perna (perna a perna). */
+  horimetro_pernas: number[];
+  pernas_concluidas: number;
   horimetro_inicial: number | null;
   horimetro_final: number | null;
   horas: number;
@@ -38,13 +41,13 @@ export type FiltroVoos = {
   pendentes?: boolean;
 };
 
-const SELECT = `id, data, socio_id, origem, destino, escalas, horas_pernas, combustivel_pernas, horimetro_inicial, horimetro_final, horas,
+const SELECT = `id, data, socio_id, origem, destino, escalas, horas_pernas, combustivel_pernas, horimetro_pernas, pernas_concluidas, horimetro_inicial, horimetro_final, horas,
   combustivel_inicial_l, combustivel_final_l, pousos, natureza, status, pendente_horimetro, observacao,
   foto_horimetro_inicial, foto_horimetro_final, autor_id,
   socios ( apelido ), pilotos ( nome )`;
 
 type LinhaBruta = {
-  id: string; data: string; socio_id: string | null; origem: string | null; destino: string | null; escalas: string[] | null; horas_pernas: (string | number)[] | null; combustivel_pernas: (string | number)[] | null;
+  id: string; data: string; socio_id: string | null; origem: string | null; destino: string | null; escalas: string[] | null; horas_pernas: (string | number)[] | null; combustivel_pernas: (string | number)[] | null; horimetro_pernas?: (string | number)[] | null; pernas_concluidas?: number | null;
   horimetro_inicial: string | null; horimetro_final: string | null; horas: string;
   combustivel_inicial_l: string | null; combustivel_final_l: string | null; pousos: number;
   natureza: NaturezaVoo; status: "RASCUNHO" | "CONFIRMADO"; pendente_horimetro: boolean; observacao: string | null;
@@ -68,6 +71,8 @@ function mapear(v: LinhaBruta): VooLinha {
     escalas: v.escalas ?? [],
     horas_pernas: (v.horas_pernas ?? []).map(Number),
     combustivel_pernas: (v.combustivel_pernas ?? []).map(Number),
+    horimetro_pernas: (v.horimetro_pernas ?? []).map(Number),
+    pernas_concluidas: Number(v.pernas_concluidas ?? 0),
     horimetro_inicial: n(v.horimetro_inicial),
     horimetro_final: n(v.horimetro_final),
     horas: Number(v.horas),

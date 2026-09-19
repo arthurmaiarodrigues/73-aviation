@@ -22,6 +22,7 @@ export function SeletorAerodromo({
   opcoes,
   valorInicial = "",
   obrigatorio = false,
+  aoMudar,
 }: {
   nome: string;
   rotulo: string;
@@ -29,9 +30,15 @@ export function SeletorAerodromo({
   opcoes: string[];
   valorInicial?: string;
   obrigatorio?: boolean;
+  /** Avisa o pai a cada mudança (o resumo "SNTF → X → SNTF" acompanha a digitação). */
+  aoMudar?: (valor: string) => void;
 }) {
   const listaId = useId();
-  const [valor, setValor] = useState(valorInicial);
+  const [valor, setValorInterno] = useState(valorInicial);
+  const setValor = (v: string) => {
+    setValorInterno(v);
+    aoMudar?.(v);
+  };
   const [sugestoes, setSugestoes] = useState<Sugestao[]>([]);
   const [aberto, setAberto] = useState(false);
   const [ativo, setAtivo] = useState(-1);

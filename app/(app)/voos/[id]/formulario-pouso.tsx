@@ -29,6 +29,7 @@ function Botao() {
 export function FormularioPouso({
   id,
   horimetroInicial,
+  pernasConcluidas = 0,
   destino,
   escalas,
   horasPernas,
@@ -38,7 +39,10 @@ export function FormularioPouso({
   leituraAutomatica,
 }: {
   id: string;
+  /** horímetro da decolagem desta perna (o inicial do voo ou o do último pouso intermediário) */
   horimetroInicial: number | null;
+  /** escalas já pousadas com horímetro próprio: a lista de escalas não é reeditada aqui */
+  pernasConcluidas?: number;
   destino: string | null;
   escalas: string[];
   horasPernas: number[];
@@ -68,7 +72,7 @@ export function FormularioPouso({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <SeletorAerodromo nome="destino" rotulo="Destino" opcoes={aerodromos} valorInicial={destino ?? ""} />
-        <ListaEscalas opcoes={aerodromos} iniciais={escalas} horasIniciais={horasPernas} combustivelIniciais={combustivelPernas} aoMudar={(n) => setPousos(String(n + 1))} />
+        {pernasConcluidas === 0 && <ListaEscalas opcoes={aerodromos} iniciais={escalas} horasIniciais={horasPernas} combustivelIniciais={combustivelPernas} aoMudar={(n) => setPousos(String(n + 1))} />}
         <div className="space-y-1.5">
           <Label htmlFor="combustivel_final_l">Combustível no pouso (L)</Label>
           <Input id="combustivel_final_l" name="combustivel_final_l" inputMode="decimal" placeholder="ex.: 125" className="h-12 tabular" />

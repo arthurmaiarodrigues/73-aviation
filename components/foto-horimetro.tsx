@@ -35,7 +35,7 @@ export function FotoHorimetro({
   obrigatoria = true,
   leituraAutomatica,
 }: {
-  nome: "inicial" | "final";
+  nome: "inicial" | "final" | "perna";
   rotulo: string;
   /** Horímetro que a leitura deveria bater ou superar (o último registrado). */
   esperado: number | null;
@@ -154,7 +154,7 @@ export function FotoHorimetro({
       <input type="hidden" name={`leitura_${nome}`} value={leitura ? JSON.stringify(leitura) : ""} />
 
       <div className="space-y-1.5">
-        <Label htmlFor={`horimetro_${nome}`}>Horímetro {nome}</Label>
+        <Label htmlFor={`horimetro_${nome}`}>Horímetro {nome === "perna" ? "no pouso" : nome}</Label>
         <Input
           id={`horimetro_${nome}`}
           name={`horimetro_${nome}`}

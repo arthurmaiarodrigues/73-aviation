@@ -89,12 +89,17 @@ export async function salvarVoo(_anterior: Resultado, form: FormData): Promise<R
   const pilotoId = usuario.pilotoId ?? (pilotoBruto && UUID.test(pilotoBruto) ? pilotoBruto : null);
 
   const origem = icao(form, "origem");
-  const destino = icao(form, "destino");
+  let destino = icao(form, "destino");
   if (!origem) return { ok: false, mensagem: "Informe a origem (código ICAO, ex.: SNTF)." };
 
   const hInicial = lerNumero(form.get("horimetro_inicial"));
   const hFinal = lerNumero(form.get("horimetro_final"));
-  const escalasLista = escalas(form);
+  let escalasLista = escalas(form);
+  // Ida e volta: o "para onde" vira a primeira escala e o voo termina na origem.
+  if (form.get("ida_volta") === "on" && destino && destino !== origem) {
+    escalasLista = [destino, ...escalasLista.filter((e) => e !== destino)];
+    destino = origem;
+  }
   const pernas = pernasDoForm(form, escalasLista.length);
   const horasInformadas = lerNumero(form.get("horas_informadas")) ?? pernas.soma;
   if (hInicial === null && horasInformadas === null) return { ok: false, mensagem: "Informe o horímetro inicial (ou as horas de cada perna)." };
@@ -186,6 +191,12 @@ export async function registrarPouso(_anterior: Resultado, form: FormData): Prom
 
   const destino = icao(form, "destino") ?? voo.destino;
   const leituraAnterior = (voo.leitura_ia as Record<string, unknown> | null) ?? {};
+  // Pousos intermediários com horímetro: a última perna sai da diferença e o total fecha certinho.
+  const { data: pernasVoo } = await supabase.from("voos").select("horimetro_pernas, escalas, pernas_concluidas").eq("id", id).maybeSingle();
+  const leituras = ((pernasVoo?.horimetro_pernas as (string | number)[] | null) ?? []).map(Number);
+  const horasPorHorimetro = leituras.length > 0 && hInicial !== null && leituras.length === ((pernasVoo?.escalas as string[] | null) ?? []).length
+    ? [...leituras, hFinal].map((h, i, arr) => Math.round((h - (i === 0 ? hInicial : arr[i - 1])) * 10) / 10)
+    : null;
 
   const { error } = await supabase
     .from("voos")
@@ -198,12 +209,15 @@ export async function registrarPouso(_anterior: Resultado, form: FormData): Prom
             const p = pernasDoForm(form, e.length);
             return { escalas: e, horas_pernas: p.horas, combustivel_pernas: p.combustivel };
           })()
-        : {}),
+        : horasPorHorimetro
+          ? { horas_pernas: horasPorHorimetro }
+          : {}),
+      pernas_concluidas: ((pernasVoo?.escalas as string[] | null) ?? []).length + 1,
       combustivel_final_l: lerNumero(form.get("combustivel_final_l")),
       pousos: Math.max(0, Math.round(lerNumero(form.get("pousos")) ?? 1)),
       foto_horimetro_final: texto(form, "foto_final"),
       leitura_ia: { ...leituraAnterior, final: leituraJson(form, "leitura_final") },
-      observacao: texto(form, "observacao"),
+      observacao: texto(form, "observacao") ?? undefined,
       status: "CONFIRMADO",
     })
     .eq("id", id);
@@ -285,4 +299,67 @@ export async function apagarVoo(id: string): Promise<Resultado> {
   revalidatePath("/voos");
   revalidatePath("/inicio");
   redirect("/voos?apagado=1");
+}
+
+/**
+ * Pouso de uma perna intermediária (escala): grava o horímetro do pouso
+ * (opcional — sem ele a perna fica sem horas próprias), o combustível da
+ * próxima decolagem e permite corrigir onde pousou ou acrescentar parada.
+ */
+export async function registrarPerna(_anterior: Resultado, form: FormData): Promise<Resultado> {
+  const { user, usuario } = await usuarioDaSessao();
+  if (!user || !usuario?.ativo) return { ok: false, mensagem: "Sem sessão." };
+  const id = texto(form, "id");
+  if (!id || !UUID.test(id)) return { ok: false, mensagem: "Voo inválido." };
+
+  const supabase = await criarClienteServidor();
+  const { data: voo } = await supabase.from("voos").select("horimetro_inicial, escalas, horimetro_pernas, horas_pernas, combustivel_pernas, pernas_concluidas, leitura_ia").eq("id", id).maybeSingle();
+  if (!voo) return { ok: false, mensagem: "Voo não encontrado." };
+  const escalasAtuais = (voo.escalas as string[] | null) ?? [];
+  const concluidas = Number(voo.pernas_concluidas ?? 0);
+  if (concluidas >= escalasAtuais.length) return { ok: false, mensagem: "Todas as escalas já pousaram — registre o pouso final." };
+
+  const hInicial = voo.horimetro_inicial === null ? null : Number(voo.horimetro_inicial);
+  const leituras = ((voo.horimetro_pernas as (string | number)[] | null) ?? []).map(Number);
+  const anterior = leituras.length > 0 ? leituras[leituras.length - 1] : hInicial;
+  const leitura = lerNumero(form.get("horimetro_perna"));
+  if (leitura !== null && anterior !== null && leitura < anterior) return { ok: false, mensagem: `O horímetro (${leitura.toFixed(1)}) é menor que o da decolagem desta perna (${anterior.toFixed(1)}).` };
+
+  // onde pousou de fato (pode corrigir a escala planejada) e parada extra antes do próximo trecho
+  const pousouEm = icao(form, "escala_real") ?? escalasAtuais[concluidas];
+  const novaParada = icao(form, "nova_escala");
+  const escalasNovas = [...escalasAtuais];
+  escalasNovas[concluidas] = pousouEm;
+  if (novaParada && novaParada !== pousouEm) escalasNovas.splice(concluidas + 1, 0, novaParada);
+
+  const novasLeituras = leitura !== null ? [...leituras, leitura] : leituras;
+  const horasPernas = novasLeituras.length === concluidas + 1 && hInicial !== null
+    ? novasLeituras.map((h, i, arr) => Math.round((h - (i === 0 ? hInicial : arr[i - 1])) * 10) / 10)
+    : ((voo.horas_pernas as (string | number)[] | null) ?? []).map(Number);
+  const combustivel = ((voo.combustivel_pernas as (string | number)[] | null) ?? []).map(Number);
+  const combProxima = lerNumero(form.get("combustivel_proxima"));
+  if (combProxima !== null) {
+    while (combustivel.length < concluidas + 2) combustivel.push(0);
+    combustivel[concluidas + 1] = combProxima;
+  }
+  const leituraAnterior = (voo.leitura_ia as Record<string, unknown> | null) ?? {};
+  const leituraIa = leituraJson(form, "leitura_perna");
+
+  const { error } = await supabase
+    .from("voos")
+    .update({
+      escalas: escalasNovas,
+      horimetro_pernas: novasLeituras,
+      horas_pernas: horasPernas,
+      combustivel_pernas: combustivel,
+      pernas_concluidas: concluidas + 1,
+      pousos: escalasNovas.length + 1,
+      leitura_ia: leituraIa ? { ...leituraAnterior, [`perna_${concluidas + 1}`]: leituraIa } : leituraAnterior,
+    })
+    .eq("id", id);
+  if (error) return { ok: false, mensagem: traduzir(error.message) };
+
+  revalidatePath(`/voos/${id}`);
+  revalidatePath("/inicio");
+  redirect(`/voos/${id}?perna=1`);
 }
