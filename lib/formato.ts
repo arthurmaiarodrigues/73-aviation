@@ -92,7 +92,7 @@ export function caixaAlta(texto: string): string {
 export function lerHorasHm(texto: FormDataEntryValue | string | null | undefined): number | null {
   if (texto === null || texto === undefined) return null;
   const t = String(texto).trim();
-  const m = t.match(/^(d{1,3})[:h](d{1,2})$/i);
+  const m = t.match(/^(\d{1,3})[:h](\d{1,2})$/i);
   if (m) {
     const min = Number(m[2]);
     if (min >= 60) return null;
