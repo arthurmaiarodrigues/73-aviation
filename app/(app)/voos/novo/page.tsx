@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { exigirSessao } from "@/lib/perfil";
 import { aeronaveAtiva, aerodromosRecentes, listarPilotos, listarSocios } from "@/lib/dados/cadastros";
 import { ultimoHorimetro, vooEmAberto } from "@/lib/dados/voos";
+import { agendaDoDia } from "@/lib/dados/agenda";
 import { temChave } from "@/lib/horimetro/ler";
 import { hoje } from "@/lib/formato";
 import { FormularioVoo } from "./formulario-voo";
@@ -19,12 +20,24 @@ export default async function PaginaNovoVoo({ searchParams }: { searchParams: Pr
   const aberto = await vooEmAberto(aeronave.id);
   if (aberto && aberto.autor_id === usuario.id) redirect(`/voos/${aberto.id}?aberto=1`);
 
-  const [socios, pilotos, aerodromos, ultimo] = await Promise.all([
+  const [socios, pilotos, aerodromos, ultimo, dia] = await Promise.all([
     listarSocios({ somenteAtivos: true }),
     listarPilotos(),
     aerodromosRecentes(aeronave.id),
     ultimoHorimetro(aeronave.id),
+    agendaDoDia(aeronave.id, hoje()),
   ]);
+
+  // Sócio do voo: pela URL (reserva sem voo) > sócio logado > reserva de hoje > titular do bloco de hoje.
+  const socioDaUrl = busca.socio && /^[0-9a-f-]{36}$/i.test(busca.socio) ? busca.socio : null;
+  const socioDaAgenda = dia?.reserva_socio_id ?? dia?.semana_socio_id ?? null;
+  const socioInicial = socioDaUrl ?? usuario.socioId ?? socioDaAgenda;
+  const destinoInicial = busca.destino && /^[A-Z0-9]{4}$/i.test(busca.destino) ? busca.destino.toUpperCase() : !socioDaUrl && !usuario.socioId && dia?.reserva_destino ? dia.reserva_destino : undefined;
+  const dica = !socioDaUrl && !usuario.socioId && socioDaAgenda
+    ? dia?.reserva_socio_id
+      ? `Hoje o avião está reservado por ${dia.reserva_socio}${dia.reserva_destino ? ` para ${dia.reserva_destino}` : ""} — já preenchi. Se for outro sócio, troque.`
+      : `Hoje é o período de ${dia?.semana_socio} — já preenchi o sócio. Se for outro, troque.`
+    : null;
 
 
   return (
@@ -38,12 +51,13 @@ export default async function PaginaNovoVoo({ searchParams }: { searchParams: Pr
           Há um voo em aberto registrado por outra pessoa ({aberto.socio ?? "sociedade"}, {aberto.data.split("-").reverse().join("/")}). Se for o seu, peça para fechar antes.
         </p>
       )}
+      {dica && <p className="mt-3 rounded border border-info/40 bg-info/10 p-3 text-sm">{dica}</p>}
       <div className="mt-6">
         <FormularioVoo
           perfil={usuario.perfil}
-          socioLogadoId={busca.socio && /^[0-9a-f-]{36}$/i.test(busca.socio) ? busca.socio : usuario.socioId}
+          socioLogadoId={socioInicial}
           dataInicial={busca.data && /^\d{4}-\d{2}-\d{2}$/.test(busca.data) ? busca.data : undefined}
-          destinoInicial={busca.destino && /^[A-Z0-9]{4}$/i.test(busca.destino) ? busca.destino.toUpperCase() : undefined}
+          destinoInicial={destinoInicial}
           socios={socios.map((s) => ({ id: s.id, apelido: s.apelido }))}
           pilotos={pilotos}
           pilotoLogadoId={usuario.pilotoId ?? (pilotos.length === 1 ? pilotos[0].id : null)}
