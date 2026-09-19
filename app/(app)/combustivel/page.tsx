@@ -2,12 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Download } from "lucide-react";
 
-import { exigirValores } from "@/lib/perfil";
+import { exigirSessao } from "@/lib/perfil";
 import { aeronaveAtiva, listarFornecedores, listarSocios } from "@/lib/dados/cadastros";
 import { listarAbastecimentos } from "@/lib/dados/financeiro";
-import { ROTULO_MOVIMENTO, movimentosDoTanque, saldoDoTanque, tanquePorSocio } from "@/lib/dados/tanque";
+import { ROTULO_MOVIMENTO, movimentosDoTanque, retiradasRecentes, saldoDoTanque, saldoLitrosTanque, tanquePorSocio } from "@/lib/dados/tanque";
 import { listarVoos } from "@/lib/dados/voos";
 import { data as fmtData, hoje, inicioDoMes, litros as fmtLitros, mesPorExtenso, reais } from "@/lib/formato";
+import { veValores } from "@/lib/tipos";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,8 +18,9 @@ import { BotaoApagarMovimento, FormularioTanque } from "./formulario-tanque";
 export const metadata: Metadata = { title: "Combustível" };
 
 export default async function PaginaCombustivel() {
-  const usuario = await exigirValores();
+  const usuario = await exigirSessao();
   const aeronave = await aeronaveAtiva();
+  if (!veValores(usuario.perfil)) return <CombustivelPiloto aeronaveId={aeronave.id} capacidade={aeronave.capacidade_combustivel_l} />;
   const mes = inicioDoMes(hoje());
   const [saldo, movimentos, porSocio, socios, fornecedores, voos, fora] = await Promise.all([
     saldoDoTanque(aeronave.id),
@@ -193,6 +195,66 @@ export default async function PaginaCombustivel() {
                   <Celula numerico>{fmtLitros(a.litros)}</Celula>
                   <Celula numerico>{reais(a.valor)}</Celula>
                   <Celula>{a.pagador}</Celula>
+                </TabelaLinha>
+              ))}
+            </TabelaCorpo>
+          </Tabela>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Piloto: quanto tem no tanque (litros), abastecer o avião e as últimas retiradas — sem nenhum valor. */
+async function CombustivelPiloto({ aeronaveId, capacidade }: { aeronaveId: string; capacidade: number | null }) {
+  const [litros, ultimas, socios, voos] = await Promise.all([saldoLitrosTanque(aeronaveId), retiradasRecentes(aeronaveId, 10), listarSocios({ somenteAtivos: true }), listarVoos(aeronaveId, {}, 20)]);
+  const cap = 2000;
+  const pct = Math.min(100, (litros / cap) * 100);
+  return (
+    <div className="mx-auto max-w-2xl space-y-8">
+      <div>
+        <h1 className="text-2xl font-semibold">Combustível</h1>
+        <p className="mt-1 text-sm text-marinho-300">Abasteceu o avião pelo tanque do hangar? Lance os litros da bomba e para quem foi o voo.{capacidade ? ` O avião leva ${fmtLitros(capacidade)}.` : ""}</p>
+      </div>
+      <Card className={cn(pct < 15 && "border-atencao")}>
+        <CardHeader className="p-5">
+          <p className="text-xs uppercase tracking-wide text-marinho-300">Tanque do hangar</p>
+          <CardTitle className="tabular text-3xl">
+            {fmtLitros(litros)} <span className="text-base font-normal text-marinho-300">de {fmtLitros(cap)}</span>
+          </CardTitle>
+          <div className="h-2.5 w-full rounded bg-marinho-100 dark:bg-marinho-300">
+            <div className={cn("h-2.5 rounded", pct < 15 ? "bg-atencao" : "bg-laranja")} style={{ width: `${pct}%` }} />
+          </div>
+          {pct < 15 && <p className="text-sm text-atencao">Tanque baixo — avise os sócios.</p>}
+        </CardHeader>
+      </Card>
+      <FormularioTanque
+        socios={socios.map((s) => ({ id: s.id, apelido: s.apelido }))}
+        fornecedores={[]}
+        voos={voos.map((v) => ({ id: v.id, data: v.data, socio: v.socio, origem: v.origem, destino: v.destino }))}
+        hoje={hoje()}
+        socioLogadoId={null}
+        saldoLitros={litros}
+        precoLitro={null}
+        somenteRetirada
+      />
+      {ultimas.length > 0 && (
+        <div>
+          <h2 className="mb-2 text-lg font-semibold">Últimos abastecimentos pelo tanque</h2>
+          <Tabela>
+            <TabelaCabecalho>
+              <tr>
+                <Cabecalho>Data</Cabecalho>
+                <Cabecalho>Por conta de</Cabecalho>
+                <Cabecalho numerico>Litros</Cabecalho>
+              </tr>
+            </TabelaCabecalho>
+            <TabelaCorpo>
+              {ultimas.map((r) => (
+                <TabelaLinha key={r.id}>
+                  <Celula>{fmtData(r.data)}</Celula>
+                  <Celula>{r.socio ?? "Sociedade"}</Celula>
+                  <Celula numerico>{fmtLitros(r.litros)}</Celula>
                 </TabelaLinha>
               ))}
             </TabelaCorpo>

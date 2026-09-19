@@ -25,6 +25,7 @@ export default async function PaginaManutencao({ searchParams }: { searchParams:
   const usuario = await exigirSessao();
   const aeronave = await aeronaveAtiva();
   const admin = usuario.perfil === "admin";
+  const opera = admin || usuario.perfil === "piloto";
   const valores = veValores(usuario.perfil);
 
   const [plano, manutencoes, documentos, fornecedores, socios, voos] = await Promise.all([
@@ -118,7 +119,7 @@ export default async function PaginaManutencao({ searchParams }: { searchParams:
           <CardDescription>Programar bloqueia o avião na agenda. A nota da oficina entra item a item na ficha.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {admin && (
+          {opera && (
             <details className="rounded border border-dashed border-marinho-300 p-3">
               <summary className="cursor-pointer text-sm font-semibold text-laranja-700">+ Programar manutenção</summary>
               <div className="mt-3">

@@ -31,10 +31,12 @@ function revalidar() {
  */
 export async function salvarMovimentoTanque(_anterior: Resultado, form: FormData): Promise<Resultado> {
   const { user, usuario } = await usuarioDaSessao();
-  if (!user || !usuario?.ativo || !veValores(usuario.perfil)) return { ok: false, mensagem: "Sem acesso." };
+  if (!user || !usuario?.ativo) return { ok: false, mensagem: "Sem acesso." };
 
   const tipo = texto(form, "tipo") as (typeof TIPOS)[number] | null;
   if (!tipo || !TIPOS.includes(tipo)) return { ok: false, mensagem: "Tipo inválido." };
+  // Piloto abastece o avião pelo tanque; compra e medição são dos sócios.
+  if (!veValores(usuario.perfil) && tipo !== "RETIRADA") return { ok: false, mensagem: "Sem acesso." };
 
   const aeronave = await aeronaveAtiva();
   const data = texto(form, "data") ?? hoje();
@@ -82,7 +84,7 @@ export async function salvarMovimentoTanque(_anterior: Resultado, form: FormData
     ok: true,
     mensagem:
       tipo === "COMPRA" ? "Compra registrada: o tanque encheu e quem pagou ficou com o crédito." :
-      tipo === "RETIRADA" ? "Abastecimento registrado: os litros saíram do tanque e entraram na conta do sócio." :
+      tipo === "RETIRADA" ? (veValores(usuario.perfil) ? "Abastecimento registrado: os litros saíram do tanque e entraram na conta do sócio." : "Abastecimento registrado.") :
       `Ajuste de ${String(litros).replace(".", ",")} L registrado.`,
   };
 }

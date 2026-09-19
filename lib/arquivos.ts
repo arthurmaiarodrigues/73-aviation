@@ -2,7 +2,6 @@
 
 import { usuarioDaSessao } from "@/lib/perfil";
 import { criarClienteServidor } from "@/lib/supabase/server";
-import { veValores } from "@/lib/tipos";
 import { hoje } from "@/lib/formato";
 
 /**
@@ -34,7 +33,6 @@ export async function prepararUpload(entrada: {
 }): Promise<UploadPreparado> {
   const { user, usuario } = await usuarioDaSessao();
   if (!user || !usuario?.ativo) return { ok: false, mensagem: "Sem sessão." };
-  if (entrada.bucket === "comprovantes" && !veValores(usuario.perfil)) return { ok: false, mensagem: "Sem acesso a comprovantes." };
   if (entrada.bucket === "documentos-aeronave" && usuario.perfil !== "admin") return { ok: false, mensagem: "Só o administrador guarda documentos da aeronave." };
   if (!TIPOS.has(entrada.tipo)) return { ok: false, mensagem: "Só foto (JPG, PNG, WebP) ou PDF." };
   if (!Number.isFinite(entrada.tamanho) || entrada.tamanho <= 0) return { ok: false, mensagem: "Arquivo vazio." };

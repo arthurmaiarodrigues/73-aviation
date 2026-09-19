@@ -7,6 +7,7 @@ import { aeronaveAtiva, listarSocios } from "@/lib/dados/cadastros";
 import { horasPorSocio, horasPorSocioNoMes, listarVoos, trecho, ultimoHorimetro, vooEmAberto } from "@/lib/dados/voos";
 import { saldoDoCaixa, saldoDoFundo, saldosDosSocios } from "@/lib/dados/financeiro";
 import { ciclosRevisao, listarPlano, resumoManutencao } from "@/lib/dados/manutencao";
+import { listarReembolsos } from "@/lib/dados/reembolsos";
 import { ROTULO_BLOQUEIO, agendaDoDia, fila, garantirEscolhaAberta, mesSeguinte, proximasReservas, vezDeEscolher } from "@/lib/dados/agenda";
 import { data as fmtData, horas as fmtHoras, horimetro as fmtHorimetro, hoje, inicioDoMes, mesPorExtenso, reais, trimestreDe } from "@/lib/formato";
 import { veValores } from "@/lib/tipos";
@@ -16,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { HorasPorSocio, type AbaHoras } from "@/components/horas-por-socio";
+import { AtivarAvisos } from "@/components/ativar-avisos";
 
 export const metadata: Metadata = { title: "Início" };
 
@@ -48,6 +50,9 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
     fila(aeronave.id, mesProximo),
   ]);
   const manutencao = await resumoManutencao(aeronave.id);
+  // Reembolsos ao piloto pendentes: o sócio vê o que deve; o piloto, o que tem a receber.
+  const reembolsosPendentes = await listarReembolsos(aeronave.id, { pendentes: true, socioId: usuario.perfil === "socio" ? (usuario.socioId ?? undefined) : undefined });
+  const totalReembolsos = reembolsosPendentes.reduce((t, r) => t + r.valor, 0);
 
   // Horas por sócio: mês, trimestre e o ciclo de cada revisão (desde a última execução).
   const trimestre = trimestreDe(hoje());
@@ -105,13 +110,13 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
               <Camera /> {aberto && aberto.autor_id === usuario.id ? "Registrar pouso" : "Registrar voo"}
             </Link>
           </Button>
+          <Button asChild variant="secundario">
+            <Link href="/combustivel">
+              <Fuel /> Abastecer
+            </Link>
+          </Button>
           {valores && (
             <>
-              <Button asChild variant="secundario">
-                <Link href="/combustivel">
-                  <Fuel /> Abastecer
-                </Link>
-              </Button>
               <Button asChild variant="secundario">
                 <Link href="/despesas/nova">
                   <Receipt /> Despesa
@@ -123,6 +128,7 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
       </div>
 
       {busca["sem-acesso"] && <Alerta tom="atencao">Essa tela é só para sócios e administrador.</Alerta>}
+      <AtivarAvisos />
 
       {/* Disponibilidade: voo em aberto > bloqueio > reserva > semana > livre */}
       <Card className={cn(aberto || diaHoje?.bloqueio_id ? "border-atencao" : "border-ok")}>
@@ -192,6 +198,21 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
           )}
           <Link href="/manutencao" className="text-sm underline">
             manutenção
+          </Link>
+        </Alerta>
+      )}
+
+      {reembolsosPendentes.length > 0 && (
+        <Alerta tom="atencao">
+          <p className="font-semibold">
+            {usuario.perfil === "piloto"
+              ? `Você tem ${reais(totalReembolsos)} a receber de reembolso (${reembolsosPendentes.map((r) => r.socio).filter((v, i, a) => a.indexOf(v) === i).join(", ")}).`
+              : usuario.perfil === "socio"
+                ? `Você deve ${reais(totalReembolsos)} ao piloto (${reembolsosPendentes.length} lançamento${reembolsosPendentes.length === 1 ? "" : "s"}).`
+                : `${reais(totalReembolsos)} de reembolso ao piloto pendentes (${reembolsosPendentes.length}).`}
+          </p>
+          <Link href="/reembolsos" className="text-sm underline">
+            reembolsos
           </Link>
         </Alerta>
       )}

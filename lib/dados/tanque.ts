@@ -86,3 +86,20 @@ export async function tanquePorSocio(aeronaveId: string): Promise<TanqueSocioMes
   if (error) throw new Error(`Uso do tanque: ${error.message}`);
   return (data ?? []).map((l) => ({ socio_id: l.socio_id, apelido: l.apelido, cor: l.cor, mes: l.mes, litros: Number(l.litros), valor: Number(l.valor) }));
 }
+
+/** Para quem não vê valores (piloto): só os litros no tanque. */
+export async function saldoLitrosTanque(aeronaveId: string): Promise<number> {
+  const supabase = await criarClienteServidor();
+  const { data, error } = await supabase.rpc("tanque_saldo_litros", { p_aeronave: aeronaveId });
+  if (error) throw new Error(`Tanque: ${error.message}`);
+  return Number(data ?? 0);
+}
+
+export type RetiradaRecente = { id: string; data: string; litros: number; socio: string | null; observacao: string | null };
+
+export async function retiradasRecentes(aeronaveId: string, limite = 10): Promise<RetiradaRecente[]> {
+  const supabase = await criarClienteServidor();
+  const { data, error } = await supabase.rpc("tanque_retiradas_recentes", { p_aeronave: aeronaveId, p_limite: limite });
+  if (error) throw new Error(`Retiradas: ${error.message}`);
+  return ((data ?? []) as { id: string; data: string; litros: string | number; socio: string | null; observacao: string | null }[]).map((r) => ({ ...r, litros: Number(r.litros) }));
+}

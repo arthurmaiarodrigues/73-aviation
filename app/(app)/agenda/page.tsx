@@ -25,7 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BotaoAcao } from "./botoes";
-import { FormularioBloqueio, FormularioReserva } from "./formularios";
+import { FormularioBloqueio, FormularioEditarReserva, FormularioReserva } from "./formularios";
 
 export const metadata: Metadata = { title: "Agenda" };
 
@@ -156,7 +156,16 @@ export default async function PaginaAgenda({ searchParams }: { searchParams: Pro
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {usuario.socioId ? <FormularioReserva hoje={h} aerodromos={aerodromos} /> : <p className="text-sm text-marinho-300">Só sócio reserva.</p>}
+            {usuario.socioId || usuario.perfil === "admin" ? (
+              <FormularioReserva
+                hoje={h}
+                aerodromos={aerodromos}
+                socios={usuario.perfil === "admin" ? socios.map((so) => ({ id: so.id, apelido: so.apelido })) : undefined}
+                meuSocioId={usuario.socioId}
+              />
+            ) : (
+              <p className="text-sm text-marinho-300">Só sócio reserva.</p>
+            )}
             <ul className="divide-y divide-marinho-100 text-sm dark:divide-marinho-300">
               {reservas.map((r) => (
                 <li key={r.id} className="flex flex-wrap items-center gap-2 py-2">
@@ -170,6 +179,16 @@ export default async function PaginaAgenda({ searchParams }: { searchParams: Pro
                   {r.origem === "SEMANA" && <Badge variant="neutro">semana</Badge>}
                   {(r.socio_id === usuario.socioId || usuario.perfil === "admin") && r.fim >= h && (
                     <BotaoAcao acao="cancelar" id={r.id} rotulo="Cancelar" variant="fantasma" confirmar="Cancelar esta reserva?" />
+                  )}
+                  {(r.socio_id === usuario.socioId || usuario.perfil === "admin") && r.fim >= h && (
+                    <details className="basis-full">
+                      <summary className="cursor-pointer text-xs font-semibold text-laranja-700">editar</summary>
+                      <FormularioEditarReserva
+                        reserva={{ id: r.id, inicio: r.inicio, fim: r.fim, destino: r.destino, motivo: r.motivo, socio_id: r.socio_id }}
+                        aerodromos={aerodromos}
+                        socios={usuario.perfil === "admin" ? socios.map((so) => ({ id: so.id, apelido: so.apelido })) : undefined}
+                      />
+                    </details>
                   )}
                 </li>
               ))}

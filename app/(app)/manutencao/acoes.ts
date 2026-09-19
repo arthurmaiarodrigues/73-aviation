@@ -30,6 +30,13 @@ async function exigirAdminAcao(): Promise<{ ok: true; id: string } | { ok: false
   return { ok: true, id: user.id };
 }
 
+/** Programar, atualizar e concluir: admin ou o piloto contratado (que acompanha a oficina). */
+async function exigirOperador(): Promise<{ ok: true; id: string } | { ok: false; mensagem: string }> {
+  const { user, usuario } = await usuarioDaSessao();
+  if (!user || !usuario?.ativo || !["admin", "piloto"].includes(usuario.perfil)) return { ok: false, mensagem: "Só o administrador ou o piloto altera a manutenção." };
+  return { ok: true, id: user.id };
+}
+
 function revalidar(id?: string) {
   revalidatePath("/manutencao");
   if (id) revalidatePath(`/manutencao/${id}`);
@@ -81,7 +88,7 @@ export async function desativarItemPlano(id: string): Promise<Resultado> {
 
 // ---------------------------------------------------------- manutenções
 export async function salvarManutencao(_a: Resultado, form: FormData): Promise<Resultado> {
-  const adm = await exigirAdminAcao();
+  const adm = await exigirOperador();
   if (!adm.ok) return adm;
   const descricao = texto(form, "descricao");
   const data_inicio = texto(form, "data_inicio");
@@ -155,7 +162,7 @@ export async function apagarItemManutencao(id: string, manutencaoId: string): Pr
 }
 
 export async function concluirManutencao(_a: Resultado, form: FormData): Promise<Resultado> {
-  const adm = await exigirAdminAcao();
+  const adm = await exigirOperador();
   if (!adm.ok) return adm;
   const id = uuid(form, "id");
   if (!id) return { ok: false, mensagem: "Manutenção inválida." };

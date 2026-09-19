@@ -1,0 +1,62 @@
+import "server-only";
+
+import { criarClienteServidor } from "@/lib/supabase/server";
+
+/**
+ * Reembolso ao piloto: despesa que o piloto pagou do bolso por conta de um
+ * sócio (`despesas.reembolso_piloto_id`). A RLS já limita o piloto às dele.
+ */
+export type Reembolso = {
+  id: string;
+  data: string;
+  descricao: string;
+  categoria: string;
+  valor: number;
+  socio_id: string;
+  socio: string;
+  piloto_id: string;
+  piloto: string;
+  comprovante_path: string | null;
+  observacao: string | null;
+  reembolsado_em: string | null;
+};
+
+const SELECT = `id, data, descricao, valor, socio_direto_id, reembolso_piloto_id, comprovante_path, observacao, reembolsado_em,
+  categorias_despesa ( nome ), socios!despesas_socio_direto_id_fkey ( apelido ), pilotos ( nome )`;
+
+type Bruta = {
+  id: string; data: string; descricao: string; valor: string | number; socio_direto_id: string; reembolso_piloto_id: string;
+  comprovante_path: string | null; observacao: string | null; reembolsado_em: string | null;
+  categorias_despesa: { nome: string } | null; socios: { apelido: string } | null; pilotos: { nome: string } | null;
+};
+
+export async function listarReembolsos(aeronaveId: string, filtro: { socioId?: string; pendentes?: boolean } = {}, limite = 300): Promise<Reembolso[]> {
+  const supabase = await criarClienteServidor();
+  let q = supabase
+    .from("despesas")
+    .select(SELECT)
+    .eq("aeronave_id", aeronaveId)
+    .is("deleted_at", null)
+    .not("reembolso_piloto_id", "is", null)
+    .order("reembolsado_em", { ascending: true, nullsFirst: true })
+    .order("data", { ascending: false })
+    .limit(limite);
+  if (filtro.socioId) q = q.eq("socio_direto_id", filtro.socioId);
+  if (filtro.pendentes) q = q.is("reembolsado_em", null);
+  const { data, error } = await q;
+  if (error) throw new Error(`Reembolsos: ${error.message}`);
+  return ((data ?? []) as unknown as Bruta[]).map((d) => ({
+    id: d.id,
+    data: d.data,
+    descricao: d.descricao,
+    categoria: d.categorias_despesa?.nome ?? "",
+    valor: Number(d.valor),
+    socio_id: d.socio_direto_id,
+    socio: d.socios?.apelido ?? "",
+    piloto_id: d.reembolso_piloto_id,
+    piloto: d.pilotos?.nome ?? "",
+    comprovante_path: d.comprovante_path,
+    observacao: d.observacao,
+    reembolsado_em: d.reembolsado_em,
+  }));
+}

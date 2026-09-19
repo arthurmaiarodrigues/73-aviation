@@ -40,6 +40,7 @@ export function FormularioTanque({
   socioLogadoId,
   saldoLitros,
   precoLitro,
+  somenteRetirada = false,
 }: {
   socios: { id: string; apelido: string }[];
   fornecedores: { id: string; nome: string }[];
@@ -48,6 +49,8 @@ export function FormularioTanque({
   socioLogadoId: string | null;
   saldoLitros: number;
   precoLitro: number | null;
+  /** Piloto: só abastece o avião, sem ver preço. */
+  somenteRetirada?: boolean;
 }) {
   const [estado, acao] = useActionState(salvarMovimentoTanque, INICIAL);
   const [tipo, setTipo] = useState<Tipo>("RETIRADA");
@@ -95,7 +98,7 @@ export function FormularioTanque({
       <input type="hidden" name="saldo_atual" value={saldoLitros} />
       <input type="hidden" name="comprovante_path" value={comprovante ?? ""} />
 
-      <div className="flex flex-wrap gap-1" role="tablist">
+      <div className="flex flex-wrap gap-1" role="tablist" hidden={somenteRetirada}>
         {abas.map((a) => (
           <button
             key={a.chave}
@@ -123,9 +126,11 @@ export function FormularioTanque({
             <div className="space-y-1.5">
               <Label htmlFor="litros">Litros colocados no avião</Label>
               <Input id="litros" name="litros" inputMode="decimal" value={litros} onChange={(e) => setLitros(e.target.value)} placeholder="ex.: 120" required className="h-12 text-lg font-semibold tabular" />
-              <p className="text-xs text-marinho-300">
-                {precoLitro !== null && l > 0 ? `≈ ${reais(l * precoLitro)} a ${reais(precoLitro)}/L (preço médio das compras)` : precoLitro === null ? "Registre a compra do combustível antes da primeira retirada." : "O valor sai do preço médio das compras do tanque."}
-              </p>
+              {!somenteRetirada && (
+                <p className="text-xs text-marinho-300">
+                  {precoLitro !== null && l > 0 ? `≈ ${reais(l * precoLitro)} a ${reais(precoLitro)}/L (preço médio das compras)` : precoLitro === null ? "Registre a compra do combustível antes da primeira retirada." : "O valor sai do preço médio das compras do tanque."}
+                </p>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="socio_id">Por conta de</Label>

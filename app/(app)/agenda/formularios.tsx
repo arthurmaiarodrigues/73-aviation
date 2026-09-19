@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Alerta } from "@/components/ui/alerta";
 import { SeletorAerodromo } from "@/components/seletor-aerodromo";
-import { bloquear, reservar, type Resultado } from "./acoes";
+import { bloquear, editarReserva, reservar, type Resultado } from "./acoes";
 
 const INICIAL: Resultado = { ok: true, mensagem: "" };
 
@@ -24,11 +24,28 @@ function Botao({ rotulo, icone }: { rotulo: string; icone: React.ReactNode }) {
   );
 }
 
-export function FormularioReserva({ hoje, aerodromos }: { hoje: string; aerodromos: string[] }) {
+type SocioOpcao = { id: string; apelido: string };
+
+/** Reserva nova. O admin escolhe em nome de quem (padrão: ele mesmo). */
+export function FormularioReserva({ hoje, aerodromos, socios, meuSocioId }: { hoje: string; aerodromos: string[]; socios?: SocioOpcao[]; meuSocioId?: string | null }) {
   const [estado, acao] = useActionState(reservar, INICIAL);
   return (
     <form action={acao} className="space-y-3">
       {estado.mensagem && <Alerta tom={estado.ok ? "ok" : "erro"}>{estado.mensagem}</Alerta>}
+      {socios && (
+        <div className="space-y-1 sm:max-w-xs">
+          <Label htmlFor="r-socio" className="text-xs">
+            Em nome de
+          </Label>
+          <Select id="r-socio" name="socio_id" defaultValue={meuSocioId ?? socios[0]?.id ?? ""}>
+            {socios.map((so) => (
+              <option key={so.id} value={so.id}>
+                {so.apelido}
+              </option>
+            ))}
+          </Select>
+        </div>
+      )}
       <div className="grid gap-3 sm:grid-cols-4">
         <div className="space-y-1">
           <Label htmlFor="r-inicio" className="text-xs">
@@ -51,6 +68,53 @@ export function FormularioReserva({ hoje, aerodromos }: { hoje: string; aerodrom
         </div>
       </div>
       <Botao rotulo="Reservar" icone={<CalendarPlus />} />
+    </form>
+  );
+}
+
+/** Editar uma reserva existente (quem reservou ou o admin). */
+export function FormularioEditarReserva({
+  reserva,
+  aerodromos,
+  socios,
+}: {
+  reserva: { id: string; inicio: string; fim: string; destino: string | null; motivo: string | null; socio_id: string };
+  aerodromos: string[];
+  socios?: SocioOpcao[];
+}) {
+  const [estado, acao] = useActionState(editarReserva, INICIAL);
+  return (
+    <form action={acao} className="mt-2 space-y-3 rounded border border-marinho-100 p-3 dark:border-marinho-300">
+      <input type="hidden" name="id" value={reserva.id} />
+      {estado.mensagem && <Alerta tom={estado.ok ? "ok" : "erro"}>{estado.mensagem}</Alerta>}
+      <div className="grid gap-3 sm:grid-cols-4">
+        {socios && (
+          <div className="space-y-1">
+            <Label className="text-xs">Sócio</Label>
+            <Select name="socio_id" defaultValue={reserva.socio_id}>
+              {socios.map((so) => (
+                <option key={so.id} value={so.id}>
+                  {so.apelido}
+                </option>
+              ))}
+            </Select>
+          </div>
+        )}
+        <div className="space-y-1">
+          <Label className="text-xs">De</Label>
+          <Input name="inicio" type="date" defaultValue={reserva.inicio} required />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Até</Label>
+          <Input name="fim" type="date" defaultValue={reserva.fim} />
+        </div>
+        <SeletorAerodromo nome="destino" rotulo="Destino" opcoes={aerodromos} valorInicial={reserva.destino ?? ""} />
+        <div className="space-y-1">
+          <Label className="text-xs">Motivo</Label>
+          <Input name="motivo" defaultValue={reserva.motivo ?? ""} className="uppercase" maxLength={80} />
+        </div>
+      </div>
+      <Botao rotulo="Salvar alteração" icone={<CalendarPlus />} />
     </form>
   );
 }

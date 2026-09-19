@@ -24,6 +24,7 @@ export default async function PaginaManutencaoFicha({ params, searchParams }: { 
   if (!m) notFound();
   const aeronave = await aeronaveAtiva();
   const admin = usuario.perfil === "admin";
+  const opera = admin || usuario.perfil === "piloto";
   const valores = veValores(usuario.perfil);
 
   const [plano, fornecedores, socios, voos, translado, teste] = await Promise.all([
@@ -146,7 +147,7 @@ export default async function PaginaManutencaoFicha({ params, searchParams }: { 
         </Card>
       )}
 
-      {admin && m.status !== "CONCLUIDA" && (
+      {opera && m.status !== "CONCLUIDA" && (
         <Card className="border-ok">
           <CardHeader>
             <CardTitle className="text-lg">Concluir</CardTitle>
@@ -158,7 +159,7 @@ export default async function PaginaManutencaoFicha({ params, searchParams }: { 
         </Card>
       )}
 
-      {admin && (
+      {opera && (
         <details>
           <summary className="cursor-pointer text-sm font-semibold text-laranja-700">Editar dados da manutenção</summary>
           <div className="mt-4 space-y-4">
@@ -169,9 +170,11 @@ export default async function PaginaManutencaoFicha({ params, searchParams }: { 
               voos={voos.map((v) => ({ id: v.id, data: v.data, origem: v.origem, destino: v.destino, natureza: v.natureza }))}
               hoje={hoje()}
             />
-            <div className="border-t border-marinho-100 pt-4 dark:border-marinho-300">
-              <BotaoApagarManutencao id={m.id} />
-            </div>
+            {admin && (
+              <div className="border-t border-marinho-100 pt-4 dark:border-marinho-300">
+                <BotaoApagarManutencao id={m.id} />
+              </div>
+            )}
           </div>
         </details>
       )}
