@@ -18,12 +18,12 @@ import { salvarVoo, type Resultado } from "../acoes";
 
 const INICIAL: Resultado = { ok: true, mensagem: "" };
 
-function Botao({ pousou }: { pousou: boolean }) {
+function Botao({ pousou, antigo }: { pousou: boolean; antigo: boolean }) {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" size="campo" disabled={pending}>
       {pending ? <Loader2 className="animate-spin" /> : pousou ? <PlaneLanding /> : <PlaneTakeoff />}
-      {pending ? "Salvando…" : pousou ? "Registrar voo completo" : "Decolar — registro o pouso depois"}
+      {pending ? "Salvando…" : antigo ? "Registrar voo antigo" : pousou ? "Registrar voo completo" : "Decolar — registro o pouso depois"}
     </Button>
   );
 }
@@ -108,7 +108,15 @@ export function FormularioVoo({
       )}
       {perfil === "admin" && (
         <label className="flex items-center gap-2 text-sm text-marinho-300">
-          <input type="checkbox" checked={semHorimetro} onChange={(e) => setSemHorimetro(e.target.checked)} />
+          <input
+            type="checkbox"
+            checked={semHorimetro}
+            onChange={(e) => {
+              setSemHorimetro(e.target.checked);
+              // Voo antigo já aconteceu inteiro: não existe "decolar e pousar depois".
+              if (e.target.checked) setPousou(true);
+            }}
+          />
           Voo antigo, sem foto do horímetro (digitar só as horas)
         </label>
       )}
@@ -198,22 +206,28 @@ export function FormularioVoo({
       )}
 
       {/* 3. Pouso — agora ou depois */}
-      <label className="flex items-center gap-3 rounded-lg border border-marinho-100 bg-areia-200 p-4 text-sm font-semibold dark:border-marinho-300 dark:bg-marinho-700">
-        <input type="checkbox" checked={pousou} onChange={(e) => setPousou(e.target.checked)} className="size-5" />
-        Já pousei — registrar o horímetro final agora
-      </label>
+      {!semHorimetro && (
+        <label className="flex items-center gap-3 rounded-lg border border-marinho-100 bg-areia-200 p-4 text-sm font-semibold dark:border-marinho-300 dark:bg-marinho-700">
+          <input type="checkbox" checked={pousou} onChange={(e) => setPousou(e.target.checked)} className="size-5" />
+          Já pousei — registrar o horímetro final agora
+        </label>
+      )}
 
       {pousou && (
         <>
-          <FotoHorimetro
-            nome="final"
-            rotulo="Horímetro depois do pouso"
-            esperado={esperadoFinal}
-            rotuloArquivo="HORIMETRO - FINAL"
-            estado={fotoFinal}
-            aoMudar={setFotoFinal}
-            leituraAutomatica={leituraAutomatica}
-          />
+          {semHorimetro ? (
+            <p className="text-xs text-marinho-300">Voo antigo: sem horímetro final — as horas digitadas acima fecham o voo.</p>
+          ) : (
+            <FotoHorimetro
+              nome="final"
+              rotulo="Horímetro depois do pouso"
+              esperado={esperadoFinal}
+              rotuloArquivo="HORIMETRO - FINAL"
+              estado={fotoFinal}
+              aoMudar={setFotoFinal}
+              leituraAutomatica={leituraAutomatica}
+            />
+          )}
           <div className="space-y-1.5">
             <Label htmlFor="combustivel_final_l">Combustível no pouso (L)</Label>
             <Input id="combustivel_final_l" name="combustivel_final_l" inputMode="decimal" placeholder="ex.: 125" className="h-12 tabular" />
@@ -226,7 +240,7 @@ export function FormularioVoo({
         <Textarea id="observacao" name="observacao" placeholder="Opcional" />
       </div>
 
-      <Botao pousou={pousou} />
+      <Botao pousou={pousou} antigo={semHorimetro} />
     </form>
   );
 }
