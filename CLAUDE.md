@@ -219,4 +219,5 @@ Só a `HORAS E COMBUSTÍVEL.xlsx`, aba HORIMETRO:
 - Tela `/agenda`: alerta da vez pede semana e fim de semana; cards "Pedidos aguardando" (Concordo / Preciso) e "Trocas propostas"; "trocar com…" em cada bloco meu (`seletor-troca.tsx`); regras escritas no fim.
 - `/instalar` (pública, fora do middleware): Android com `beforeinstallprompt`, iPhone passo a passo; link no login e no menu.
 - Links de acesso pessoais: `npm run link-acesso -- <email>` → `/auth/definir-senha#th=<hashed_token>` (token no fragmento: a prévia do WhatsApp gastava o link `auth/v1/verify`). Validade = "Email OTP Expiration" do Auth (12 h desde 19/09).
+- `schema_v8_catalogo_manutencao.sql`: 24 itens do plano do RV-10 (13 POR_USO, 11 POR_TEMPO); "BATERIA" antigo removido (duplicava BATERIA PRINCIPAL). Última execução dos itens ainda a preencher pelo admin.
 - `schema_v7b`: bloco livre reservado por sócio com o direito daquele tipo ainda não usado no mês vira dele na hora (`assumir_blocos_livres`, chamado em `reservar`/`editar_reserva`); pedido só quando o direito já foi usado.
