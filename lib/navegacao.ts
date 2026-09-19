@@ -16,6 +16,7 @@ const SOCIO: ItemMenu[] = [
   { rotulo: "Agenda", href: "/agenda", icone: "agenda" },
   { rotulo: "Manutenção", href: "/manutencao", icone: "manutencao" },
   { rotulo: "Cadastros", href: "/cadastros", icone: "cadastros" },
+  { rotulo: "Instalar o app", href: "/instalar", icone: "instalar" },
 ];
 
 // Piloto contratado: opera sem ver valores — voo, abastecimento pelo tanque,
@@ -28,6 +29,7 @@ const PILOTO: ItemMenu[] = [
   { rotulo: "Reembolsos", href: "/reembolsos", icone: "despesas" },
   { rotulo: "Agenda", href: "/agenda", icone: "agenda" },
   { rotulo: "Manutenção", href: "/manutencao", icone: "manutencao" },
+  { rotulo: "Instalar o app", href: "/instalar", icone: "instalar" },
 ];
 
 export function menuDoPerfil(perfil: Perfil): ItemMenu[] {

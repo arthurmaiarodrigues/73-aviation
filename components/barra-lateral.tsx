@@ -20,6 +20,7 @@ import {
   Receipt,
   Scale,
   Wrench,
+  Smartphone,
   X,
 } from "lucide-react";
 
@@ -41,6 +42,7 @@ const ICONES = {
   agenda: CalendarDays,
   manutencao: Wrench,
   cadastros: NotebookPen,
+  instalar: Smartphone,
 } as const;
 
 export function BarraLateral({

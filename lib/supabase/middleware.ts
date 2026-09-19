@@ -3,7 +3,7 @@ import type { CookieParaGravar } from "@/lib/supabase/cookies";
 import { NextResponse, type NextRequest } from "next/server";
 
 /** Rotas que não exigem sessão. */
-const PUBLICAS = ["/login", "/auth", "/api/versao"];
+const PUBLICAS = ["/login", "/auth", "/api/versao", "/instalar"];
 
 export async function atualizarSessao(request: NextRequest) {
   let response = NextResponse.next({ request });

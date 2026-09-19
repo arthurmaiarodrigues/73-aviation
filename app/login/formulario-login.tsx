@@ -54,6 +54,12 @@ export function FormularioLogin({ proximo }: { proximo?: string }) {
       <p className="text-xs text-marinho-300">
         Esqueceu a senha? Peça ao administrador para redefinir.
       </p>
+      <p className="text-xs text-marinho-300">
+        Primeira vez no celular?{" "}
+        <a href="/instalar" className="text-laranja-700 hover:underline">
+          Instalar o app
+        </a>
+      </p>
     </form>
   );
 }
