@@ -60,6 +60,9 @@ export function FormularioTanque({
   const [comprovante, setComprovante] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [lendo, setLendo] = useState(false);
+  const [leitura, setLeitura] = useState<{ confianca: number; observacao: string } | null>(null);
+  const [data, setData] = useState(hoje);
 
   // Gravou: limpa os campos para o próximo lançamento.
   useEffect(() => {
@@ -68,6 +71,7 @@ export function FormularioTanque({
       setValor("");
       setMedido("");
       setComprovante(null);
+      setLeitura(null);
     }
   }, [estado]);
 
@@ -80,10 +84,32 @@ export function FormularioTanque({
     if (!arquivo) return;
     setErro(null);
     setEnviando(true);
+    const leituraPromessa = lerNota(arquivo);
     const r = await enviarArquivo(arquivo, "comprovantes", "COMPROVANTE - COMBUSTIVEL TANQUE");
     setEnviando(false);
     if (!r.ok) return setErro(r.mensagem);
     setComprovante(r.caminho);
+    await leituraPromessa;
+  }
+
+  // Leitura acessória da nota: litros, valor e data preenchem sozinhos; o preço do litro sai na hora.
+  async function lerNota(arquivo: File) {
+    setLendo(true);
+    try {
+      const form = new FormData();
+      form.append("arquivo", arquivo);
+      const resp = await fetch("/api/comprovante", { method: "POST", body: form });
+      const lido = (await resp.json()) as { erro?: string; data: string | null; valor: number | null; litros: number | null; confianca: number; observacao: string };
+      if (!resp.ok) throw new Error(lido.erro ?? "Falha na leitura.");
+      if (lido.data) setData(lido.data);
+      if (lido.valor !== null) setValor(lido.valor.toFixed(2).replace(".", ","));
+      if (lido.litros !== null) setLitros(String(lido.litros).replace(".", ","));
+      setLeitura({ confianca: lido.confianca, observacao: lido.observacao });
+    } catch (e) {
+      setErro(`Nota anexada, mas não consegui ler: ${e instanceof Error ? e.message : "falha"}. Preencha litros e valor à mão.`);
+    } finally {
+      setLendo(false);
+    }
   }
 
   const abas: { chave: Tipo; rotulo: string }[] = [
@@ -120,7 +146,7 @@ export function FormularioTanque({
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor="data">Data</Label>
-          <Input id="data" name="data" type="date" defaultValue={hoje} required className="h-12" />
+          <Input id="data" name="data" type="date" value={data} onChange={(e) => setData(e.target.value)} required className="h-12" />
         </div>
 
         {tipo === "RETIRADA" && (
@@ -168,7 +194,11 @@ export function FormularioTanque({
             <div className="space-y-1.5">
               <Label htmlFor="valor">Valor pago (R$)</Label>
               <Input id="valor" name="valor" inputMode="decimal" value={valor} onChange={(e) => setValor(e.target.value)} placeholder="0,00" required className="h-12 text-lg font-semibold tabular" />
-              {l > 0 && v > 0 && <p className="text-xs text-marinho-300">{reais(v / l)} por litro</p>}
+              {l > 0 && v > 0 && (
+                <p className="text-sm font-semibold tabular">
+                  {reais(v / l)} por litro{leitura ? <span className="font-normal text-marinho-300"> · lido da nota ({Math.round(leitura.confianca * 100)} %) — confira</span> : null}
+                </p>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="socio_id">Quem pagou</Label>
@@ -194,11 +224,12 @@ export function FormularioTanque({
             </div>
             <div className="sm:col-span-2 rounded-lg border border-dashed border-marinho-300 p-4">
               <label className="inline-flex h-12 cursor-pointer items-center gap-2 rounded bg-laranja px-4 text-sm font-semibold text-marinho hover:bg-laranja-700 hover:text-areia">
-                {enviando ? <Loader2 className="size-4 animate-spin" /> : <Paperclip className="size-4" />}
-                {enviando ? "Enviando…" : comprovante ? "Trocar nota" : "Foto da nota"}
-                <input type="file" accept="image/*,application/pdf" capture="environment" className="hidden" onChange={(e) => tratarComprovante(e.target.files?.[0])} disabled={enviando} />
+                {enviando || lendo ? <Loader2 className="size-4 animate-spin" /> : <Paperclip className="size-4" />}
+                {lendo ? "Lendo a nota…" : enviando ? "Enviando…" : comprovante ? "Trocar nota" : "Foto da nota (lê litros e valor)"}
+                <input type="file" accept="image/*,application/pdf" capture="environment" className="hidden" onChange={(e) => tratarComprovante(e.target.files?.[0])} disabled={enviando || lendo} />
               </label>
-              {comprovante && <span className="ml-3 text-xs text-ok">anexada</span>}
+              {comprovante && !lendo && <span className="ml-3 text-xs text-ok">anexada</span>}
+              {leitura?.observacao && <p className="mt-2 text-xs text-marinho-300">{leitura.observacao}</p>}
               {erro && <p className="mt-2 text-xs text-erro">{erro}</p>}
             </div>
           </>
