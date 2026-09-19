@@ -196,3 +196,11 @@ Só a `HORAS E COMBUSTÍVEL.xlsx`, aba HORIMETRO:
 1. **Valor do fundo de reserva por hora** — assumir R$ 150/h até o admin definir na tela de cadastro da aeronave.
 2. **Semana** — assumir segunda a domingo; janela de "menos uso" para a ordem de escolha: últimos 3 meses.
 3. Nome do app e da sociedade para a identidade visual.
+
+## 10e. Tanque do hangar, piloto e ciclo das revisões (19/09/2026)
+
+- **Tanque de 2.000 L** (`db/schema_v6_tanque.sql`): `tanque_movimentos` (COMPRA / RETIRADA / AJUSTE), views `v_tanque_saldo`, `v_tanque_movimentos`, `v_tanque_socio_mes`, `preco_tanque_em`. COMPRA vira despesa COMBUSTÍVEL **sem rateio** (`despesas.tanque = 'COMPRA'`; crédito de quem pagou, saída do caixa se foi o caixa). RETIRADA vira `abastecimentos` de `origem = 'TANQUE'` valorado pelo preço médio das compras até a data, e a despesa é DIRETO ao sócio (ou IGUAL para a sociedade) **paga pelo caixa mas fora de `v_caixa`** (`despesas.tanque = 'RETIRADA'`). Tela `/combustivel` (menu "Combustível"); abastecimento em posto continua em `/abastecimentos/novo`.
+- `v_combustivel_socio_mes`: abastecimento pago pelo caixa divide os litros entre os sócios (antes cobrava duas vezes o consumo dos voos da sociedade).
+- `v_extrato_socio` (`schema_v6b`): despesa DIRETO paga pelo caixa entra como débito do sócio (`is not distinct from` — o `=` com pagador nulo descartava a linha).
+- **Piloto contratado** (`schema_v5c`): `pilotos.usuario_id`; sessão traz `pilotoId`; o piloto escolhe natureza e sócio do voo, o campo piloto é ele; menu só Início / Registrar voo / Voos; Início não mostra horas por sócio. Convite por e-mail: `npm run convidar -- email "NOME" socio|piloto` (Supabase manda o link; Site URL = https://ppznm.vercel.app). O SMTP padrão do Supabase tem limite de poucos e-mails por hora.
+- **Ciclo das revisões** (`schema_v5`, `schema_v5b`): item REVISÃO 50 H; `plano_execucoes` guarda marco 26/06/2026 e a revisão de 100 h (08–15/09/2026, em `manutencoes`, sem itens ainda). Início tem abas Mês / Trimestre / Revisão 50 h / Revisão 100 h, com o bloco "última revisão" (`ciclosRevisao`). Período POR_USO fecha na entrada da oficina.
