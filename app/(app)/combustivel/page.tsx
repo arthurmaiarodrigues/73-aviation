@@ -140,14 +140,12 @@ export default async function PaginaCombustivel() {
                   <span className="text-sm font-semibold">{u.socio.apelido}</span>
                 </div>
                 <CardTitle className="tabular text-xl">{fmtLitros(u.mesLitros)}</CardTitle>
-                <p className="text-xs text-marinho-300 tabular">
-                  {mesPorExtenso(mes)} · ≈ {reais(u.mesValor)}
-                </p>
+                <p className="text-xs text-marinho-300 tabular">{mesPorExtenso(mes)}</p>
                 <div className="h-1.5 w-full rounded bg-marinho-100 dark:bg-marinho-300">
                   <div className="h-1.5 rounded" style={{ width: `${totalRetirado > 0 ? (u.totalLitros / totalRetirado) * 100 : 0}%`, background: u.socio.cor }} />
                 </div>
                 <p className="text-xs text-marinho-300 tabular">
-                  total {fmtLitros(u.totalLitros)} · ≈ {reais(u.totalValor)} · {totalRetirado > 0 ? ((u.totalLitros / totalRetirado) * 100).toFixed(0) : 0} %
+                  total {fmtLitros(u.totalLitros)} · {totalRetirado > 0 ? ((u.totalLitros / totalRetirado) * 100).toFixed(0) : 0} % do uso
                 </p>
               </CardHeader>
             </Card>
@@ -165,8 +163,8 @@ export default async function PaginaCombustivel() {
               <Cabecalho>Movimento</Cabecalho>
               <Cabecalho>Quem</Cabecalho>
               <Cabecalho numerico>Litros</Cabecalho>
-              <Cabecalho numerico>R$/L</Cabecalho>
-              <Cabecalho numerico>Valor</Cabecalho>
+              <Cabecalho numerico>R$/L (compra)</Cabecalho>
+              <Cabecalho numerico>Valor (compra)</Cabecalho>
               <Cabecalho numerico>Saldo</Cabecalho>
               <Cabecalho> </Cabecalho>
             </tr>
@@ -190,8 +188,8 @@ export default async function PaginaCombustivel() {
                   {m.tipo === "RETIRADA" ? "−" : m.tipo === "AJUSTE" && m.litros > 0 ? "+" : ""}
                   {fmtLitros(Math.abs(m.litros))}
                 </Celula>
-                <Celula numerico>{m.preco_litro !== null ? reais(m.preco_litro) : "—"}</Celula>
-                <Celula numerico>{m.valor !== null ? reais(m.valor) : "—"}</Celula>
+                <Celula numerico>{m.tipo === "COMPRA" && m.preco_litro !== null ? reais(m.preco_litro) : "—"}</Celula>
+                <Celula numerico>{m.tipo === "COMPRA" && m.valor !== null ? reais(m.valor) : "—"}</Celula>
                 <Celula numerico>{fmtLitros(m.saldo_litros)}</Celula>
                 <Celula>
                   <BotaoApagarMovimento id={m.id} />

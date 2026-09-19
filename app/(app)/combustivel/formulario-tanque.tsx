@@ -156,7 +156,7 @@ export function FormularioTanque({
               <Input id="litros" name="litros" inputMode="decimal" value={litros} onChange={(e) => setLitros(e.target.value)} placeholder="ex.: 120" required className="h-12 text-lg font-semibold tabular" />
               {!somenteRetirada && (
                 <p className="text-xs text-marinho-300">
-                  {precoLitro !== null && l > 0 ? `≈ ${reais(l * precoLitro)} a ${reais(precoLitro)}/L (preço médio das compras)` : precoLitro === null ? "Registre a compra do combustível antes da primeira retirada." : "O valor sai do preço médio das compras do tanque."}
+                  {precoLitro === null ? "Registre a compra do combustível antes da primeira retirada." : "Só registra o uso: o custo já foi rateado na compra; a próxima compra é dividida por esses litros."}
                 </p>
               )}
             </div>
