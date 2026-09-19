@@ -170,3 +170,66 @@ export function acertoSugerido(resumo: ResumoSocio[]): { transferencias: Transfe
   const caixa = transferencias.reduce((s, t) => s + (t.para === "CAIXA" ? t.valor : 0) - (t.de === "CAIXA" ? t.valor : 0), 0);
   return { transferencias, caixa: Math.round(caixa * 100) / 100 };
 }
+
+/** Meses "AAAA-MM-01" de `de` até `ate` (inclusive). */
+export function mesesEntre(de: string, ate: string): string[] {
+  const lista: string[] = [];
+  const d = new Date(`${de.slice(0, 7)}-01T00:00:00Z`);
+  const fim = `${ate.slice(0, 7)}-01`;
+  while (d.toISOString().slice(0, 10) <= fim && lista.length < 36) {
+    lista.push(d.toISOString().slice(0, 10));
+    d.setUTCMonth(d.getUTCMonth() + 1);
+  }
+  return lista;
+}
+
+/**
+ * Resumo de vários meses somados por sócio (o primeiro fechamento da
+ * sociedade pega mais de um mês; depois é mensal). Mês fechado usa o resumo
+ * gravado; aberto, o vivo. Acumulado = o do último mês.
+ */
+export async function resumoDoPeriodo(aeronaveId: string, meses: string[]): Promise<{ resumo: ResumoSocio[]; fechamentos: (Fechamento | null)[]; pendencias: Pendencia[] }> {
+  const [fechamentos, vivos, pendenciasPorMes] = await Promise.all([
+    Promise.all(meses.map((m) => buscarFechamento(aeronaveId, m))),
+    Promise.all(meses.map((m) => resumoDoMes(aeronaveId, m))),
+    Promise.all(meses.map((m) => pendenciasDoMes(aeronaveId, m))),
+  ]);
+  const porMes = meses.map((_, i) => (fechamentos[i]?.status === "FECHADO" && fechamentos[i]?.resumo ? fechamentos[i]!.resumo! : vivos[i]));
+  const soma = new Map<string, ResumoSocio>();
+  porMes.forEach((lista, i) => {
+    for (const s of lista) {
+      const acc = soma.get(s.socio_id) ?? { ...s, horas: 0, qtd_voos: 0, creditos: 0, debitos: 0, saldo_mes: 0, litros_abastecidos: 0, litros_consumidos: 0, saldo_litros: 0, combustivel_valor: 0, fundo: 0, rateado: 0 };
+      acc.horas += s.horas;
+      acc.qtd_voos += s.qtd_voos;
+      acc.creditos += s.creditos;
+      acc.debitos += s.debitos;
+      acc.saldo_mes += s.saldo_mes;
+      acc.litros_abastecidos += s.litros_abastecidos;
+      acc.litros_consumidos += s.litros_consumidos;
+      acc.saldo_litros += s.saldo_litros;
+      acc.combustivel_valor += s.combustivel_valor;
+      acc.fundo += s.fundo;
+      acc.rateado += s.rateado;
+      if (i === porMes.length - 1) acc.saldo_acumulado = s.saldo_acumulado;
+      soma.set(s.socio_id, acc);
+    }
+  });
+  const arred = (n: number) => Math.round(n * 100) / 100;
+  const resumo = [...soma.values()].map((s) => ({ ...s, horas: Math.round(s.horas * 10) / 10, creditos: arred(s.creditos), debitos: arred(s.debitos), saldo_mes: arred(s.saldo_mes), combustivel_valor: arred(s.combustivel_valor), fundo: arred(s.fundo), rateado: arred(s.rateado) })).sort((a, b) => a.apelido.localeCompare(b.apelido));
+  // pendências: soma por tipo (só dos meses ainda abertos)
+  const pend = new Map<string, Pendencia>();
+  pendenciasPorMes.forEach((lista, i) => {
+    if (fechamentos[i]?.status === "FECHADO") return;
+    for (const p of lista) {
+      const acc = pend.get(p.tipo) ?? { ...p, quantidade: 0 };
+      acc.quantidade += p.quantidade;
+      pend.set(p.tipo, acc);
+    }
+  });
+  return { resumo, fechamentos, pendencias: [...pend.values()] };
+}
+
+export async function linhasDoPeriodo(aeronaveId: string, meses: string[]): Promise<LinhaMes[]> {
+  const listas = await Promise.all(meses.map((m) => linhasDoMes(aeronaveId, m)));
+  return listas.flat();
+}

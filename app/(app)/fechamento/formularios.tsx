@@ -22,11 +22,14 @@ function Botao({ rotulo, icone, variant = "primario" }: { rotulo: string; icone:
   );
 }
 
-export function FormularioFechar({ mes, bloqueado }: { mes: string; bloqueado: boolean }) {
+export function FormularioFechar({ mes, meses, bloqueado }: { mes: string; meses?: string[]; bloqueado: boolean }) {
   const [estado, acao] = useActionState(fecharMes, INICIAL);
+  const lista = meses && meses.length > 0 ? meses : [mes];
   return (
     <form action={acao} className="space-y-3">
-      <input type="hidden" name="mes" value={mes} />
+      {lista.map((m) => (
+        <input key={m} type="hidden" name="mes" value={m} />
+      ))}
       {estado.mensagem && <Alerta tom={estado.ok ? "ok" : "erro"}>{estado.mensagem}</Alerta>}
       <div className="space-y-1">
         <Label htmlFor="observacao" className="text-xs">
@@ -34,7 +37,7 @@ export function FormularioFechar({ mes, bloqueado }: { mes: string; bloqueado: b
         </Label>
         <Input id="observacao" name="observacao" placeholder="ex.: ACERTO COMBINADO NO GRUPO" className="uppercase" />
       </div>
-      <Botao rotulo="Fechar o mês" icone={<Lock />} />
+      <Botao rotulo={lista.length > 1 ? `Fechar o período (${lista.length} meses)` : "Fechar o mês"} icone={<Lock />} />
       {bloqueado && <p className="text-xs text-erro">Há voo sem pouso registrado: o fechamento vai recusar até resolver.</p>}
     </form>
   );

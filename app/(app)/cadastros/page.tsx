@@ -53,7 +53,7 @@ export default async function PaginaCadastros() {
               <Campo nome="matricula" rotulo="Matrícula" valor={aeronave.matricula} />
               <Campo nome="modelo" rotulo="Modelo" valor={aeronave.modelo} />
               <Campo nome="base_icao" rotulo="Base (ICAO)" valor={aeronave.base_icao ?? ""} />
-              <Campo nome="fundo_reserva_por_hora" rotulo="Fundo de reserva (R$/h)" valor={dec(aeronave.fundo_reserva_por_hora)} />
+              <Campo nome="fundo_reserva_por_hora" rotulo="Fundo de reserva (R$/h) — histórico em /fundo" valor={dec(aeronave.fundo_reserva_por_hora)} />
               <Campo nome="capacidade_combustivel_l" rotulo="Tanque (L)" valor={dec(aeronave.capacidade_combustivel_l)} />
               <Campo nome="consumo_medio_lh" rotulo="Consumo médio (L/h)" valor={dec(aeronave.consumo_medio_lh)} />
               <Campo nome="tbo_motor_horas" rotulo="TBO motor (h)" valor={dec(aeronave.tbo_motor_horas)} />

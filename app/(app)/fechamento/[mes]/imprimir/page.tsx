@@ -5,7 +5,7 @@ import { ArrowLeft } from "lucide-react";
 
 import { exigirValores } from "@/lib/perfil";
 import { aeronaveAtiva, listarSocios } from "@/lib/dados/cadastros";
-import { acertoSugerido, buscarFechamento, linhasDoMes, resumoDoMes } from "@/lib/dados/fechamento";
+import { acertoSugerido, linhasDoPeriodo, mesesEntre, resumoDoPeriodo } from "@/lib/dados/fechamento";
 import { data as fmtData, horas as fmtHoras, horimetro as fmtHorimetro, litros as fmtLitros, mesPorExtenso, reais } from "@/lib/formato";
 import { Logo } from "@/components/logo";
 import { BotaoImprimir } from "../../formularios";
@@ -18,16 +18,21 @@ export const metadata: Metadata = { title: "Fechamento · PDF" };
  * por voo, despesa e aporte, com a coluna de cada sócio — o formato que a
  * sociedade lê.
  */
-export default async function PaginaImprimir({ params }: { params: Promise<{ mes: string }> }) {
+export default async function PaginaImprimir({ params, searchParams }: { params: Promise<{ mes: string }>; searchParams: Promise<{ ate?: string }> }) {
   const { mes: mesParam } = await params;
+  const busca = await searchParams;
   if (!/^\d{4}-\d{2}$/.test(mesParam)) notFound();
   const mes = `${mesParam}-01`;
+  const ate = /^\d{4}-\d{2}$/.test(busca.ate ?? "") && `${busca.ate}-01` > mes ? `${busca.ate}-01` : mes;
+  const meses = mesesEntre(mes, ate);
+  const periodo = meses.length > 1;
   await exigirValores();
   const aeronave = await aeronaveAtiva();
 
-  const [fechamento, resumoVivo, linhas, socios] = await Promise.all([buscarFechamento(aeronave.id, mes), resumoDoMes(aeronave.id, mes), linhasDoMes(aeronave.id, mes), listarSocios()]);
-  const fechado = fechamento?.status === "FECHADO";
-  const resumo = fechado && fechamento?.resumo ? fechamento.resumo : resumoVivo;
+  const [{ resumo, fechamentos }, linhas, socios] = await Promise.all([resumoDoPeriodo(aeronave.id, meses), linhasDoPeriodo(aeronave.id, meses), listarSocios()]);
+  const fechamento = fechamentos[fechamentos.length - 1];
+  const fechado = fechamentos.every((f) => f?.status === "FECHADO");
+  const titulo = periodo ? `${mesPorExtenso(mes)} a ${mesPorExtenso(ate)}` : mesPorExtenso(mes);
   const acerto = acertoSugerido(resumo);
   const apelidos = socios.filter((s) => resumo.some((r) => r.socio_id === s.id)).map((s) => s.apelido);
 
@@ -39,7 +44,7 @@ export default async function PaginaImprimir({ params }: { params: Promise<{ mes
   return (
     <div className="mx-auto max-w-6xl space-y-6 text-sm">
       <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
-        <Link href={`/fechamento?mes=${mesParam}`} className="inline-flex items-center gap-1 text-sm text-marinho-300 hover:text-laranja-700">
+        <Link href={`/fechamento?mes=${mesParam}${periodo ? `&ate=${ate.slice(0, 7)}` : ""}`} className="inline-flex items-center gap-1 text-sm text-marinho-300 hover:text-laranja-700">
           <ArrowLeft className="size-4" /> Fechamento
         </Link>
         <BotaoImprimir />
@@ -48,23 +53,23 @@ export default async function PaginaImprimir({ params }: { params: Promise<{ mes
       <header className="flex items-start justify-between border-b border-marinho-100 pb-4">
         <div>
           <Logo fundo="claro" />
-          <h1 className="mt-3 text-xl font-semibold">Fechamento · {mesPorExtenso(mes)}</h1>
+          <h1 className="mt-3 text-xl font-semibold">Fechamento · {titulo}</h1>
           <p className="text-marinho-300">
             {aeronave.matricula} · {aeronave.modelo}
-            {fechamento?.horimetro_final !== null && fechado ? ` · horímetro no fim do mês ${fmtHorimetro(fechamento?.horimetro_final)}` : ""}
+            {fechamento?.horimetro_final !== null && fechado ? ` · horímetro no fim do período ${fmtHorimetro(fechamento?.horimetro_final)}` : ""}
           </p>
         </div>
         <div className="text-right text-xs text-marinho-300">
           {fechado ? (
             <>
-              <p className="font-semibold text-ok">MÊS FECHADO</p>
+              <p className="font-semibold text-ok">{periodo ? "PERÍODO FECHADO" : "MÊS FECHADO"}</p>
               <p>
                 {fechamento?.fechado_em ? new Date(fechamento.fechado_em).toLocaleString("pt-BR", { timeZone: "America/Bahia" }) : ""}
                 {fechamento?.fechado_por_nome ? ` · ${fechamento.fechado_por_nome}` : ""}
               </p>
             </>
           ) : (
-            <p className="font-semibold text-atencao">PRÉVIA — MÊS AINDA ABERTO</p>
+            <p className="font-semibold text-atencao">PRÉVIA — {periodo ? "PERÍODO" : "MÊS"} AINDA ABERTO</p>
           )}
           <p>emitido em {new Date().toLocaleString("pt-BR", { timeZone: "America/Bahia" })}</p>
         </div>

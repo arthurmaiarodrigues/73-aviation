@@ -4,7 +4,7 @@ import { ArrowRight, Lock, Printer } from "lucide-react";
 
 import { exigirValores } from "@/lib/perfil";
 import { aeronaveAtiva } from "@/lib/dados/cadastros";
-import { acertoSugerido, buscarFechamento, listarFechamentos, mesesComMovimento, pendenciasDoMes, resumoDoMes } from "@/lib/dados/fechamento";
+import { acertoSugerido, listarFechamentos, mesesComMovimento, mesesEntre, resumoDoPeriodo } from "@/lib/dados/fechamento";
 import { data as fmtData, hoje, horas as fmtHoras, horimetro as fmtHorimetro, inicioDoMes, litros as fmtLitros, mesPorExtenso, reais } from "@/lib/formato";
 import { cn } from "@/lib/utils";
 import { Alerta } from "@/components/ui/alerta";
@@ -17,7 +17,7 @@ import { FormularioFechar, FormularioReabrir } from "./formularios";
 
 export const metadata: Metadata = { title: "Fechamento" };
 
-export default async function PaginaFechamento({ searchParams }: { searchParams: Promise<{ mes?: string }> }) {
+export default async function PaginaFechamento({ searchParams }: { searchParams: Promise<{ mes?: string; ate?: string }> }) {
   const busca = await searchParams;
   const usuario = await exigirValores();
   const aeronave = await aeronaveAtiva();
@@ -27,33 +27,47 @@ export default async function PaginaFechamento({ searchParams }: { searchParams:
   const mesAtual = inicioDoMes(hoje());
   const opcoes = [...new Set([mesAtual, ...meses, ...fechamentos.map((f) => f.mes)])].sort().reverse();
   const mes = /^\d{4}-\d{2}$/.test(busca.mes ?? "") ? `${busca.mes}-01` : (opcoes.find((m) => m < mesAtual) ?? mesAtual);
+  const ate = /^\d{4}-\d{2}$/.test(busca.ate ?? "") && `${busca.ate}-01` > mes ? `${busca.ate}-01` : mes;
+  const mesesDoPeriodo = mesesEntre(mes, ate);
+  const periodo = mesesDoPeriodo.length > 1;
 
-  const [fechamento, resumoVivo, pendencias] = await Promise.all([buscarFechamento(aeronave.id, mes), resumoDoMes(aeronave.id, mes), pendenciasDoMes(aeronave.id, mes)]);
-  const fechado = fechamento?.status === "FECHADO";
-  // Mês fechado mostra o que foi gravado na hora; aberto mostra ao vivo.
-  const resumo = fechado && fechamento?.resumo ? fechamento.resumo : resumoVivo;
+  // Um mês ou um período (o primeiro fechamento da sociedade pega vários meses).
+  const { resumo, fechamentos: fechamentosPeriodo, pendencias } = await resumoDoPeriodo(aeronave.id, mesesDoPeriodo);
+  const fechamento = fechamentosPeriodo[fechamentosPeriodo.length - 1];
+  const fechado = fechamentosPeriodo.every((f) => f?.status === "FECHADO");
+  const parcialmenteFechado = !fechado && fechamentosPeriodo.some((f) => f?.status === "FECHADO");
+  const titulo = periodo ? `${mesPorExtenso(mes)} a ${mesPorExtenso(ate)}` : mesPorExtenso(mes);
   const acerto = acertoSugerido(resumo);
   const totais = resumo.reduce(
     (t, s) => ({ horas: t.horas + s.horas, creditos: t.creditos + s.creditos, debitos: t.debitos + s.debitos, saldo: t.saldo + s.saldo_mes, fundo: t.fundo + s.fundo, rateado: t.rateado + s.rateado }),
     { horas: 0, creditos: 0, debitos: 0, saldo: 0, fundo: 0, rateado: 0 },
   );
   const bloqueado = pendencias.some((p) => p.bloqueia);
-  const mesTerminado = mes < mesAtual;
+  const mesTerminado = ate < mesAtual;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">Fechamento do mês</h1>
-          <p className="text-sm text-marinho-300">Resumo por sócio, acerto sugerido e PDF. Fechar congela rateios e fundo.</p>
+          <h1 className="text-2xl font-semibold">Fechamento</h1>
+          <p className="text-sm text-marinho-300">Um mês ou um período (de … até). Resumo por sócio, acerto sugerido e PDF. Fechar congela rateios e fundo.</p>
         </div>
         <div className="flex items-center gap-2">
-          <form method="get" className="flex items-center gap-2">
-            <Select name="mes" defaultValue={mes.slice(0, 7)} className="w-48">
+          <form method="get" className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-marinho-300">de</span>
+            <Select name="mes" defaultValue={mes.slice(0, 7)} className="w-44">
               {opcoes.map((m) => (
                 <option key={m} value={m.slice(0, 7)}>
                   {mesPorExtenso(m)}
                   {fechamentos.find((f) => f.mes === m && f.status === "FECHADO") ? " · fechado" : ""}
+                </option>
+              ))}
+            </Select>
+            <span className="text-xs text-marinho-300">até</span>
+            <Select name="ate" defaultValue={ate.slice(0, 7)} className="w-44">
+              {opcoes.map((m) => (
+                <option key={m} value={m.slice(0, 7)}>
+                  {mesPorExtenso(m)}
                 </option>
               ))}
             </Select>
@@ -62,7 +76,7 @@ export default async function PaginaFechamento({ searchParams }: { searchParams:
             </Button>
           </form>
           <Button asChild variant="secundario">
-            <Link href={`/fechamento/${mes.slice(0, 7)}/imprimir`}>
+            <Link href={`/fechamento/${mes.slice(0, 7)}/imprimir${periodo ? `?ate=${ate.slice(0, 7)}` : ""}`}>
               <Printer /> PDF
             </Link>
           </Button>
@@ -70,7 +84,8 @@ export default async function PaginaFechamento({ searchParams }: { searchParams:
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <h2 className="text-xl font-semibold">{mesPorExtenso(mes)}</h2>
+        <h2 className="text-xl font-semibold">{titulo}</h2>
+        {parcialmenteFechado && <Badge variant="atencao">parte do período já fechada</Badge>}
         {fechado ? (
           <Badge variant="ok">
             <Lock /> fechado em {fechamento?.fechado_em ? new Date(fechamento.fechado_em).toLocaleDateString("pt-BR") : ""}
@@ -80,7 +95,7 @@ export default async function PaginaFechamento({ searchParams }: { searchParams:
           <Badge variant="info">aberto</Badge>
         )}
         {fechamento?.reaberto_em && !fechado && <Badge variant="atencao">reaberto em {new Date(fechamento.reaberto_em).toLocaleDateString("pt-BR")}</Badge>}
-        {fechado && fechamento?.horimetro_final !== null && <span className="text-sm text-marinho-300">horímetro no fim do mês: {fmtHorimetro(fechamento?.horimetro_final)}</span>}
+        {fechado && fechamento?.horimetro_final !== null && <span className="text-sm text-marinho-300">horímetro no fim do período: {fmtHorimetro(fechamento?.horimetro_final)}</span>}
       </div>
 
       {pendencias.length > 0 && !fechado && (
@@ -108,7 +123,7 @@ export default async function PaginaFechamento({ searchParams }: { searchParams:
             <Cabecalho numerico>Combustível</Cabecalho>
             <Cabecalho numerico>Créditos</Cabecalho>
             <Cabecalho numerico>Débitos</Cabecalho>
-            <Cabecalho numerico>Saldo do mês</Cabecalho>
+            <Cabecalho numerico>{periodo ? "Saldo do período" : "Saldo do mês"}</Cabecalho>
             <Cabecalho numerico>Acumulado</Cabecalho>
           </tr>
         </TabelaCabecalho>
@@ -183,22 +198,35 @@ export default async function PaginaFechamento({ searchParams }: { searchParams:
         {/* Fechar / reabrir */}
         <Card className={fechado ? "border-ok" : "border-laranja"}>
           <CardHeader>
-            <CardTitle className="text-lg">{fechado ? "Mês fechado" : "Fechar o mês"}</CardTitle>
+            <CardTitle className="text-lg">{fechado ? (periodo ? "Período fechado" : "Mês fechado") : periodo ? "Fechar o período" : "Fechar o mês"}</CardTitle>
             <CardDescription>
               {fechado
-                ? "Nada mais entra com data neste mês. Reabrir fica registrado com motivo."
+                ? "Nada mais entra com data neste período. Reabrir fica registrado com motivo (mês a mês)."
                 : mesTerminado
-                  ? "Depois de fechar, voo, despesa, abastecimento e aporte com data no mês são recusados."
-                  : "Só dá para fechar um mês que já terminou."}
+                  ? periodo
+                    ? `Fecha os ${mesesDoPeriodo.length} meses de uma vez, em ordem. Depois, voo, despesa, abastecimento e aporte com data no período são recusados.`
+                    : "Depois de fechar, voo, despesa, abastecimento e aporte com data no mês são recusados."
+                  : "Só dá para fechar quando o último mês do período já terminou."}
             </CardDescription>
           </CardHeader>
           <CardContent>
             {!admin ? (
               <p className="text-sm text-marinho-300">Só o administrador fecha ou reabre.</p>
             ) : fechado ? (
-              <FormularioReabrir mes={mes} />
+              periodo ? (
+                <div className="space-y-3">
+                  {mesesDoPeriodo.map((m) => (
+                    <div key={m}>
+                      <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-marinho-300">{mesPorExtenso(m)}</p>
+                      <FormularioReabrir mes={m} />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <FormularioReabrir mes={mes} />
+              )
             ) : mesTerminado ? (
-              <FormularioFechar mes={mes} bloqueado={bloqueado} />
+              <FormularioFechar mes={mes} meses={mesesDoPeriodo} bloqueado={bloqueado} />
             ) : null}
             {fechamento?.observacao && <p className="mt-3 text-xs text-marinho-300">Observação: {fechamento.observacao}</p>}
           </CardContent>
