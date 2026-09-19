@@ -11,7 +11,7 @@ import { Select, Textarea } from "@/components/ui/select";
 import { Alerta } from "@/components/ui/alerta";
 import { FotoHorimetro, type EstadoFoto } from "@/components/foto-horimetro";
 import { SeletorAerodromo } from "@/components/seletor-aerodromo";
-import { ListaEscalas } from "@/components/lista-escalas";
+import { EscalasSimples } from "@/components/escalas-simples";
 import { NATUREZAS, ROTULO_NATUREZA, ehUsoComum, type NaturezaVoo, type Perfil } from "@/lib/tipos";
 import { horasHm, horimetro as fmtHorimetro } from "@/lib/formato";
 import { cn } from "@/lib/utils";
@@ -44,6 +44,7 @@ function Botao({ rotulo }: { rotulo: string }) {
  */
 export function FormularioVoo({
   perfil,
+  pilotoFixo,
   socioLogadoId,
   socios,
   pilotos,
@@ -59,6 +60,8 @@ export function FormularioVoo({
   leituraAutomatica,
 }: {
   perfil: Perfil;
+  /** Piloto contratado logado: o piloto do voo é ele, sem escolher. */
+  pilotoFixo: boolean;
   socioLogadoId: string | null;
   socios: { id: string; apelido: string }[];
   pilotos: { id: string; nome: string; socio_id: string | null }[];
@@ -90,7 +93,6 @@ export function FormularioVoo({
   const [dataIda, setDataIda] = useState(dataInicial ?? hoje);
   const [pousos, setPousos] = useState("1");
   const [horasDigitadas, setHorasDigitadas] = useState("");
-  const [somaPernas, setSomaPernas] = useState<number | null>(null);
   const [qtdEscalas, setQtdEscalas] = useState(0);
   const [detalhes, setDetalhes] = useState(false);
 
@@ -143,6 +145,7 @@ export function FormularioVoo({
           <SeletorAerodromo nome="origem" rotulo="Origem" opcoes={aerodromos} valorInicial={origemInicial ?? base} aoMudar={setOrigem} obrigatorio />
           <SeletorAerodromo nome="destino" rotulo="Destino" opcoes={aerodromos} valorInicial={destinoInicial ?? ""} aoMudar={setDestino} obrigatorio />
         </div>
+        <EscalasSimples nome="escala" opcoes={aerodromos} aoMudar={(n) => { setQtdEscalas(n); setPousos(String(n + 1)); }} />
 
         {!semHorimetro ? (
           <div className="grid gap-4 sm:grid-cols-2">
@@ -179,14 +182,13 @@ export function FormularioVoo({
               name="horas_informadas"
               inputMode="decimal"
               placeholder="1,5"
-              value={somaPernas !== null ? String(somaPernas).replace(".", ",") : horasDigitadas}
+              value={horasDigitadas}
               onChange={(e) => setHorasDigitadas(e.target.value)}
-              readOnly={somaPernas !== null}
               className="h-12 text-lg tabular"
               required
             />
             <p className="text-xs text-atencao">
-              {somaPernas !== null ? `Soma das pernas: ${horasHm(somaPernas)}. ` : ""}O voo fica marcado como pendente de horímetro até o administrador conferir.
+O voo fica marcado como pendente de horímetro até o administrador conferir.
             </p>
           </div>
         )}
@@ -209,6 +211,7 @@ export function FormularioVoo({
             <SeletorAerodromo key={`ov-${destino}`} nome="origem_volta" rotulo="Origem" opcoes={aerodromos} valorInicial={destino} obrigatorio />
             <SeletorAerodromo key={`dv-${origem}`} nome="destino_volta" rotulo="Destino" opcoes={aerodromos} valorInicial={origem} obrigatorio />
           </div>
+          <EscalasSimples nome="escala_volta" opcoes={aerodromos} />
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="horimetro_inicial_volta">Horímetro na decolagem</Label>
@@ -241,7 +244,8 @@ export function FormularioVoo({
         </fieldset>
       )}
 
-      {/* Por conta de */}
+      {/* Por conta de + piloto */}
+      <div className={pilotoFixo ? "space-y-1.5" : "grid gap-4 sm:grid-cols-2"}>
       <div className="space-y-1.5">
         <Label htmlFor="socio_id">Por conta de</Label>
         {usoComum ? (
@@ -261,10 +265,26 @@ export function FormularioVoo({
           </Select>
         )}
       </div>
+      {!pilotoFixo && (
+        <div className="space-y-1.5">
+          <Label htmlFor="piloto_id">Piloto</Label>
+          <Select id="piloto_id" name="piloto_id" defaultValue={pilotoLogadoId ?? ""} required className="h-12">
+            <option value="" disabled>
+              Quem voou?
+            </option>
+            {pilotos.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.nome}
+              </option>
+            ))}
+          </Select>
+        </div>
+      )}
+      </div>
 
       {/* Mais detalhes */}
       <button type="button" onClick={() => setDetalhes((d) => !d)} className="flex items-center gap-1 text-sm font-semibold text-laranja-700">
-        <ChevronDown className={`size-4 transition-transform ${detalhes ? "rotate-180" : ""}`} /> {detalhes ? "menos detalhes" : "mais detalhes (natureza, piloto, escalas, combustível…)"}
+        <ChevronDown className={`size-4 transition-transform ${detalhes ? "rotate-180" : ""}`} /> {detalhes ? "menos detalhes" : "mais detalhes (natureza, combustível, pousos, observação)"}
       </button>
 
       <div className={detalhes ? "space-y-4" : "hidden"}>
@@ -285,25 +305,6 @@ export function FormularioVoo({
               ))}
             </Select>
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="piloto_id">Piloto</Label>
-            <Select id="piloto_id" name="piloto_id" defaultValue={pilotoLogadoId ?? ""} className="h-12">
-              <option value="">—</option>
-              {pilotos.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.nome}
-                </option>
-              ))}
-            </Select>
-          </div>
-          <ListaEscalas
-            opcoes={aerodromos}
-            aoMudar={(n, total) => {
-              setQtdEscalas(n);
-              setPousos(String(n + 1));
-              setSomaPernas(total);
-            }}
-          />
           <div className="space-y-1.5">
             <Label htmlFor="combustivel_inicial_l">Combustível na decolagem (L)</Label>
             <Input id="combustivel_inicial_l" name="combustivel_inicial_l" inputMode="decimal" placeholder="ex.: 195" className="h-12 tabular" />

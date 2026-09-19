@@ -63,6 +63,7 @@ export default async function PaginaNovoVoo({ searchParams }: { searchParams: Pr
       <div className="mt-6">
         <FormularioVoo
           perfil={usuario.perfil}
+          pilotoFixo={Boolean(usuario.pilotoId)}
           socioLogadoId={socioInicial}
           dataInicial={busca.data && /^\d{4}-\d{2}-\d{2}$/.test(busca.data) ? busca.data : undefined}
           destinoInicial={destinoInicial}

@@ -87,6 +87,7 @@ export async function salvarVoo(_anterior: Resultado, form: FormData): Promise<R
   // Piloto contratado registra o voo em nome do sócio que o contratou (ou da sociedade); o piloto do voo é ele mesmo.
   const pilotoBruto = texto(form, "piloto_id");
   const pilotoId = usuario.pilotoId ?? (pilotoBruto && UUID.test(pilotoBruto) ? pilotoBruto : null);
+  if (!pilotoId) return { ok: false, mensagem: "Informe quem pilotou." };
 
   const origem = icao(form, "origem");
   const destino = icao(form, "destino");
@@ -117,8 +118,10 @@ export async function salvarVoo(_anterior: Resultado, form: FormData): Promise<R
     if (hFinalVolta !== null && hInicialVolta !== null && hFinalVolta - hInicialVolta > 12) return { ok: false, mensagem: "Mais de 12 h na volta? Confira os horímetros." };
     if (voltaJunta && hFinalVolta !== null && hInicial !== null && hFinalVolta < hInicial) return { ok: false, mensagem: "O horímetro final da volta tem de ser maior que o da decolagem da ida." };
   }
+  const escalasVolta = form.getAll("escala_volta").map((v) => String(v).trim().toUpperCase()).filter((v) => ICAO.test(v));
   const hFinalVoo = voltaJunta ? hFinalVolta : hFinal;
-  const escalasVoo = voltaJunta && destino ? [destino, ...escalasLista.filter((e) => e !== destino)] : escalasLista;
+  // Um voo só: SNTF → (escalas da ida) → destino → (escalas da volta) → SNTF
+  const escalasVoo = voltaJunta && destino ? [...escalasLista, destino, ...escalasVolta] : escalasLista;
   const destinoVoo = voltaJunta ? destinoVolta : destino;
 
   const combInicial = (pernas.combustivel[0] ?? null) || lerNumero(form.get("combustivel_inicial_l"));
@@ -192,9 +195,10 @@ export async function salvarVoo(_anterior: Resultado, form: FormData): Promise<R
         piloto_id: pilotoId,
         origem: origemVolta,
         destino: destinoVolta,
+        escalas: escalasVolta,
         horimetro_inicial: hInicialVolta,
         horimetro_final: hFinalVolta,
-        pousos: 1,
+        pousos: escalasVolta.length + 1,
         natureza,
         foto_horimetro_final: texto(form, "foto_final_volta"),
         leitura_ia: { final: leituraJson(form, "leitura_final_volta") },
