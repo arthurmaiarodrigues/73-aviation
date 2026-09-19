@@ -108,7 +108,7 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
           {valores && (
             <>
               <Button asChild variant="secundario">
-                <Link href="/abastecimentos/novo">
+                <Link href="/combustivel">
                   <Fuel /> Abastecer
                 </Link>
               </Button>

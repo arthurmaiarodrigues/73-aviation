@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { exigirValores } from "@/lib/perfil";
 import { aeronaveAtiva, aerodromosRecentes, listarSocios } from "@/lib/dados/cadastros";
@@ -8,7 +9,7 @@ import { data as fmtData, hoje, litros as fmtLitros, reais } from "@/lib/formato
 import { Cabecalho, Celula, Tabela, TabelaCabecalho, TabelaCorpo, TabelaLinha } from "@/components/ui/tabela";
 import { FormularioAbastecimento } from "./formulario-abastecimento";
 
-export const metadata: Metadata = { title: "Abastecer" };
+export const metadata: Metadata = { title: "Abastecimento fora da base" };
 
 export default async function PaginaAbastecer() {
   const usuario = await exigirValores();
@@ -23,8 +24,11 @@ export default async function PaginaAbastecer() {
   return (
     <div className="mx-auto max-w-2xl space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold">Abastecer</h1>
-        <p className="mt-1 text-sm text-marinho-300">Regra do tanque cheio: quem usa abastece o que consumiu. Os litros entram no seu saldo de combustível.</p>
+        <h1 className="text-2xl font-semibold">Abastecimento fora da base</h1>
+        <p className="mt-1 text-sm text-marinho-300">
+          Posto de outro aeroporto, pago na hora. Quem usa abastece o que consumiu; os litros entram no seu saldo de combustível. Na base, use o{" "}
+          <Link href="/combustivel" className="text-laranja-700 hover:underline">tanque do hangar</Link>.
+        </p>
       </div>
 
       <FormularioAbastecimento

@@ -157,13 +157,14 @@ export type AbastecimentoLinha = {
   pagador: string;
   pagador_socio_id: string | null;
   comprovante_path: string | null;
+  origem: "POSTO" | "TANQUE";
 };
 
 export async function listarAbastecimentos(aeronaveId: string, limite = 200): Promise<AbastecimentoLinha[]> {
   const supabase = await criarClienteServidor();
   const { data, error } = await supabase
     .from("abastecimentos")
-    .select("id, data, aerodromo, litros, valor, pagador_socio_id, comprovante_path, socios ( apelido )")
+    .select("id, data, aerodromo, litros, valor, pagador_socio_id, comprovante_path, origem, socios ( apelido )")
     .eq("aeronave_id", aeronaveId)
     .is("deleted_at", null)
     .order("data", { ascending: false })
@@ -178,6 +179,7 @@ export async function listarAbastecimentos(aeronaveId: string, limite = 200): Pr
     pagador: (a.socios as unknown as { apelido: string } | null)?.apelido ?? "CAIXA",
     pagador_socio_id: a.pagador_socio_id,
     comprovante_path: a.comprovante_path,
+    origem: (a.origem ?? "POSTO") as "POSTO" | "TANQUE",
   }));
 }
 
