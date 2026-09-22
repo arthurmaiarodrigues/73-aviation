@@ -39,10 +39,12 @@ export function FormularioReembolso({
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [chave, setChave] = useState(0);
+  const [socio, setSocio] = useState("");
 
   useEffect(() => {
     if (estado.ok && estado.mensagem) {
       setComprovante(null);
+      setSocio("");
       setChave((k) => k + 1);
     }
   }, [estado]);
@@ -89,20 +91,39 @@ export function FormularioReembolso({
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="socio_id">Quem deve reembolsar</Label>
-          <Select id="socio_id" name="socio_id" defaultValue="" required className="h-12">
+          <Select id="socio_id" name="socio_id" value={socio} onChange={(e) => setSocio(e.target.value)} required className="h-12">
             <option value="" disabled>
-              Escolha o sócio…
+              Escolha…
             </option>
+            <option value="TODOS_IGUAL">TODOS OS SÓCIOS — partes iguais</option>
+            <option value="TODOS_HORAS">TODOS OS SÓCIOS — conforme as horas voadas</option>
             {socios.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.apelido}
               </option>
             ))}
           </Select>
+          <p className="text-xs text-marinho-300">
+            {socio === "TODOS_IGUAL"
+              ? "Uniforme, salário, CVA, homologação IFR, revisão obrigatória: a sociedade devolve pelo caixa e cada sócio paga 1/4."
+              : socio === "TODOS_HORAS"
+                ? "Manutenção e peças: a sociedade devolve pelo caixa e cada sócio paga conforme as horas que voou (o administrador pode ajustar o período)."
+                : "Gasto de um voo de um sócio só (taxa de pouso, combustível): ele paga direto a você."}
+          </p>
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="categoria_id">Categoria</Label>
-          <Select id="categoria_id" name="categoria_id" defaultValue={taxas ?? ""} className="h-12">
+          <Select
+            id="categoria_id"
+            name="categoria_id"
+            defaultValue={taxas ?? ""}
+            onChange={(e) => {
+              const nome = categorias.find((c) => String(c.id) === e.target.value)?.nome ?? "";
+              if (/MANUTEN|PEÇAS|PECAS|ÓLEO|OLEO/.test(nome)) setSocio("TODOS_HORAS");
+              else if (/SEGURO|DOCUMENTA|HANGAR|ASSINATURAS|PILOTO/.test(nome)) setSocio("TODOS_IGUAL");
+            }}
+            className="h-12"
+          >
             {categorias.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.nome}

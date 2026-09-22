@@ -37,7 +37,11 @@ export async function salvarReembolso(_a: Resultado, form: FormData): Promise<Re
   const categoriaId = Number(texto(form, "categoria_id") ?? "");
   if (!descricao) return { ok: false, mensagem: "Descreva o que pagou." };
   if (valor === null || valor <= 0) return { ok: false, mensagem: "Informe o valor." };
-  if (!socioId || !UUID.test(socioId)) return { ok: false, mensagem: "Escolha o sócio que deve reembolsar." };
+  // TODOS_IGUAL: uniforme, salário, CVA, homologação, revisão obrigatória.
+  // TODOS_HORAS: manutenção e peças — divide conforme as horas voadas.
+  const porHoras = socioId === "TODOS_HORAS";
+  const deTodos = porHoras || socioId === "TODOS" || socioId === "TODOS_IGUAL";
+  if (!deTodos && (!socioId || !UUID.test(socioId))) return { ok: false, mensagem: "Escolha quem deve reembolsar." };
   if (!Number.isInteger(categoriaId)) return { ok: false, mensagem: "Escolha a categoria." };
 
   const aeronave = await aeronaveAtiva();
@@ -49,20 +53,39 @@ export async function salvarReembolso(_a: Resultado, form: FormData): Promise<Re
     categoria_id: categoriaId,
     valor,
     comprovante_path: texto(form, "comprovante_path"),
-    pagador_socio_id: socioId,
-    criterio: "DIRETO",
-    socio_direto_id: socioId,
+    pagador_socio_id: deTodos ? null : socioId,
+    criterio: deTodos ? (porHoras ? "POR_HORAS" : "IGUAL") : "DIRETO",
+    socio_direto_id: deTodos ? null : socioId,
     reembolso_piloto_id: usuario.pilotoId,
     observacao: texto(form, "observacao") ? caixaAlta(texto(form, "observacao")!) : null,
     autor_id: user.id,
   });
   if (error) return { ok: false, mensagem: /está fechado/.test(error.message) ? error.message : `Falha ao gravar: ${error.message}` };
 
-  const { data: socio } = await supabase.from("socios").select("apelido, usuario_id").eq("id", socioId).maybeSingle();
+  const valorTexto = `R$ ${valor.toFixed(2).replace(".", ",")}`;
+  if (deTodos) {
+    const { data: todos } = await supabase.from("socios").select("usuario_id").is("ativo_ate", null).not("usuario_id", "is", null);
+    const usuarios = (todos ?? []).map((s) => s.usuario_id as string);
+    if (usuarios.length > 0) {
+      await notificar(
+        { usuarios },
+        {
+          titulo: "Reembolso ao piloto (de todos)",
+          corpo: `${usuario.nome.split(" ")[0]} pagou ${caixaAlta(descricao)} — ${valorTexto}, dividido ${porHoras ? "conforme as horas voadas" : "em partes iguais"}.`,
+          url: "/reembolsos",
+          tag: "reembolso",
+        },
+      );
+    }
+    revalidar();
+    return { ok: true, mensagem: `Lançado para todos os sócios — a sociedade devolve ao piloto e o custo divide ${porHoras ? "conforme as horas voadas" : "em partes iguais"}.` };
+  }
+
+  const { data: socio } = await supabase.from("socios").select("apelido, usuario_id").eq("id", socioId!).maybeSingle();
   if (socio?.usuario_id) {
     await notificar(
       { usuarios: [socio.usuario_id] },
-      { titulo: "Reembolso ao piloto", corpo: `${usuario.nome.split(" ")[0]} pagou ${caixaAlta(descricao)} — R$ ${valor.toFixed(2).replace(".", ",")}.`, url: "/reembolsos", tag: "reembolso" },
+      { titulo: "Reembolso ao piloto", corpo: `${usuario.nome.split(" ")[0]} pagou ${caixaAlta(descricao)} — ${valorTexto}.`, url: "/reembolsos", tag: "reembolso" },
     );
   }
   revalidar();

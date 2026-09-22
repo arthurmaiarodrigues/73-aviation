@@ -27,7 +27,10 @@ export default async function PaginaReembolsos() {
   ]);
   const urls = piloto ? [] : await Promise.all(reembolsos.map((r) => urlDoComprovante(r.comprovante_path)));
   const pendentes = reembolsos.filter((r) => !r.reembolsado_em);
-  const totalPendente = pendentes.reduce((s, r) => s + r.valor, 0);
+  // o sócio vê a parte dele nos reembolsos de todos; piloto e admin veem o total
+  const parte = (r: { socio_id: string | null; valor: number }) =>
+    usuario.perfil === "socio" && r.socio_id === null && socios.length > 0 ? r.valor / socios.length : r.valor;
+  const totalPendente = pendentes.reduce((s, r) => s + parte(r), 0);
 
   return (
     <div className="mx-auto max-w-3xl space-y-8">
@@ -35,7 +38,7 @@ export default async function PaginaReembolsos() {
         <h1 className="text-2xl font-semibold">Reembolsos ao piloto</h1>
         <p className="mt-1 text-sm text-marinho-300">
           {piloto
-            ? "Pagou taxa de pouso, hangar, algo do avião? Lance aqui com o sócio de quem era o voo; ele recebe o aviso e marca quando reembolsar."
+            ? "Pagou taxa de pouso, hangar, algo do avião? Lance aqui: por conta do sócio de quem era o voo, ou de todos os sócios quando for gasto da sociedade."
             : "O que o piloto pagou do bolso por conta de cada sócio. Quem deve paga direto ao piloto e marca aqui."}
         </p>
       </div>
@@ -86,13 +89,18 @@ export default async function PaginaReembolsos() {
                   ) : null}
                 </span>
               </Celula>
-              <Celula>{r.socio}</Celula>
+              <Celula>
+                {r.socio}
+                {r.socio_id === null && socios.length > 0 && <span className="block text-xs text-marinho-300">{reais(r.valor / socios.length)} cada</span>}
+              </Celula>
               {!piloto && <Celula>{r.piloto}</Celula>}
               <Celula numerico className="font-semibold">{reais(r.valor)}</Celula>
               <Celula>
                 <div className="flex flex-wrap items-center gap-2">
                   {r.reembolsado_em ? <Badge variant="ok">reembolsado {fmtData(r.reembolsado_em)}</Badge> : <Badge variant="atencao">pendente</Badge>}
-                  {(usuario.perfil === "admin" || r.socio_id === usuario.socioId || r.piloto_id === usuario.pilotoId) && <BotaoReembolsado id={r.id} reembolsado={Boolean(r.reembolsado_em)} />}
+                  {(usuario.perfil === "admin" || r.socio_id === usuario.socioId || (r.socio_id === null && usuario.socioId) || r.piloto_id === usuario.pilotoId) && (
+                    <BotaoReembolsado id={r.id} reembolsado={Boolean(r.reembolsado_em)} />
+                  )}
                 </div>
               </Celula>
             </TabelaLinha>

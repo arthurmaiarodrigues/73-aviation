@@ -12,7 +12,8 @@ export type Reembolso = {
   descricao: string;
   categoria: string;
   valor: number;
-  socio_id: string;
+  /** null = de todos os sócios (rateio igual, caixa devolve ao piloto). */
+  socio_id: string | null;
   socio: string;
   piloto_id: string;
   piloto: string;
@@ -25,7 +26,7 @@ const SELECT = `id, data, descricao, valor, socio_direto_id, reembolso_piloto_id
   categorias_despesa ( nome ), socios!despesas_socio_direto_id_fkey ( apelido ), pilotos ( nome )`;
 
 type Bruta = {
-  id: string; data: string; descricao: string; valor: string | number; socio_direto_id: string; reembolso_piloto_id: string;
+  id: string; data: string; descricao: string; valor: string | number; socio_direto_id: string | null; reembolso_piloto_id: string;
   comprovante_path: string | null; observacao: string | null; reembolsado_em: string | null;
   categorias_despesa: { nome: string } | null; socios: { apelido: string } | null; pilotos: { nome: string } | null;
 };
@@ -41,7 +42,8 @@ export async function listarReembolsos(aeronaveId: string, filtro: { socioId?: s
     .order("reembolsado_em", { ascending: true, nullsFirst: true })
     .order("data", { ascending: false })
     .limit(limite);
-  if (filtro.socioId) q = q.eq("socio_direto_id", filtro.socioId);
+  // o sócio vê o que é dele e o que é de todos
+  if (filtro.socioId) q = q.or(`socio_direto_id.eq.${filtro.socioId},socio_direto_id.is.null`);
   if (filtro.pendentes) q = q.is("reembolsado_em", null);
   const { data, error } = await q;
   if (error) throw new Error(`Reembolsos: ${error.message}`);
@@ -52,7 +54,7 @@ export async function listarReembolsos(aeronaveId: string, filtro: { socioId?: s
     categoria: d.categorias_despesa?.nome ?? "",
     valor: Number(d.valor),
     socio_id: d.socio_direto_id,
-    socio: d.socios?.apelido ?? "",
+    socio: d.socio_direto_id === null ? "Todos" : (d.socios?.apelido ?? ""),
     piloto_id: d.reembolso_piloto_id,
     piloto: d.pilotos?.nome ?? "",
     comprovante_path: d.comprovante_path,

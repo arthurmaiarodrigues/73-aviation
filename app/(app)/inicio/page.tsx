@@ -58,7 +58,11 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
   const semVoo = (await reservasSemVoo(aeronave.id)).filter((r) => usuario.perfil !== "socio" || r.socio_id === usuario.socioId);
   // Reembolsos ao piloto pendentes: o sócio vê o que deve; o piloto, o que tem a receber.
   const reembolsosPendentes = await listarReembolsos(aeronave.id, { pendentes: true, socioId: usuario.perfil === "socio" ? (usuario.socioId ?? undefined) : undefined });
-  const totalReembolsos = reembolsosPendentes.reduce((t, r) => t + r.valor, 0);
+  // reembolso de todos: o sócio deve só a parte dele
+  const totalReembolsos = reembolsosPendentes.reduce(
+    (t, r) => t + (usuario.perfil === "socio" && r.socio_id === null && socios.length > 0 ? r.valor / socios.length : r.valor),
+    0,
+  );
 
   // Horas por sócio: mês, trimestre e o ciclo de cada revisão (desde a última execução).
   const trimestre = trimestreDe(hoje());
