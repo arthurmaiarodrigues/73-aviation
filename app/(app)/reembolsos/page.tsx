@@ -8,7 +8,7 @@ import { data as fmtData, hoje, reais } from "@/lib/formato";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Cabecalho, Celula, Tabela, TabelaCabecalho, TabelaCorpo, TabelaLinha } from "@/components/ui/tabela";
-import { BotaoReembolsado, FormularioReembolso } from "./formulario-reembolso";
+import { BotaoReembolsado, ConferirReembolso, FormularioReembolso } from "./formulario-reembolso";
 
 export const metadata: Metadata = { title: "Reembolsos" };
 
@@ -21,15 +21,18 @@ export default async function PaginaReembolsos() {
   const aeronave = await aeronaveAtiva();
   const piloto = usuario.perfil === "piloto";
   const [reembolsos, socios, categorias] = await Promise.all([
-    listarReembolsos(aeronave.id, usuario.perfil === "socio" && usuario.socioId ? { socioId: usuario.socioId } : {}),
+    listarReembolsos(aeronave.id, usuario.perfil === "socio" && usuario.socioId ? { socioId: usuario.socioId, confirmados: true } : {}),
     listarSocios({ somenteAtivos: true }),
     piloto ? listarCategorias() : Promise.resolve([]),
   ]);
   const urls = piloto ? [] : await Promise.all(reembolsos.map((r) => urlDoComprovante(r.comprovante_path)));
-  const pendentes = reembolsos.filter((r) => !r.reembolsado_em);
+  const aConferir = reembolsos.filter((r) => r.status === "PENDENTE");
+  const pendentes = reembolsos.filter((r) => !r.reembolsado_em && r.status !== "PENDENTE");
   // o sócio vê a parte dele nos reembolsos de todos; piloto e admin veem o total
-  const parte = (r: { socio_id: string | null; valor: number }) =>
-    usuario.perfil === "socio" && r.socio_id === null && socios.length > 0 ? r.valor / socios.length : r.valor;
+  const parte = (r: { socio_id: string | null; valor: number; partes: { socio_id: string; valor: number }[] }) =>
+    usuario.perfil === "socio" && r.socio_id === null
+      ? (r.partes.find((p) => p.socio_id === usuario.socioId)?.valor ?? 0)
+      : r.valor;
   const totalPendente = pendentes.reduce((s, r) => s + parte(r), 0);
 
   return (
@@ -51,6 +54,16 @@ export default async function PaginaReembolsos() {
         </CardHeader>
       </Card>
 
+      {aConferir.length > 0 && usuario.perfil === "admin" && (
+        <p className="rounded border border-info/40 bg-info/10 p-3 text-sm">
+          {aConferir.length === 1 ? "1 reembolso aguardando" : `${aConferir.length} reembolsos aguardando`} a sua conferência: veja a divisão na linha e confirme.
+        </p>
+      )}
+      {aConferir.length > 0 && piloto && (
+        <p className="rounded border border-info/40 bg-info/10 p-3 text-sm">
+          {aConferir.length === 1 ? "1 lançamento seu está" : `${aConferir.length} lançamentos seus estão`} com o administrador para conferir a divisão.
+        </p>
+      )}
       {piloto && usuario.pilotoId && <FormularioReembolso socios={socios.map((s) => ({ id: s.id, apelido: s.apelido }))} categorias={categorias.map((c) => ({ id: c.id, nome: c.nome }))} hoje={hoje()} />}
       {piloto && !usuario.pilotoId && <p className="text-sm text-atencao">Seu login ainda não está ligado a um piloto do cadastro — peça ao administrador.</p>}
 
@@ -91,16 +104,34 @@ export default async function PaginaReembolsos() {
               </Celula>
               <Celula>
                 {r.socio}
-                {r.socio_id === null && socios.length > 0 && <span className="block text-xs text-marinho-300">{reais(r.valor / socios.length)} cada</span>}
+                {r.socio_id === null && r.partes.length > 0 && (
+                  <span className="block text-xs text-marinho-300">
+                    {r.criterio === "POR_HORAS"
+                      ? r.partes
+                          .map((p) => `${socios.find((s) => s.id === p.socio_id)?.apelido ?? "?"} ${reais(p.valor)}`)
+                          .join(" · ")
+                      : `${reais(r.partes[0].valor)} cada`}
+                  </span>
+                )}
               </Celula>
               {!piloto && <Celula>{r.piloto}</Celula>}
               <Celula numerico className="font-semibold">{reais(r.valor)}</Celula>
               <Celula>
                 <div className="flex flex-wrap items-center gap-2">
-                  {r.reembolsado_em ? <Badge variant="ok">reembolsado {fmtData(r.reembolsado_em)}</Badge> : <Badge variant="atencao">pendente</Badge>}
-                  {(usuario.perfil === "admin" || r.socio_id === usuario.socioId || (r.socio_id === null && usuario.socioId) || r.piloto_id === usuario.pilotoId) && (
-                    <BotaoReembolsado id={r.id} reembolsado={Boolean(r.reembolsado_em)} />
+                  {r.status === "PENDENTE" ? (
+                    <Badge variant="info">a conferir</Badge>
+                  ) : r.reembolsado_em ? (
+                    <Badge variant="ok">reembolsado {fmtData(r.reembolsado_em)}</Badge>
+                  ) : (
+                    <Badge variant="atencao">pendente</Badge>
                   )}
+                  {r.status === "PENDENTE" && usuario.perfil === "admin" && (
+                    <ConferirReembolso id={r.id} criterio={r.criterio} socioId={r.socio_id} socios={socios.map((s) => ({ id: s.id, apelido: s.apelido }))} />
+                  )}
+                  {r.status !== "PENDENTE" &&
+                    (usuario.perfil === "admin" || r.socio_id === usuario.socioId || (r.socio_id === null && usuario.socioId) || r.piloto_id === usuario.pilotoId) && (
+                      <BotaoReembolsado id={r.id} reembolsado={Boolean(r.reembolsado_em)} />
+                    )}
                 </div>
               </Celula>
             </TabelaLinha>

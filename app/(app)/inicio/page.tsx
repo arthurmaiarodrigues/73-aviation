@@ -57,10 +57,16 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
   // Reservas que terminaram sem voo: o piloto lança ou marca não realizada; o sócio dono também vê.
   const semVoo = (await reservasSemVoo(aeronave.id)).filter((r) => usuario.perfil !== "socio" || r.socio_id === usuario.socioId);
   // Reembolsos ao piloto pendentes: o sócio vê o que deve; o piloto, o que tem a receber.
-  const reembolsosPendentes = await listarReembolsos(aeronave.id, { pendentes: true, socioId: usuario.perfil === "socio" ? (usuario.socioId ?? undefined) : undefined });
+  const reembolsosTodos = await listarReembolsos(aeronave.id, {
+    pendentes: true,
+    socioId: usuario.perfil === "socio" ? (usuario.socioId ?? undefined) : undefined,
+    confirmados: usuario.perfil === "socio",
+  });
+  const reembolsosAConferir = reembolsosTodos.filter((r) => r.status === "PENDENTE");
+  const reembolsosPendentes = reembolsosTodos.filter((r) => r.status !== "PENDENTE");
   // reembolso de todos: o sócio deve só a parte dele
   const totalReembolsos = reembolsosPendentes.reduce(
-    (t, r) => t + (usuario.perfil === "socio" && r.socio_id === null && socios.length > 0 ? r.valor / socios.length : r.valor),
+    (t, r) => t + (usuario.perfil === "socio" && r.socio_id === null ? (r.partes.find((x) => x.socio_id === usuario.socioId)?.valor ?? 0) : r.valor),
     0,
   );
 
@@ -268,6 +274,17 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
               </li>
             ))}
           </ul>
+        </Alerta>
+      )}
+
+      {reembolsosAConferir.length > 0 && usuario.perfil === "admin" && (
+        <Alerta tom="info">
+          <p className="font-semibold">
+            {reembolsosAConferir.length === 1 ? "1 reembolso do piloto aguarda" : `${reembolsosAConferir.length} reembolsos do piloto aguardam`} a sua conferência.
+          </p>
+          <Link href="/reembolsos" className="text-sm underline">
+            conferir
+          </Link>
         </Alerta>
       )}
 

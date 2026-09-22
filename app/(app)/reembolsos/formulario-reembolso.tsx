@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
-import { Check, Loader2, Paperclip, Receipt, Undo2 } from "lucide-react";
+import { Check, Loader2, Paperclip, Receipt, ShieldCheck, Undo2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, Textarea } from "@/components/ui/select";
 import { Alerta } from "@/components/ui/alerta";
 import { enviarArquivo } from "@/lib/upload-cliente";
-import { marcarReembolsado, salvarReembolso, type Resultado } from "./acoes";
+import { confirmarReembolso, marcarReembolsado, salvarReembolso, type Resultado } from "./acoes";
 
 const INICIAL: Resultado = { ok: true, mensagem: "" };
 
@@ -158,5 +158,54 @@ export function BotaoReembolsado({ id, reembolsado }: { id: string; reembolsado:
       </Button>
       {msg && <span className="text-xs text-marinho-300">{msg}</span>}
     </span>
+  );
+}
+
+/** Admin: confere a divisão do que o piloto lançou e confirma (ou corrige). */
+export function ConferirReembolso({
+  id,
+  criterio,
+  socioId,
+  socios,
+}: {
+  id: string;
+  criterio: "IGUAL" | "POR_HORAS" | "DIRETO" | "MANUAL";
+  socioId: string | null;
+  socios: { id: string; apelido: string }[];
+}) {
+  const [pendente, iniciar] = useTransition();
+  const [escolha, setEscolha] = useState(criterio === "DIRETO" ? (socioId ?? "") : criterio === "POR_HORAS" ? "TODOS_HORAS" : "TODOS_IGUAL");
+  const [msg, setMsg] = useState<string | null>(null);
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <Select value={escolha} onChange={(e) => setEscolha(e.target.value)} className="h-10 w-auto text-sm">
+        <option value="TODOS_IGUAL">Todos — partes iguais</option>
+        <option value="TODOS_HORAS">Todos — pelas horas voadas</option>
+        {socios.map((s) => (
+          <option key={s.id} value={s.id}>
+            Só {s.apelido}
+          </option>
+        ))}
+      </Select>
+      <Button
+        type="button"
+        size="pequeno"
+        disabled={pendente}
+        onClick={() =>
+          iniciar(async () => {
+            const r = await confirmarReembolso(
+              id,
+              escolha === "TODOS_IGUAL" ? "IGUAL" : escolha === "TODOS_HORAS" ? "POR_HORAS" : "DIRETO",
+              escolha.length > 20 ? escolha : null,
+            );
+            setMsg(r.mensagem);
+          })
+        }
+      >
+        {pendente ? <Loader2 className="animate-spin" /> : <ShieldCheck />} Confirmar
+      </Button>
+      {msg && <span className="text-xs text-marinho-300">{msg}</span>}
+    </div>
   );
 }
