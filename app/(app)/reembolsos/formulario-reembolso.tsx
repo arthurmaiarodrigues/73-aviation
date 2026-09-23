@@ -1,8 +1,8 @@
 "use client";
 
-import { useActionState, useEffect, useState, useTransition } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { Check, Loader2, Paperclip, Receipt, Undo2 } from "lucide-react";
+import { Loader2, Paperclip, Receipt } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, Textarea } from "@/components/ui/select";
 import { Alerta } from "@/components/ui/alerta";
 import { enviarArquivo } from "@/lib/upload-cliente";
-import { marcarReembolsado, salvarReembolso, type Resultado } from "./acoes";
+import { salvarReembolso, type Resultado } from "./acoes";
 
 const INICIAL: Resultado = { ok: true, mensagem: "" };
 
@@ -29,10 +29,13 @@ export function FormularioReembolso({
   socios,
   categorias,
   hoje,
+  cidadeInicial,
 }: {
   socios: { id: string; apelido: string }[];
   categorias: { id: number; nome: string }[];
   hoje: string;
+  /** Última cidade usada: quase sempre é a mesma viagem. */
+  cidadeInicial?: string | null;
 }) {
   const [estado, acao] = useActionState(salvarReembolso, INICIAL);
   const [comprovante, setComprovante] = useState<string | null>(null);
@@ -85,9 +88,13 @@ export function FormularioReembolso({
           <Label htmlFor="valor">Valor pago (R$)</Label>
           <Input id="valor" name="valor" inputMode="decimal" placeholder="0,00" required className="h-12 text-lg font-semibold tabular" />
         </div>
-        <div className="space-y-1.5 sm:col-span-2">
+        <div className="space-y-1.5">
           <Label htmlFor="descricao">O que pagou</Label>
           <Input id="descricao" name="descricao" placeholder="ex.: TAXA DE POUSO SBSV" required className="h-12 uppercase" maxLength={120} />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="cidade">Cidade</Label>
+          <Input id="cidade" name="cidade" defaultValue={cidadeInicial ?? ""} placeholder="ex.: GOIÂNIA" required className="h-12 uppercase" maxLength={60} />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="socio_id">Quem deve reembolsar</Label>
@@ -138,25 +145,5 @@ export function FormularioReembolso({
       </div>
       <Botao />
     </form>
-  );
-}
-
-export function BotaoReembolsado({ id, reembolsado }: { id: string; reembolsado: boolean }) {
-  const [pendente, iniciar] = useTransition();
-  const [msg, setMsg] = useState<string | null>(null);
-  return (
-    <span className="inline-flex items-center gap-2">
-      <Button
-        type="button"
-        variant={reembolsado ? "fantasma" : "secundario"}
-        size="pequeno"
-        disabled={pendente}
-        onClick={() => iniciar(async () => setMsg((await marcarReembolsado(id, reembolsado)).mensagem))}
-      >
-        {pendente ? <Loader2 className="animate-spin" /> : reembolsado ? <Undo2 /> : <Check />}
-        {reembolsado ? "desfazer" : "Marcar como reembolsado"}
-      </Button>
-      {msg && <span className="text-xs text-marinho-300">{msg}</span>}
-    </span>
   );
 }

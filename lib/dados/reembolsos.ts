@@ -19,6 +19,8 @@ export type Reembolso = {
   piloto: string;
   comprovante_path: string | null;
   observacao: string | null;
+  /** Onde o piloto gastou (GOIÂNIA, PORTO SEGURO…). */
+  cidade: string | null;
   reembolsado_em: string | null;
   /** PENDENTE = esperando o admin confirmar a divisão. */
   status: "PENDENTE" | "APROVADA" | "RATEADA";
@@ -27,12 +29,12 @@ export type Reembolso = {
   partes: { socio_id: string; valor: number }[];
 };
 
-const SELECT = `id, data, descricao, valor, socio_direto_id, reembolso_piloto_id, comprovante_path, observacao, reembolsado_em, status, criterio,
+const SELECT = `id, data, descricao, valor, socio_direto_id, reembolso_piloto_id, comprovante_path, observacao, cidade, reembolsado_em, status, criterio,
   categorias_despesa ( nome ), socios!despesas_socio_direto_id_fkey ( apelido ), pilotos ( nome ), rateios ( socio_id, valor )`;
 
 type Bruta = {
   id: string; data: string; descricao: string; valor: string | number; socio_direto_id: string | null; reembolso_piloto_id: string;
-  comprovante_path: string | null; observacao: string | null; reembolsado_em: string | null;
+  comprovante_path: string | null; observacao: string | null; cidade: string | null; reembolsado_em: string | null;
   status: "PENDENTE" | "APROVADA" | "RATEADA"; criterio: "IGUAL" | "POR_HORAS" | "DIRETO" | "MANUAL";
   categorias_despesa: { nome: string } | null; socios: { apelido: string } | null; pilotos: { nome: string } | null;
   rateios: { socio_id: string; valor: string | number }[] | null;
@@ -68,6 +70,7 @@ export async function listarReembolsos(aeronaveId: string, filtro: { socioId?: s
     piloto: d.pilotos?.nome ?? "",
     comprovante_path: d.comprovante_path,
     observacao: d.observacao,
+    cidade: d.cidade,
     reembolsado_em: d.reembolsado_em,
     status: d.status,
     criterio: d.criterio,

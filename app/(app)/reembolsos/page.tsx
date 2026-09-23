@@ -4,12 +4,10 @@ import { exigirSessao } from "@/lib/perfil";
 import { aeronaveAtiva, listarCategorias, listarSocios } from "@/lib/dados/cadastros";
 import { urlDoComprovante } from "@/lib/dados/financeiro";
 import { listarReembolsos } from "@/lib/dados/reembolsos";
-import { data as fmtData, hoje, reais } from "@/lib/formato";
-import { Badge } from "@/components/ui/badge";
+import { hoje, reais } from "@/lib/formato";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
-import { Cabecalho, Celula, Tabela, TabelaCabecalho, TabelaCorpo, TabelaLinha } from "@/components/ui/tabela";
-import { BotaoReembolsado, FormularioReembolso } from "./formulario-reembolso";
-import { ConferirLote } from "./conferir-lote";
+import { FormularioReembolso } from "./formulario-reembolso";
+import { TabelaReembolsos } from "./tabela-reembolsos";
 
 export const metadata: Metadata = { title: "Reembolsos" };
 
@@ -55,98 +53,45 @@ export default async function PaginaReembolsos() {
         </CardHeader>
       </Card>
 
-      {aConferir.length > 0 && usuario.perfil === "admin" && (
-        <ConferirLote
-          itens={aConferir.map((r) => ({
-            id: r.id,
-            data: r.data,
-            descricao: r.descricao.replace(/^REEMBOLSO PILOTO: /, ""),
-            valor: r.valor,
-            categoria: r.categoria,
-            criterio: r.criterio,
-            socio_id: r.socio_id,
-            socio: r.socio,
-          }))}
-          socios={socios.map((s) => ({ id: s.id, apelido: s.apelido }))}
-        />
-      )}
       {aConferir.length > 0 && piloto && (
         <p className="rounded border border-info/40 bg-info/10 p-3 text-sm">
           {aConferir.length === 1 ? "1 lançamento seu está" : `${aConferir.length} lançamentos seus estão`} com o administrador para conferir a divisão.
         </p>
       )}
-      {piloto && usuario.pilotoId && <FormularioReembolso socios={socios.map((s) => ({ id: s.id, apelido: s.apelido }))} categorias={categorias.map((c) => ({ id: c.id, nome: c.nome }))} hoje={hoje()} />}
+      {piloto && usuario.pilotoId && (
+        <FormularioReembolso
+          socios={socios.map((s) => ({ id: s.id, apelido: s.apelido }))}
+          categorias={categorias.map((c) => ({ id: c.id, nome: c.nome }))}
+          hoje={hoje()}
+          cidadeInicial={reembolsos[0]?.cidade ?? null}
+        />
+      )}
       {piloto && !usuario.pilotoId && <p className="text-sm text-atencao">Seu login ainda não está ligado a um piloto do cadastro — peça ao administrador.</p>}
 
-      <Tabela>
-        <TabelaCabecalho>
-          <tr>
-            <Cabecalho>Data</Cabecalho>
-            <Cabecalho>O que</Cabecalho>
-            <Cabecalho>Sócio</Cabecalho>
-            {!piloto && <Cabecalho>Piloto</Cabecalho>}
-            <Cabecalho numerico>Valor</Cabecalho>
-            <Cabecalho>Situação</Cabecalho>
-          </tr>
-        </TabelaCabecalho>
-        <TabelaCorpo>
-          {reembolsos.length === 0 && (
-            <TabelaLinha>
-              <Celula colSpan={6} className="text-marinho-300">Nenhum reembolso lançado.</Celula>
-            </TabelaLinha>
-          )}
-          {reembolsos.map((r, i) => (
-            <TabelaLinha key={r.id}>
-              <Celula className="whitespace-nowrap">{fmtData(r.data)}</Celula>
-              <Celula>
-                {r.descricao.replace(/^REEMBOLSO PILOTO: /, "")}
-                <span className="block text-xs text-marinho-300">
-                  {r.categoria}
-                  {r.observacao ? ` · ${r.observacao}` : ""}
-                  {!piloto && urls[i] ? (
-                    <>
-                      {" · "}
-                      <a href={urls[i]!} target="_blank" rel="noreferrer" className="text-laranja-700 hover:underline">
-                        nota
-                      </a>
-                    </>
-                  ) : null}
-                </span>
-              </Celula>
-              <Celula>
-                {r.socio}
-                {r.socio_id === null && r.partes.length > 0 && (
-                  <span className="block text-xs text-marinho-300">
-                    {r.criterio === "POR_HORAS"
-                      ? r.partes
-                          .map((p) => `${socios.find((s) => s.id === p.socio_id)?.apelido ?? "?"} ${reais(p.valor)}`)
-                          .join(" · ")
-                      : `${reais(r.partes[0].valor)} cada`}
-                  </span>
-                )}
-              </Celula>
-              {!piloto && <Celula>{r.piloto}</Celula>}
-              <Celula numerico className="font-semibold">{reais(r.valor)}</Celula>
-              <Celula>
-                <div className="flex flex-wrap items-center gap-2">
-                  {r.status === "PENDENTE" ? (
-                    <Badge variant="info">a conferir</Badge>
-                  ) : r.reembolsado_em ? (
-                    <Badge variant="ok">reembolsado {fmtData(r.reembolsado_em)}</Badge>
-                  ) : (
-                    <Badge variant="atencao">pendente</Badge>
-                  )}
-
-                  {r.status !== "PENDENTE" &&
-                    (usuario.perfil === "admin" || r.socio_id === usuario.socioId || (r.socio_id === null && usuario.socioId) || r.piloto_id === usuario.pilotoId) && (
-                      <BotaoReembolsado id={r.id} reembolsado={Boolean(r.reembolsado_em)} />
-                    )}
-                </div>
-              </Celula>
-            </TabelaLinha>
-          ))}
-        </TabelaCorpo>
-      </Tabela>
+      <TabelaReembolsos
+        itens={reembolsos.map((r, i) => ({
+          id: r.id,
+          data: r.data,
+          descricao: r.descricao.replace(/^REEMBOLSO PILOTO: /, ""),
+          categoria: r.categoria,
+          cidade: r.cidade,
+          observacao: r.observacao,
+          valor: r.valor,
+          socio_id: r.socio_id,
+          socio: r.socio,
+          piloto: r.piloto,
+          piloto_id: r.piloto_id,
+          criterio: r.criterio,
+          status: r.status,
+          reembolsado_em: r.reembolsado_em,
+          partes: r.partes,
+          nota: urls[i] ?? null,
+        }))}
+        perfil={usuario.perfil}
+        socioId={usuario.socioId ?? null}
+        pilotoId={usuario.pilotoId ?? null}
+        socios={socios.map((s) => ({ id: s.id, apelido: s.apelido }))}
+      />
     </div>
   );
 }

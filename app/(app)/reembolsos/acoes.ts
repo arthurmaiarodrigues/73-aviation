@@ -35,6 +35,7 @@ export async function salvarReembolso(_a: Resultado, form: FormData): Promise<Re
   const valor = lerNumero(form.get("valor"));
   const socioId = texto(form, "socio_id");
   const categoriaId = Number(texto(form, "categoria_id") ?? "");
+  const cidade = texto(form, "cidade");
   if (!descricao) return { ok: false, mensagem: "Descreva o que pagou." };
   if (valor === null || valor <= 0) return { ok: false, mensagem: "Informe o valor." };
   // TODOS_IGUAL: uniforme, salário, CVA, homologação, revisão obrigatória.
@@ -43,6 +44,7 @@ export async function salvarReembolso(_a: Resultado, form: FormData): Promise<Re
   const deTodos = porHoras || socioId === "TODOS" || socioId === "TODOS_IGUAL";
   if (!deTodos && (!socioId || !UUID.test(socioId))) return { ok: false, mensagem: "Escolha quem deve reembolsar." };
   if (!Number.isInteger(categoriaId)) return { ok: false, mensagem: "Escolha a categoria." };
+  if (!cidade) return { ok: false, mensagem: "Informe a cidade onde você gastou." };
 
   const aeronave = await aeronaveAtiva();
   const supabase = await criarClienteServidor();
@@ -53,6 +55,7 @@ export async function salvarReembolso(_a: Resultado, form: FormData): Promise<Re
     categoria_id: categoriaId,
     valor,
     comprovante_path: texto(form, "comprovante_path"),
+    cidade: caixaAlta(cidade),
     pagador_socio_id: deTodos ? null : socioId,
     criterio: deTodos ? (porHoras ? "POR_HORAS" : "IGUAL") : "DIRETO",
     socio_direto_id: deTodos ? null : socioId,
@@ -68,7 +71,7 @@ export async function salvarReembolso(_a: Resultado, form: FormData): Promise<Re
   const divisao = deTodos ? (porHoras ? "todos, conforme as horas voadas" : "todos, partes iguais") : "um sócio";
   await notificar(
     { perfis: ["admin"] },
-    { titulo: "Reembolso a conferir", corpo: `${usuario.nome.split(" ")[0]} pagou ${caixaAlta(descricao)} — ${valorTexto} (${divisao}).`, url: "/reembolsos", tag: "reembolso" },
+    { titulo: "Reembolso a conferir", corpo: `${usuario.nome.split(" ")[0]} pagou ${caixaAlta(descricao)} em ${caixaAlta(cidade)} — ${valorTexto} (${divisao}).`, url: "/reembolsos", tag: "reembolso" },
   );
   revalidar();
   return { ok: true, mensagem: "Lançado. O administrador confere a divisão e confirma; aí os sócios são avisados." };
