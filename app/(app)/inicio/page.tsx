@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Camera, Fuel, PlaneTakeoff, Receipt } from "lucide-react";
 
+import { Suspense } from "react";
 import { after } from "next/server";
 
 import { exigirSessao } from "@/lib/perfil";
@@ -20,7 +21,7 @@ import { Alerta } from "@/components/ui/alerta";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { HorasPorSocio, type AbaHoras } from "@/components/horas-por-socio";
+import { AbasHoras, AbasHorasVazio } from "./abas-horas";
 import { AtivarAvisos } from "@/components/ativar-avisos";
 
 export const metadata: Metadata = { title: "Início" };
@@ -32,14 +33,13 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
   const mes = inicioDoMes(hoje());
   const valores = veValores(usuario.perfil);
 
-  const [ultimo, aberto, local, pendentes, ultimosVoos, socios, horasMes] = await Promise.all([
+  const [ultimo, aberto, local, pendentes, ultimosVoos, socios] = await Promise.all([
     ultimoHorimetro(aeronave.id),
     vooEmAberto(aeronave.id),
     ondeEstaAviao(aeronave.id),
     listarVoos(aeronave.id, { pendentes: true }, 20),
     listarVoos(aeronave.id, {}, 5),
     listarSocios({ somenteAtivos: true }),
-    horasPorSocioNoMes(aeronave.id, mes),
   ]);
   const [saldos, caixa, fundo] = valores ? await Promise.all([saldosDosSocios(), saldoDoCaixa(), saldoDoFundo(aeronave.id)]) : [[], null, null];
 
@@ -86,39 +86,6 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
     0,
   );
 
-  // Horas por sócio: mês, trimestre e o ciclo de cada revisão (desde a última execução).
-  const trimestre = trimestreDe(hoje());
-  const [plano, ciclos] = await Promise.all([listarPlano(aeronave.id), ciclosRevisao(aeronave.id)]);
-  const revisoes = plano.filter((p) => /^REVIS[ÃA]O \d+ ?H$/.test(p.descricao)).sort((a, b) => (a.intervalo_horas ?? 0) - (b.intervalo_horas ?? 0));
-  const anteriores = revisoes.map((r) => ciclos.find((c) => c.plano_item_id === r.id)?.anterior ?? null);
-  const [horasTrimestre, ...horasRevisoes] = await Promise.all([
-    horasPorSocio(aeronave.id, trimestre.inicio, trimestre.fim),
-    ...revisoes.map((r) => horasPorSocio(aeronave.id, r.ultima_data ?? "2000-01-01", "2099-12-31")),
-    ...anteriores.map((c) => (c ? horasPorSocio(aeronave.id, c.inicio, c.fim) : Promise.resolve([]))),
-  ]);
-  const horasAnteriores = horasRevisoes.splice(revisoes.length);
-  const linhas = (h: { socio_id: string; horas: number; custo?: number }[], comCusto: boolean) =>
-    socios.map((s) => {
-      const x = h.find((l) => l.socio_id === s.id);
-      return { socio_id: s.id, apelido: s.apelido, cor: s.cor, horas: x?.horas ?? 0, custo: comCusto && valores ? (x?.custo ?? 0) : null };
-    });
-  const abasHoras: AbaHoras[] = [
-    { chave: "mes", rotulo: "Mês", subtitulo: mesPorExtenso(mes), meta: null, linhas: linhas(horasMes, true) },
-    { chave: "trimestre", rotulo: "Trimestre", subtitulo: trimestre.rotulo, meta: null, linhas: linhas(horasTrimestre, false) },
-    ...revisoes.map((r, i) => ({
-      chave: r.id,
-      rotulo: r.descricao.replace("REVISÃO", "Revisão").replace(/(\d+) ?H$/, "$1 h"),
-      subtitulo: r.ultima_data ? `desde a última revisão, em ${fmtData(r.ultima_data)}` : "desde o início (última execução não informada no plano)",
-      meta: r.intervalo_horas,
-      linhas: linhas(horasRevisoes[i], false),
-      anterior: anteriores[i]
-        ? {
-            subtitulo: `Última revisão: voos de ${fmtData(anteriores[i].inicio)} a ${fmtData(anteriores[i].fim)} — é essa divisão que a nota da oficina usa nos itens por uso`,
-            linhas: linhas(horasAnteriores[i], false),
-          }
-        : null,
-    })),
-  ];
   const minhaVezEm = [vezAtual === usuario.socioId && usuario.socioId ? mes : null, vezProxima === usuario.socioId && usuario.socioId ? mesProximo : null].filter(Boolean) as string[];
   const puladoEm = [filaAtual, filaProxima]
     .map((f, i) => (f.find((l) => l.socio_id === usuario.socioId && l.pulado && (!l.semana_id || !l.fds_id)) ? (i === 0 ? mes : mesProximo) : null))
@@ -357,7 +324,17 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
       )}
 
       {/* Horas por sócio: mês, trimestre e ciclo das revisões */}
-      {usuario.perfil !== "piloto" && <HorasPorSocio abas={abasHoras} meuSocioId={usuario.socioId ?? null} />}
+      {usuario.perfil !== "piloto" && (
+        <Suspense fallback={<AbasHorasVazio />}>
+          <AbasHoras
+            aeronaveId={aeronave.id}
+            socios={socios.map((s) => ({ id: s.id, apelido: s.apelido, cor: s.cor }))}
+            mes={mes}
+            valores={valores}
+            meuSocioId={usuario.socioId ?? null}
+          />
+        </Suspense>
+      )}
 
       {/* Financeiro (só quem vê valores) */}
       {valores && caixa && (

@@ -269,6 +269,16 @@ export async function saldoDoFundo(aeronaveId: string): Promise<number> {
 }
 
 /** URL assinada para mostrar o comprovante (15 min). */
+/** Vários comprovantes numa chamada só — a lista de reembolsos pedia um por linha. */
+export async function urlsDosComprovantes(caminhos: (string | null)[]): Promise<(string | null)[]> {
+  const validos = [...new Set(caminhos.filter((c): c is string => Boolean(c)))];
+  if (validos.length === 0) return caminhos.map(() => null);
+  const supabase = await criarClienteServidor();
+  const { data } = await supabase.storage.from("comprovantes").createSignedUrls(validos, 900);
+  const mapa = new Map((data ?? []).map((d) => [d.path, d.signedUrl]));
+  return caminhos.map((c) => (c ? (mapa.get(c) ?? null) : null));
+}
+
 export async function urlDoComprovante(caminho: string | null): Promise<string | null> {
   if (!caminho) return null;
   const supabase = await criarClienteServidor();

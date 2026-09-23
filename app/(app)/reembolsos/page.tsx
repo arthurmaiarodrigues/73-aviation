@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { exigirSessao } from "@/lib/perfil";
 import { aeronaveAtiva, listarCategorias, listarSocios } from "@/lib/dados/cadastros";
-import { urlDoComprovante } from "@/lib/dados/financeiro";
+import { urlsDosComprovantes } from "@/lib/dados/financeiro";
 import { devidoPorSocio, listarReembolsos } from "@/lib/dados/reembolsos";
 import { hoje, reais } from "@/lib/formato";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,7 +25,7 @@ export default async function PaginaReembolsos() {
     listarSocios({ somenteAtivos: true }),
     piloto ? listarCategorias() : Promise.resolve([]),
   ]);
-  const urls = piloto ? [] : await Promise.all(reembolsos.map((r) => urlDoComprovante(r.comprovante_path)));
+  const urls = piloto ? [] : await urlsDosComprovantes(reembolsos.map((r) => r.comprovante_path));
   const aConferir = reembolsos.filter((r) => r.status === "PENDENTE");
   const pendentes = reembolsos.filter((r) => !r.reembolsado_em && r.status !== "PENDENTE");
   // o sócio vê a parte dele nos reembolsos de todos; piloto e admin veem o total
