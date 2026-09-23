@@ -3,11 +3,12 @@ import type { Metadata } from "next";
 import { exigirSessao } from "@/lib/perfil";
 import { aeronaveAtiva, listarCategorias, listarSocios } from "@/lib/dados/cadastros";
 import { urlDoComprovante } from "@/lib/dados/financeiro";
-import { listarReembolsos } from "@/lib/dados/reembolsos";
+import { devidoPorSocio, listarReembolsos } from "@/lib/dados/reembolsos";
 import { hoje, reais } from "@/lib/formato";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormularioReembolso } from "./formulario-reembolso";
 import { TabelaReembolsos } from "./tabela-reembolsos";
+import { DevidoPorSocio } from "./por-socio";
 
 export const metadata: Metadata = { title: "Reembolsos" };
 
@@ -33,6 +34,23 @@ export default async function PaginaReembolsos() {
       ? (r.partes.find((p) => p.socio_id === usuario.socioId)?.valor ?? 0)
       : r.valor;
   const totalPendente = pendentes.reduce((s, r) => s + parte(r), 0);
+
+  // Quanto cada sócio ainda deve ao piloto (e o que já pagou).
+  const confirmados = reembolsos.filter((r) => r.status !== "PENDENTE");
+  const devido = devidoPorSocio(confirmados);
+  const pagoDe = (id: string) =>
+    confirmados.reduce((t, r) => t + (r.pagos.includes(id) ? (r.partes.find((x) => x.socio_id === id)?.valor ?? 0) : 0), 0);
+  const porSocio = socios
+    .map((s) => ({
+      socio_id: s.id,
+      apelido: s.apelido,
+      devido: devido.find((d) => d.socio_id === s.id)?.valor ?? 0,
+      itens: devido.find((d) => d.socio_id === s.id)?.itens ?? 0,
+      pago: Math.round(pagoDe(s.id) * 100) / 100,
+    }))
+    .filter((l) => l.devido > 0 || l.pago > 0);
+  const pix = confirmados.find((r) => r.pix)?.pix ?? null;
+  const nomePiloto = confirmados[0]?.piloto ?? "";
 
   return (
     <div className="mx-auto max-w-3xl space-y-8">
@@ -67,6 +85,16 @@ export default async function PaginaReembolsos() {
         />
       )}
       {piloto && !usuario.pilotoId && <p className="text-sm text-atencao">Seu login ainda não está ligado a um piloto do cadastro — peça ao administrador.</p>}
+
+      {porSocio.length > 0 && (
+        <DevidoPorSocio
+          linhas={porSocio}
+          pix={pix}
+          piloto={nomePiloto}
+          podeMarcar={usuario.perfil === "admin" || piloto}
+          meuSocioId={usuario.socioId ?? null}
+        />
+      )}
 
       <TabelaReembolsos
         itens={reembolsos.map((r, i) => ({

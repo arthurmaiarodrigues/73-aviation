@@ -28,7 +28,7 @@ export default async function PaginaCadastros() {
     listarFornecedores(),
     listarAerodromos(),
     admin ? supabase.from("usuarios").select("id, nome, perfil, ativo").order("nome") : Promise.resolve({ data: [] as { id: string; nome: string; perfil: Perfil; ativo: boolean }[] }),
-    supabase.from("pilotos").select("id, nome, socio_id, licenca, validade_licenca, ativo").order("nome"),
+    supabase.from("pilotos").select("id, nome, socio_id, licenca, validade_licenca, pix, ativo").order("nome"),
   ]);
 
   return (
@@ -180,6 +180,7 @@ export default async function PaginaCadastros() {
               <li key={p.id} className="flex items-center gap-2 text-sm">
                 <span className="font-semibold">{p.nome}</span>
                 {p.licenca && <span className="text-marinho-300">{p.licenca}</span>}
+                {p.pix && <span className="text-xs text-marinho-300">PIX {p.pix}</span>}
                 {!p.ativo && <Badge variant="erro">inativo</Badge>}
                 {admin && <BotoesPiloto id={p.id} ativo={p.ativo} nome={p.nome} />}
               </li>
@@ -193,6 +194,7 @@ export default async function PaginaCadastros() {
                   <Campo nome="nome" rotulo="Nome" valor="" />
                   <Campo nome="licenca" rotulo="Licença (CANAC)" valor="" />
                   <Campo nome="validade_licenca" rotulo="Validade" valor="" tipo="date" />
+                  <Campo nome="pix" rotulo="Chave PIX (para reembolso)" valor="" />
                 </FormularioAcao>
               </div>
             </details>

@@ -27,17 +27,22 @@ export type Reembolso = {
   criterio: "IGUAL" | "POR_HORAS" | "DIRETO" | "MANUAL";
   /** Quanto cabe a cada sócio (vazio enquanto o admin não confirma). */
   partes: { socio_id: string; valor: number }[];
+  /** Sócios que já pagaram a parte deles ao piloto. */
+  pagos: string[];
+  pix: string | null;
 };
 
 const SELECT = `id, data, descricao, valor, socio_direto_id, reembolso_piloto_id, comprovante_path, observacao, cidade, reembolsado_em, status, criterio,
-  categorias_despesa ( nome ), socios!despesas_socio_direto_id_fkey ( apelido ), pilotos ( nome ), rateios ( socio_id, valor )`;
+  categorias_despesa ( nome ), socios!despesas_socio_direto_id_fkey ( apelido ), pilotos ( nome, pix ), rateios ( socio_id, valor ),
+  reembolso_pagamentos ( socio_id, pago_em )`;
 
 type Bruta = {
   id: string; data: string; descricao: string; valor: string | number; socio_direto_id: string | null; reembolso_piloto_id: string;
   comprovante_path: string | null; observacao: string | null; cidade: string | null; reembolsado_em: string | null;
   status: "PENDENTE" | "APROVADA" | "RATEADA"; criterio: "IGUAL" | "POR_HORAS" | "DIRETO" | "MANUAL";
-  categorias_despesa: { nome: string } | null; socios: { apelido: string } | null; pilotos: { nome: string } | null;
+  categorias_despesa: { nome: string } | null; socios: { apelido: string } | null; pilotos: { nome: string; pix: string | null } | null;
   rateios: { socio_id: string; valor: string | number }[] | null;
+  reembolso_pagamentos: { socio_id: string; pago_em: string }[] | null;
 };
 
 export async function listarReembolsos(aeronaveId: string, filtro: { socioId?: string; pendentes?: boolean; confirmados?: boolean } = {}, limite = 300): Promise<Reembolso[]> {
@@ -75,5 +80,23 @@ export async function listarReembolsos(aeronaveId: string, filtro: { socioId?: s
     status: d.status,
     criterio: d.criterio,
     partes: (d.rateios ?? []).map((r) => ({ socio_id: r.socio_id, valor: Number(r.valor) })),
+    pagos: (d.reembolso_pagamentos ?? []).map((p) => p.socio_id),
+    pix: d.pilotos?.pix ?? null,
   }));
+}
+
+/** Quanto cada sócio ainda deve ao piloto, somando as partes não pagas. */
+export function devidoPorSocio(reembolsos: Reembolso[]): { socio_id: string; valor: number; itens: number }[] {
+  const mapa = new Map<string, { socio_id: string; valor: number; itens: number }>();
+  for (const r of reembolsos) {
+    if (r.status === "PENDENTE") continue;
+    for (const p of r.partes) {
+      if (r.pagos.includes(p.socio_id)) continue;
+      const atual = mapa.get(p.socio_id) ?? { socio_id: p.socio_id, valor: 0, itens: 0 };
+      atual.valor = Math.round((atual.valor + p.valor) * 100) / 100;
+      atual.itens += 1;
+      mapa.set(p.socio_id, atual);
+    }
+  }
+  return [...mapa.values()].sort((a, b) => b.valor - a.valor);
 }

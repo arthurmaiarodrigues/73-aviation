@@ -116,7 +116,13 @@ export async function salvarPiloto(_a: Resultado, form: FormData): Promise<Resul
   if (!nome) return { ok: false, mensagem: "Informe o nome." };
   const supabase = await criarClienteServidor();
   const id = texto(form, "id");
-  const campos = { nome, licenca: texto(form, "licenca")?.toUpperCase() ?? null, validade_licenca: texto(form, "validade_licenca"), ativo: form.get("ativo") !== "off" };
+  const campos = {
+    nome,
+    licenca: texto(form, "licenca")?.toUpperCase() ?? null,
+    validade_licenca: texto(form, "validade_licenca"),
+    pix: texto(form, "pix"),
+    ativo: form.get("ativo") !== "off",
+  };
   const { error } = id && UUID.test(id) ? await supabase.from("pilotos").update(campos).eq("id", id) : await supabase.from("pilotos").insert(campos);
   if (error) return { ok: false, mensagem: error.message };
   revalidatePath("/cadastros");

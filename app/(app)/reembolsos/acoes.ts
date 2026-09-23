@@ -165,3 +165,21 @@ export async function confirmarVarios(ids: string[], criterio: "IGUAL" | "POR_HO
     mensagem: `${feitos === 1 ? "1 reembolso confirmado" : `${feitos} reembolsos confirmados`}.${falhas.length > 0 ? ` ${falhas.length} falharam: ${falhas[0]}` : ""}`,
   };
 }
+
+/** Marca (ou desmarca) que um sócio pagou ao piloto a parte dele. */
+export async function marcarPagoDoSocio(socioId: string, desfazer = false): Promise<Resultado> {
+  const { user, usuario } = await usuarioDaSessao();
+  if (!user || !usuario?.ativo) return { ok: false, mensagem: "Sem sessão." };
+  if (!UUID.test(socioId)) return { ok: false, mensagem: "Sócio inválido." };
+  if (usuario.perfil === "socio" && usuario.socioId !== socioId) return { ok: false, mensagem: "Cada sócio marca a própria parte." };
+
+  const supabase = await criarClienteServidor();
+  const { data, error } = await supabase.rpc("marcar_reembolso_socio", { p_socio: socioId, p_despesas: null, p_desfazer: desfazer });
+  if (error) return { ok: false, mensagem: error.message.replace(/^.*?(?:ERROR|error):\s*/, "") };
+  revalidar();
+  const n = Number(data ?? 0);
+  return {
+    ok: true,
+    mensagem: desfazer ? "Voltou para pendente." : n > 0 ? `${n} ${n === 1 ? "parte marcada" : "partes marcadas"} como paga.` : "Nada pendente para este sócio.",
+  };
+}
