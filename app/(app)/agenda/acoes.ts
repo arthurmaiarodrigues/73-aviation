@@ -87,13 +87,33 @@ export async function reservar(_a: Resultado, form: FormData): Promise<Resultado
   const { data: feita } = await supabase.from("reservas").select("pendente, feriado, socio_id").eq("id", reservaId as string).maybeSingle();
 
   if (feita?.pendente) {
-    // Fora dos blocos: pedido. Os outros sócios decidem.
-    await notificarOutrosSocios(feita.socio_id, {
-      titulo: feita.feriado ? "Pedido de feriado — precisa do seu OK" : "Pedido de reserva",
-      corpo: `${apelido} pediu o avião ${quando}. ${feita.feriado ? "Feriado: só confirma com o OK de todos." : "Alguém precisa? Sem objeção em 48 h, confirma."}`,
-      url: "/agenda",
-      tag: "pedido",
+    // Dentro do bloco de alguém, quem decide é o titular; fora, os outros sócios.
+    const { data: titular } = await supabase.rpc("titular_do_periodo", {
+      p_socio: feita.socio_id,
+      p_inicio: inicio,
+      p_fim: fim,
     });
+    if (titular) {
+      const { data: dono } = await supabase.from("socios").select("apelido, usuario_id").eq("id", titular as string).maybeSingle();
+      if (dono?.usuario_id) {
+        await notificar(
+          { usuarios: [dono.usuario_id] },
+          {
+            titulo: "Pedem a sua semana",
+            corpo: `${apelido} quer o avião ${quando} — é o seu período. Se precisar, diga "preciso" na agenda; se não for usar, libere.`,
+            url: "/agenda",
+            tag: "pedido",
+          },
+        );
+      }
+    } else {
+      await notificarOutrosSocios(feita.socio_id, {
+        titulo: feita.feriado ? "Pedido de feriado — precisa do seu OK" : "Pedido de reserva",
+        corpo: `${apelido} pediu o avião ${quando}. ${feita.feriado ? "Feriado: só confirma com o OK de todos." : "Alguém precisa? Sem objeção em 48 h, confirma."}`,
+        url: "/agenda",
+        tag: "pedido",
+      });
+    }
     revalidar();
     return {
       ok: true,
