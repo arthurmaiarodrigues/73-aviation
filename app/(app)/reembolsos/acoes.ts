@@ -120,3 +120,45 @@ export async function confirmarReembolso(id: string, criterio: "IGUAL" | "POR_HO
   revalidar();
   return { ok: true, mensagem: "Confirmado — a divisão entrou nas contas." };
 }
+
+/** Confirma vários de uma vez; `criterio` nulo mantém o que o piloto marcou. */
+export async function confirmarVarios(ids: string[], criterio: "IGUAL" | "POR_HORAS" | "DIRETO" | null, socio?: string | null): Promise<Resultado> {
+  const { user, usuario } = await usuarioDaSessao();
+  if (!user || !usuario?.ativo || usuario.perfil !== "admin") return { ok: false, mensagem: "Só o administrador confirma." };
+  const lista = ids.filter((id) => UUID.test(id));
+  if (lista.length === 0) return { ok: false, mensagem: "Escolha ao menos um reembolso." };
+  if (criterio === "DIRETO" && (!socio || !UUID.test(socio))) return { ok: false, mensagem: "Escolha o sócio." };
+
+  const supabase = await criarClienteServidor();
+  const avisar = new Set<string>();
+  let feitos = 0;
+  const falhas: string[] = [];
+  for (const id of lista) {
+    const { error } = await supabase.rpc("confirmar_reembolso", { p_despesa: id, p_criterio: criterio, p_socio: criterio === "DIRETO" ? socio : null });
+    if (error) {
+      falhas.push(error.message.replace(/^.*?(?:ERROR|error):\s*/, ""));
+      continue;
+    }
+    feitos++;
+    const { data: d } = await supabase.from("despesas").select("criterio, socio_direto_id").eq("id", id).maybeSingle();
+    if (d?.criterio === "DIRETO" && d.socio_direto_id) {
+      const { data: s } = await supabase.from("socios").select("usuario_id").eq("id", d.socio_direto_id).maybeSingle();
+      if (s?.usuario_id) avisar.add(s.usuario_id as string);
+    } else {
+      const { data: todos } = await supabase.from("socios").select("usuario_id").is("ativo_ate", null).not("usuario_id", "is", null);
+      for (const s of todos ?? []) avisar.add(s.usuario_id as string);
+    }
+  }
+  if (avisar.size > 0) {
+    await notificar(
+      { usuarios: [...avisar] },
+      { titulo: "Reembolso ao piloto", corpo: `${feitos === 1 ? "1 reembolso confirmado" : `${feitos} reembolsos confirmados`} pelo administrador — veja a sua parte.`, url: "/reembolsos", tag: "reembolso" },
+    );
+  }
+  revalidar();
+  if (feitos === 0) return { ok: false, mensagem: falhas[0] ?? "Nada confirmado." };
+  return {
+    ok: true,
+    mensagem: `${feitos === 1 ? "1 reembolso confirmado" : `${feitos} reembolsos confirmados`}.${falhas.length > 0 ? ` ${falhas.length} falharam: ${falhas[0]}` : ""}`,
+  };
+}

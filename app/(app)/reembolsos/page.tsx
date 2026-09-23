@@ -8,7 +8,8 @@ import { data as fmtData, hoje, reais } from "@/lib/formato";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Cabecalho, Celula, Tabela, TabelaCabecalho, TabelaCorpo, TabelaLinha } from "@/components/ui/tabela";
-import { BotaoReembolsado, ConferirReembolso, FormularioReembolso } from "./formulario-reembolso";
+import { BotaoReembolsado, FormularioReembolso } from "./formulario-reembolso";
+import { ConferirLote } from "./conferir-lote";
 
 export const metadata: Metadata = { title: "Reembolsos" };
 
@@ -55,9 +56,19 @@ export default async function PaginaReembolsos() {
       </Card>
 
       {aConferir.length > 0 && usuario.perfil === "admin" && (
-        <p className="rounded border border-info/40 bg-info/10 p-3 text-sm">
-          {aConferir.length === 1 ? "1 reembolso aguardando" : `${aConferir.length} reembolsos aguardando`} a sua conferência: veja a divisão na linha e confirme.
-        </p>
+        <ConferirLote
+          itens={aConferir.map((r) => ({
+            id: r.id,
+            data: r.data,
+            descricao: r.descricao.replace(/^REEMBOLSO PILOTO: /, ""),
+            valor: r.valor,
+            categoria: r.categoria,
+            criterio: r.criterio,
+            socio_id: r.socio_id,
+            socio: r.socio,
+          }))}
+          socios={socios.map((s) => ({ id: s.id, apelido: s.apelido }))}
+        />
       )}
       {aConferir.length > 0 && piloto && (
         <p className="rounded border border-info/40 bg-info/10 p-3 text-sm">
@@ -125,9 +136,7 @@ export default async function PaginaReembolsos() {
                   ) : (
                     <Badge variant="atencao">pendente</Badge>
                   )}
-                  {r.status === "PENDENTE" && usuario.perfil === "admin" && (
-                    <ConferirReembolso id={r.id} criterio={r.criterio} socioId={r.socio_id} socios={socios.map((s) => ({ id: s.id, apelido: s.apelido }))} />
-                  )}
+
                   {r.status !== "PENDENTE" &&
                     (usuario.perfil === "admin" || r.socio_id === usuario.socioId || (r.socio_id === null && usuario.socioId) || r.piloto_id === usuario.pilotoId) && (
                       <BotaoReembolsado id={r.id} reembolsado={Boolean(r.reembolsado_em)} />
