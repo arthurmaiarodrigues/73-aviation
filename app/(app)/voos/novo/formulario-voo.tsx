@@ -26,13 +26,16 @@ function lerHorimetro(v: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-function Botao({ rotulo }: { rotulo: string }) {
+function Botao({ rotulo, impedido }: { rotulo: string; impedido?: string }) {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" size="campo" disabled={pending}>
+    <>
+      {impedido && <Alerta tom="atencao">{impedido}</Alerta>}
+    <Button type="submit" size="campo" disabled={pending || Boolean(impedido)}>
       {pending ? <Loader2 className="animate-spin" /> : rotulo.startsWith("Decolei") ? <PlaneTakeoff /> : <PlaneLanding />}
       {pending ? "Salvando…" : rotulo}
     </Button>
+    </>
   );
 }
 
@@ -427,7 +430,18 @@ O voo fica marcado como pendente de horímetro até o administrador conferir.
         </div>
       </div>
 
-      <Botao rotulo={rotuloBotao} />
+      <Botao
+        rotulo={rotuloBotao}
+        impedido={
+          dividir && horasTotais > 0 && faltaPartes !== 0
+            ? faltaPartes > 0
+              ? `A divisão está incompleta: faltam ${horasHm(faltaPartes)} das ${horasHm(horasTotais)}. Acerte as horas de cada sócio (use SOCIEDADE para a parte de todos).`
+              : `A divisão passou ${horasHm(-faltaPartes)} das ${horasHm(horasTotais)}. Acerte as horas de cada sócio.`
+            : dividir && horasTotais <= 0
+              ? "Para dividir as horas, informe o horímetro da decolagem e o do pouso — ou escolha um sócio e divida depois, na ficha do voo."
+              : undefined
+        }
+      />
     </form>
   );
 }

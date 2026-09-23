@@ -140,6 +140,25 @@ export async function salvarVoo(_anterior: Resultado, form: FormData): Promise<R
   const combFinal = lerNumero(form.get("combustivel_final_l"));
   const pousos = Math.max(0, Math.round(lerNumero(form.get("pousos")) ?? 1));
 
+  // A divisão tem de fechar com as horas do voo — senão o resto ficaria sem dono.
+  const horasPrevistas =
+    hInicial !== null && (voltaJunta ? hFinalVolta : hFinal) !== null
+      ? Math.round(((voltaJunta ? hFinalVolta! : hFinal!) - hInicial) * 10) / 10 +
+        (comVolta && !voltaJunta && hInicialVolta !== null && hFinalVolta !== null ? Math.round((hFinalVolta - hInicialVolta) * 10) / 10 : 0)
+      : (horasInformadas ?? 0);
+  if (partesForm.length > 0) {
+    const somaPartes = Math.round(partesForm.reduce((t, p) => t + p.horas, 0) * 10) / 10;
+    if (horasPrevistas <= 0) {
+      return { ok: false, mensagem: "Para dividir as horas, informe o horímetro da decolagem e o do pouso." };
+    }
+    if (Math.abs(somaPartes - horasPrevistas) > 0.05) {
+      return {
+        ok: false,
+        mensagem: `A divisão soma ${somaPartes.toFixed(1).replace(".", ",")} h e o voo tem ${horasPrevistas.toFixed(1).replace(".", ",")} h. Acerte as horas de cada sócio (use SOCIEDADE para a parte de todos).`,
+      };
+    }
+  }
+
   const supabase = await criarClienteServidor();
 
   // Continuidade do horímetro: o inicial deste voo deveria ser o final do anterior.
@@ -197,6 +216,7 @@ export async function salvarVoo(_anterior: Resultado, form: FormData): Promise<R
 
   if (error) return { ok: false, mensagem: traduzir(error.message) };
 
+  let avisoDivisao = "";
   const aplicarDivisao = async (vooId: string, horasDoVoo: number, total: number) => {
     if (partesForm.length === 0 || horasDoVoo <= 0 || total <= 0) return;
     const proporcao = horasDoVoo / total;
@@ -207,7 +227,8 @@ export async function salvarVoo(_anterior: Resultado, form: FormData): Promise<R
       const maior = partes.reduce((a, b) => (b.horas > a.horas ? b : a));
       maior.horas = Math.round((maior.horas + (horasDoVoo - soma)) * 10) / 10;
     }
-    await supabase.rpc("definir_divisao_voo", { p_voo: vooId, p_partes: partes.filter((p) => p.horas > 0) });
+    const { error: erroDivisao } = await supabase.rpc("definir_divisao_voo", { p_voo: vooId, p_partes: partes.filter((p) => p.horas > 0) });
+    if (erroDivisao) avisoDivisao = erroDivisao.message.replace(/^.*?(?:ERROR|error):\s*/, "");
   };
   const horasCriado = hInicial !== null && hFinalVoo !== null ? Math.round((hFinalVoo - hInicial) * 10) / 10 : (horasInformadas ?? 0);
   const horasVoltaCriada = comVolta && !voltaJunta && hInicialVolta !== null && hFinalVolta !== null ? Math.round((hFinalVolta - hInicialVolta) * 10) / 10 : 0;
@@ -240,12 +261,14 @@ export async function salvarVoo(_anterior: Resultado, form: FormData): Promise<R
     await aplicarDivisao(volta.id, horasVoltaCriada, horasTotaisCriadas);
     revalidatePath("/voos");
     revalidatePath("/inicio");
-    redirect(hFinalVolta !== null ? `/voos/${volta.id}?salvo=2` : `/voos/${volta.id}?decolou=1`);
+    const sufixoVolta = avisoDivisao ? `&divisao=${encodeURIComponent(avisoDivisao)}` : "";
+    redirect(hFinalVolta !== null ? `/voos/${volta.id}?salvo=2${sufixoVolta}` : `/voos/${volta.id}?decolou=1${sufixoVolta}`);
   }
 
   revalidatePath("/voos");
   revalidatePath("/inicio");
-  redirect(hFinalVoo !== null ? `/voos/${criado.id}?salvo=${voltaJunta ? 3 : 1}` : `/voos/${criado.id}?decolou=1`);
+  const sufixo = avisoDivisao ? `&divisao=${encodeURIComponent(avisoDivisao)}` : "";
+  redirect(hFinalVoo !== null ? `/voos/${criado.id}?salvo=${voltaJunta ? 3 : 1}${sufixo}` : `/voos/${criado.id}?decolou=1${sufixo}`);
 }
 
 /** Fecha um voo aberto: foto e horímetro final, combustível final. */

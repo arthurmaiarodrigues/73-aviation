@@ -24,7 +24,7 @@ export default async function PaginaVoo({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ salvo?: string; decolou?: string; aberto?: string; editar?: string; perna?: string }>;
+  searchParams: Promise<{ salvo?: string; decolou?: string; aberto?: string; editar?: string; perna?: string; divisao?: string }>;
 }) {
   const [{ id }, busca] = await Promise.all([params, searchParams]);
   const usuario = await exigirSessao();
@@ -73,6 +73,7 @@ export default async function PaginaVoo({
       {busca.salvo && <Alerta tom="ok">{busca.salvo === "2" ? "Ida e volta registradas — esta é a volta." : busca.salvo === "3" ? "Ida e volta registradas num voo só." : "Voo registrado."}</Alerta>}
       {busca.decolou && <Alerta tom="info">Decolagem registrada. A cada pouso, volte aqui (o Início também leva) e registre o horímetro.</Alerta>}
       {busca.perna && <Alerta tom="ok">Pouso registrado. Boa próxima perna!</Alerta>}
+      {busca.divisao && <Alerta tom="erro">O voo foi gravado, mas a divisão não: {busca.divisao}. Ajuste abaixo em &quot;Dividir o voo entre sócios&quot;.</Alerta>}
       {busca.aberto && <Alerta tom="atencao">Você tem este voo em aberto. Registre o pouso antes de começar outro.</Alerta>}
 
       <Card>
