@@ -91,6 +91,7 @@ export function FormularioVoo({
   const [origem, setOrigem] = useState(origemInicial ?? base);
   const [destino, setDestino] = useState(destinoInicial ?? "");
   const [dataIda, setDataIda] = useState(dataInicial ?? hoje);
+  const [dataVolta, setDataVolta] = useState(dataInicial ?? hoje);
   const [pousos, setPousos] = useState("1");
   const [horasDigitadas, setHorasDigitadas] = useState("");
   const [qtdEscalas, setQtdEscalas] = useState(0);
@@ -159,7 +160,18 @@ export function FormularioVoo({
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="space-y-1.5">
             <Label htmlFor="data">Data</Label>
-            <Input id="data" name="data" type="date" value={dataIda} onChange={(e) => setDataIda(e.target.value)} required className="h-12" />
+            <Input
+              id="data"
+              name="data"
+              type="date"
+              value={dataIda}
+              onChange={(e) => {
+                setDataIda(e.target.value);
+                if (e.target.value > dataVolta) setDataVolta(e.target.value);
+              }}
+              required
+              className="h-12"
+            />
           </div>
           <SeletorAerodromo nome="origem" rotulo="Origem" opcoes={aerodromos} valorInicial={origemInicial ?? base} aoMudar={setOrigem} obrigatorio />
           <SeletorAerodromo nome="destino" rotulo="Destino" opcoes={aerodromos} valorInicial={destinoInicial ?? ""} aoMudar={setDestino} obrigatorio />
@@ -225,7 +237,16 @@ O voo fica marcado como pendente de horímetro até o administrador conferir.
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="space-y-1.5">
               <Label htmlFor="data_volta">Data</Label>
-              <Input id="data_volta" name="data_volta" type="date" defaultValue={dataInicial ?? hoje} min={dataIda || undefined} required className="h-12" />
+              <Input
+                id="data_volta"
+                name="data_volta"
+                type="date"
+                value={dataVolta}
+                onChange={(e) => setDataVolta(e.target.value)}
+                min={dataIda || undefined}
+                required
+                className="h-12"
+              />
             </div>
             <SeletorAerodromo key={`ov-${destino}`} nome="origem_volta" rotulo="Origem" opcoes={aerodromos} valorInicial={destino} obrigatorio />
             <SeletorAerodromo key={`dv-${origem}`} nome="destino_volta" rotulo="Destino" opcoes={aerodromos} valorInicial={origem} obrigatorio />
