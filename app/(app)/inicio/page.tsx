@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Camera, Fuel, PlaneTakeoff, Receipt } from "lucide-react";
 
+import { after } from "next/server";
+
 import { exigirSessao } from "@/lib/perfil";
 import { aeronaveAtiva, listarSocios } from "@/lib/dados/cadastros";
 import { horasPorSocio, horasPorSocioNoMes, listarVoos, ondeEstaAviao, trecho, ultimoHorimetro, vooEmAberto } from "@/lib/dados/voos";
@@ -41,27 +43,41 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
   ]);
   const [saldos, caixa, fundo] = valores ? await Promise.all([saldosDosSocios(), saldoDoCaixa(), saldoDoFundo(aeronave.id)]) : [[], null, null];
 
-  // Agenda: quem está com o avião hoje e se é a minha vez de escolher.
-  await garantirEscolhaAberta(aeronave.id);
+  // Abrir a escolha do mês, avisar reserva sem voo e resolver pedidos não é
+  // coisa que a tela precise esperar: roda depois de responder (Next after).
+  after(() => garantirEscolhaAberta(aeronave.id));
+
   const mesProximo = mesSeguinte(mes);
-  const [diaHoje, reservasProximas, vezAtual, vezProxima, filaAtual, filaProxima] = await Promise.all([
+  const [
+    diaHoje,
+    reservasProximas,
+    vezAtual,
+    vezProxima,
+    filaAtual,
+    filaProxima,
+    manutencao,
+    anotacoes,
+    semVooTodas,
+    reembolsosTodos,
+  ] = await Promise.all([
     agendaDoDia(aeronave.id, hoje()),
     proximasReservas(aeronave.id, 5),
     vezDeEscolher(aeronave.id, mes),
     vezDeEscolher(aeronave.id, mesProximo),
     fila(aeronave.id, mes),
     fila(aeronave.id, mesProximo),
+    resumoManutencao(aeronave.id),
+    listarAnotacoes(aeronave.id, 50),
+    reservasSemVoo(aeronave.id),
+    listarReembolsos(aeronave.id, {
+      pendentes: true,
+      socioId: usuario.perfil === "socio" ? (usuario.socioId ?? undefined) : undefined,
+      confirmados: usuario.perfil === "socio",
+    }),
   ]);
-  const manutencao = await resumoManutencao(aeronave.id);
-  const anotacoesAbertas = (await listarAnotacoes(aeronave.id, 50)).filter((a) => !a.resolvida_em);
+  const anotacoesAbertas = anotacoes.filter((a) => !a.resolvida_em);
   // Reservas que terminaram sem voo: o piloto lança ou marca não realizada; o sócio dono também vê.
-  const semVoo = (await reservasSemVoo(aeronave.id)).filter((r) => usuario.perfil !== "socio" || r.socio_id === usuario.socioId);
-  // Reembolsos ao piloto pendentes: o sócio vê o que deve; o piloto, o que tem a receber.
-  const reembolsosTodos = await listarReembolsos(aeronave.id, {
-    pendentes: true,
-    socioId: usuario.perfil === "socio" ? (usuario.socioId ?? undefined) : undefined,
-    confirmados: usuario.perfil === "socio",
-  });
+  const semVoo = semVooTodas.filter((r) => usuario.perfil !== "socio" || r.socio_id === usuario.socioId);
   const reembolsosAConferir = reembolsosTodos.filter((r) => r.status === "PENDENTE");
   const reembolsosPendentes = reembolsosTodos.filter((r) => r.status !== "PENDENTE");
   // reembolso de todos: o sócio deve só a parte dele

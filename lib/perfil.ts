@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import { redirect } from "next/navigation";
 
 import { criarClienteServidor } from "@/lib/supabase/server";
@@ -22,7 +23,7 @@ export type UsuarioSessao = {
  * Usuário da sessão + perfil, lido com o cliente de SESSÃO — a RLS decide o
  * que aparece. Nada de chave secreta no caminho da requisição.
  */
-export async function usuarioDaSessao(): Promise<
+export const usuarioDaSessao = cache(async function usuarioDaSessao(): Promise<
   | { user: null; usuario: null }
   | { user: { id: string; email: string | null }; usuario: UsuarioSessao | null }
 > {
@@ -54,7 +55,7 @@ export async function usuarioDaSessao(): Promise<
         }
       : null,
   };
-}
+});
 
 export async function exigirSessao(): Promise<UsuarioSessao> {
   const { user, usuario } = await usuarioDaSessao();

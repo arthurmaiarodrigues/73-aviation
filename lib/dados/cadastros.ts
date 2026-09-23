@@ -1,10 +1,12 @@
 import "server-only";
 
+import { cache } from "react";
+
 import { criarClienteServidor } from "@/lib/supabase/server";
 import type { Aeronave, Categoria, Fornecedor, Socio } from "@/lib/tipos";
 
 /** A aeronave ativa. Hoje é uma só; a tabela existe para o dia em que houver outra. */
-export async function aeronaveAtiva(): Promise<Aeronave> {
+export const aeronaveAtiva = cache(async function aeronaveAtiva(): Promise<Aeronave> {
   const supabase = await criarClienteServidor();
   const { data, error } = await supabase
     .from("aeronaves")
@@ -22,7 +24,7 @@ export async function aeronaveAtiva(): Promise<Aeronave> {
     tbo_motor_horas: numero(data.tbo_motor_horas),
     fundo_reserva_por_hora: Number(data.fundo_reserva_por_hora),
   } as Aeronave;
-}
+});
 
 function numero(v: unknown): number | null {
   return v === null || v === undefined ? null : Number(v);
