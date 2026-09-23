@@ -139,8 +139,9 @@ export default async function PaginaAgenda({ searchParams }: { searchParams: Pro
           <CardHeader>
             <CardTitle className="text-lg">Pedidos aguardando resposta</CardTitle>
             <CardDescription>
-              Reserva além do direito do mês, ou dentro do período de outro sócio. No período de alguém, só o titular responde — se ele não for
-              usar, libera (sem resposta em 48 h e sem nada marcado no período dele, confirma sozinho). Feriado: só com o OK de todos.
+              Reserva além do direito do mês, ou dentro do período de outro sócio. No período de alguém, só o titular responde; se ele cancelar
+              o que tinha marcado, o período fica livre e o pedido confirma na hora. Sem resposta em 48 h e sem nada marcado no período dele,
+              também confirma. Feriado: só com o OK de todos.
             </CardDescription>
           </CardHeader>
           <CardContent>

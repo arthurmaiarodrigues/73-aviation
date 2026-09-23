@@ -231,18 +231,33 @@ export async function cancelarReserva(id: string): Promise<Resultado> {
   if (!user || !usuario?.ativo) return { ok: false, mensagem: "Sem sessão." };
   if (!UUID.test(id)) return { ok: false, mensagem: "Reserva inválida." };
   const supabase = await criarClienteServidor();
-  const { error } = await supabase
-    .from("reservas")
-    .update({ status: "CANCELADA", cancelada_em: new Date().toISOString(), cancelada_por: user.id })
-    .eq("id", id);
-  if (error) return { ok: false, mensagem: /row-level/i.test(error.message) ? "Só quem reservou (ou o administrador) cancela." : error.message };
+  const { data: liberadas, error } = await supabase.rpc("cancelar_reserva", { p_id: id });
+  if (error) return { ok: false, mensagem: error.message.replace(/^.*?(?:ERROR|error):\s*/, "") };
   const { data: r } = await supabase.from("reservas").select("inicio, fim, destino, socios ( apelido )").eq("id", id).maybeSingle();
   if (r) {
     const apelido = (r.socios as unknown as { apelido: string } | null)?.apelido ?? "Sócio";
     await notificar({ perfis: ["piloto"] }, { titulo: "Reserva cancelada", corpo: `${apelido}: ${fmtData(r.inicio)}${r.destino ? ` → ${r.destino}` : ""} foi cancelada.`, url: "/agenda", tag: "agenda" });
   }
+  // Quem estava esperando aquele período entra confirmado.
+  const ids = (liberadas as string[] | null) ?? [];
+  for (const rid of ids) {
+    const { data: lib } = await supabase
+      .from("reservas")
+      .select("inicio, fim, destino, socios ( apelido, usuario_id )")
+      .eq("id", rid)
+      .maybeSingle();
+    const so = lib?.socios as unknown as { apelido: string; usuario_id: string | null } | null;
+    const quando = lib ? `${fmtData(lib.inicio)}${lib.fim !== lib.inicio ? ` a ${fmtData(lib.fim)}` : ""}${lib.destino ? ` → ${lib.destino}` : ""}` : "";
+    if (so?.usuario_id) {
+      await notificar({ usuarios: [so.usuario_id] }, { titulo: "Reserva confirmada", corpo: `O período ficou livre: ${quando} é seu.`, url: "/agenda", tag: "agenda" });
+    }
+    await notificar({ perfis: ["piloto"] }, { titulo: "Voo agendado", corpo: `${so?.apelido ?? "Sócio"}: ${quando}.`, url: "/agenda", tag: "agenda" });
+  }
   revalidar();
-  return { ok: true, mensagem: "Reserva cancelada." };
+  return {
+    ok: true,
+    mensagem: ids.length > 0 ? `Reserva cancelada — o período ficou livre e ${ids.length === 1 ? "um pedido foi confirmado" : `${ids.length} pedidos foram confirmados`}.` : "Reserva cancelada.",
+  };
 }
 
 export async function bloquear(_a: Resultado, form: FormData): Promise<Resultado> {
