@@ -25,7 +25,10 @@ export default async function PaginaReembolsos() {
     listarSocios({ somenteAtivos: true }),
     piloto ? listarCategorias() : Promise.resolve([]),
   ]);
-  const urls = piloto ? [] : await urlsDosComprovantes(reembolsos.map((r) => r.comprovante_path));
+  const urls = await urlsDosComprovantes(reembolsos.map((r) => r.comprovante_path));
+  // comprovante do PIX de cada sócio (o mais recente)
+  const pagamentos = confirmadosDe(reembolsos);
+  const urlsPix = await urlsDosComprovantes(socios.map((s) => pagamentos.find((c) => c.socio_id === s.id && c.caminho)?.caminho ?? null));
   const aConferir = reembolsos.filter((r) => r.status === "PENDENTE");
   const pendentes = reembolsos.filter((r) => !r.reembolsado_em && r.status !== "PENDENTE");
   // o sócio vê a parte dele nos reembolsos de todos; piloto e admin veem o total
@@ -41,12 +44,13 @@ export default async function PaginaReembolsos() {
   const pagoDe = (id: string) =>
     confirmados.reduce((t, r) => t + (r.pagos.includes(id) ? (r.partes.find((x) => x.socio_id === id)?.valor ?? 0) : 0), 0);
   const porSocio = socios
-    .map((s) => ({
+    .map((s, i) => ({
       socio_id: s.id,
       apelido: s.apelido,
       devido: devido.find((d) => d.socio_id === s.id)?.valor ?? 0,
       itens: devido.find((d) => d.socio_id === s.id)?.itens ?? 0,
       pago: Math.round(pagoDe(s.id) * 100) / 100,
+      comprovante: urlsPix[i] ?? null,
     }))
     .filter((l) => l.devido > 0 || l.pago > 0);
   const pix = confirmados.find((r) => r.pix)?.pix ?? null;
@@ -93,6 +97,7 @@ export default async function PaginaReembolsos() {
           piloto={nomePiloto}
           podeMarcar={usuario.perfil === "admin" || piloto}
           meuSocioId={usuario.socioId ?? null}
+          souPiloto={piloto}
         />
       )}
 
@@ -122,4 +127,11 @@ export default async function PaginaReembolsos() {
       />
     </div>
   );
+}
+
+/** Pagamentos com comprovante, do mais novo para o mais antigo. */
+function confirmadosDe(reembolsos: { comprovantesPagos: { socio_id: string; caminho: string | null }[]; data: string }[]) {
+  return [...reembolsos]
+    .sort((a, b) => (a.data < b.data ? 1 : -1))
+    .flatMap((r) => r.comprovantesPagos);
 }

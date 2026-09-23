@@ -167,15 +167,28 @@ export async function confirmarVarios(ids: string[], criterio: "IGUAL" | "POR_HO
 }
 
 /** Marca (ou desmarca) que um sócio pagou ao piloto a parte dele. */
-export async function marcarPagoDoSocio(socioId: string, desfazer = false): Promise<Resultado> {
+export async function marcarPagoDoSocio(socioId: string, desfazer = false, comprovante?: string | null): Promise<Resultado> {
   const { user, usuario } = await usuarioDaSessao();
   if (!user || !usuario?.ativo) return { ok: false, mensagem: "Sem sessão." };
   if (!UUID.test(socioId)) return { ok: false, mensagem: "Sócio inválido." };
   if (usuario.perfil === "socio" && usuario.socioId !== socioId) return { ok: false, mensagem: "Cada sócio marca a própria parte." };
 
   const supabase = await criarClienteServidor();
-  const { data, error } = await supabase.rpc("marcar_reembolso_socio", { p_socio: socioId, p_despesas: null, p_desfazer: desfazer });
+  const { data, error } = await supabase.rpc("marcar_reembolso_socio", {
+    p_socio: socioId,
+    p_despesas: null,
+    p_desfazer: desfazer,
+    p_comprovante: comprovante ?? null,
+  });
   if (error) return { ok: false, mensagem: error.message.replace(/^.*?(?:ERROR|error):\s*/, "") };
+  // O piloto fica sabendo na hora de quem entrou o PIX.
+  if (!desfazer) {
+    const { data: so } = await supabase.from("socios").select("apelido").eq("id", socioId).maybeSingle();
+    await notificar(
+      { perfis: ["piloto"] },
+      { titulo: "Reembolso pago", corpo: `${so?.apelido ?? "Um sócio"} marcou o pagamento da parte dele${comprovante ? " e anexou o comprovante" : ""}.`, url: "/reembolsos", tag: "reembolso" },
+    );
+  }
   revalidar();
   const n = Number(data ?? 0);
   return {

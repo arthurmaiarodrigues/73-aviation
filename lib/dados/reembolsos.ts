@@ -29,12 +29,14 @@ export type Reembolso = {
   partes: { socio_id: string; valor: number }[];
   /** Sócios que já pagaram a parte deles ao piloto. */
   pagos: string[];
+  /** Comprovante do PIX por sócio que pagou. */
+  comprovantesPagos: { socio_id: string; caminho: string | null }[];
   pix: string | null;
 };
 
 const SELECT = `id, data, descricao, valor, socio_direto_id, reembolso_piloto_id, comprovante_path, observacao, cidade, reembolsado_em, status, criterio,
   categorias_despesa ( nome ), socios!despesas_socio_direto_id_fkey ( apelido ), pilotos ( nome, pix ), rateios ( socio_id, valor ),
-  reembolso_pagamentos ( socio_id, pago_em )`;
+  reembolso_pagamentos ( socio_id, pago_em, comprovante_path )`;
 
 type Bruta = {
   id: string; data: string; descricao: string; valor: string | number; socio_direto_id: string | null; reembolso_piloto_id: string;
@@ -42,7 +44,7 @@ type Bruta = {
   status: "PENDENTE" | "APROVADA" | "RATEADA"; criterio: "IGUAL" | "POR_HORAS" | "DIRETO" | "MANUAL";
   categorias_despesa: { nome: string } | null; socios: { apelido: string } | null; pilotos: { nome: string; pix: string | null } | null;
   rateios: { socio_id: string; valor: string | number }[] | null;
-  reembolso_pagamentos: { socio_id: string; pago_em: string }[] | null;
+  reembolso_pagamentos: { socio_id: string; pago_em: string; comprovante_path: string | null }[] | null;
 };
 
 export async function listarReembolsos(aeronaveId: string, filtro: { socioId?: string; pendentes?: boolean; confirmados?: boolean } = {}, limite = 300): Promise<Reembolso[]> {
@@ -81,6 +83,7 @@ export async function listarReembolsos(aeronaveId: string, filtro: { socioId?: s
     criterio: d.criterio,
     partes: (d.rateios ?? []).map((r) => ({ socio_id: r.socio_id, valor: Number(r.valor) })),
     pagos: (d.reembolso_pagamentos ?? []).map((p) => p.socio_id),
+    comprovantesPagos: (d.reembolso_pagamentos ?? []).map((p) => ({ socio_id: p.socio_id, caminho: p.comprovante_path })),
     pix: d.pilotos?.pix ?? null,
   }));
 }
