@@ -81,9 +81,21 @@ export async function salvarVoo(_anterior: Resultado, form: FormData): Promise<R
   const natureza = (texto(form, "natureza") ?? "PARTICULAR") as NaturezaVoo;
   if (!NATUREZAS.includes(natureza)) return { ok: false, mensagem: "Natureza inválida." };
 
+  // Divisão informada já no lançamento (sócio + horas; SOCIEDADE = parte de todos).
+  const partesForm = form
+    .getAll("parte_socio")
+    .map((v, i) => ({ socio_id: String(v) === "SOCIEDADE" ? null : String(v), horas: lerNumero(String(form.getAll("parte_horas")[i] ?? "")) ?? 0 }))
+    .filter((p) => p.horas > 0 && (p.socio_id === null || UUID.test(p.socio_id)));
+  // o responsável do voo é quem tem a maior parte (a parte da sociedade não serve de responsável)
+  const maiorParte = partesForm.filter((p) => p.socio_id !== null).sort((a, b) => b.horas - a.horas)[0];
+
   const socioBruto = texto(form, "socio_id");
-  const socioId = ehUsoComum(natureza) ? null : socioBruto && UUID.test(socioBruto) ? socioBruto : null;
-  if (!ehUsoComum(natureza) && !socioId) return { ok: false, mensagem: "Escolha o sócio responsável pelo voo." };
+  const socioId = ehUsoComum(natureza)
+    ? null
+    : socioBruto && UUID.test(socioBruto)
+      ? socioBruto
+      : (maiorParte?.socio_id ?? null);
+  if (!ehUsoComum(natureza) && !socioId) return { ok: false, mensagem: "Escolha o sócio responsável pelo voo (ou divida as horas entre sócios)." };
   // Piloto contratado registra o voo em nome do sócio que o contratou (ou da sociedade); o piloto do voo é ele mesmo.
   const pilotoBruto = texto(form, "piloto_id");
   const pilotoId = usuario.pilotoId ?? (pilotoBruto && UUID.test(pilotoBruto) ? pilotoBruto : null);
@@ -185,6 +197,23 @@ export async function salvarVoo(_anterior: Resultado, form: FormData): Promise<R
 
   if (error) return { ok: false, mensagem: traduzir(error.message) };
 
+  const aplicarDivisao = async (vooId: string, horasDoVoo: number, total: number) => {
+    if (partesForm.length === 0 || horasDoVoo <= 0 || total <= 0) return;
+    const proporcao = horasDoVoo / total;
+    const partes = partesForm.map((p) => ({ socio_id: p.socio_id, horas: Math.round(p.horas * proporcao * 10) / 10 })).filter((p) => p.horas > 0);
+    const soma = Math.round(partes.reduce((t, p) => t + p.horas, 0) * 10) / 10;
+    if (partes.length > 0 && soma !== horasDoVoo) {
+      // o arredondamento sobra (ou falta) na maior parte
+      const maior = partes.reduce((a, b) => (b.horas > a.horas ? b : a));
+      maior.horas = Math.round((maior.horas + (horasDoVoo - soma)) * 10) / 10;
+    }
+    await supabase.rpc("definir_divisao_voo", { p_voo: vooId, p_partes: partes.filter((p) => p.horas > 0) });
+  };
+  const horasCriado = hInicial !== null && hFinalVoo !== null ? Math.round((hFinalVoo - hInicial) * 10) / 10 : (horasInformadas ?? 0);
+  const horasVoltaCriada = comVolta && !voltaJunta && hInicialVolta !== null && hFinalVolta !== null ? Math.round((hFinalVolta - hInicialVolta) * 10) / 10 : 0;
+  const horasTotaisCriadas = Math.round((horasCriado + horasVoltaCriada) * 10) / 10;
+  await aplicarDivisao(criado.id, horasCriado, horasTotaisCriadas);
+
   if (comVolta && !voltaJunta) {
     const { data: volta, error: erroVolta } = await supabase
       .from("voos")
@@ -208,6 +237,7 @@ export async function salvarVoo(_anterior: Resultado, form: FormData): Promise<R
       .select("id")
       .single();
     if (erroVolta) return { ok: false, mensagem: `A ida foi gravada, mas a volta não: ${traduzir(erroVolta.message)}. Registre a volta como "só um trecho".` };
+    await aplicarDivisao(volta.id, horasVoltaCriada, horasTotaisCriadas);
     revalidatePath("/voos");
     revalidatePath("/inicio");
     redirect(hFinalVolta !== null ? `/voos/${volta.id}?salvo=2` : `/voos/${volta.id}?decolou=1`);

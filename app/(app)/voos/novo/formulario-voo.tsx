@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { ChevronDown, Loader2, PlaneLanding, PlaneTakeoff } from "lucide-react";
+import { ChevronDown, Loader2, PlaneLanding, PlaneTakeoff, Plus, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -94,6 +94,13 @@ export function FormularioVoo({
   const [pousos, setPousos] = useState("1");
   const [horasDigitadas, setHorasDigitadas] = useState("");
   const [qtdEscalas, setQtdEscalas] = useState(0);
+  const [socioSel, setSocioSel] = useState(socioLogadoId ?? "");
+  const dividir = socioSel === "DIVIDIR";
+  const [partes, setPartes] = useState<{ chave: number; socio: string; horas: string }[]>([
+    { chave: 0, socio: socioLogadoId ?? "", horas: "" },
+    { chave: 1, socio: "", horas: "" },
+  ]);
+  const [proximaParte, setProximaParte] = useState(2);
   const [detalhes, setDetalhes] = useState(false);
 
   const usoComum = ehUsoComum(natureza);
@@ -103,6 +110,18 @@ export function FormularioVoo({
   const hFimVolta = lerHorimetro(fotoFinalVolta.valor);
   const horasIda = hIni !== null && hFimIda !== null && hFimIda >= hIni ? Math.round((hFimIda - hIni) * 10) / 10 : null;
   const horasVolta = hIniVolta !== null && hFimVolta !== null && hFimVolta >= hIniVolta ? Math.round((hFimVolta - hIniVolta) * 10) / 10 : null;
+
+  // Total de horas já conhecido pelos horímetros — base da divisão no lançamento.
+  const horasTotais =
+    hIni !== null && hFimVolta !== null && comVolta && hFimIda === null
+      ? Math.round((hFimVolta - hIni) * 10) / 10
+      : Math.round(((horasIda ?? 0) + (comVolta ? (horasVolta ?? 0) : 0)) * 10) / 10;
+  const numeroHoras = (v: string) => {
+    const n = Number(v.replace(".", "").replace(",", "."));
+    return Number.isFinite(n) ? n : 0;
+  };
+  const somaPartes = Math.round(partes.reduce((t, p) => t + (p.socio ? numeroHoras(p.horas) : 0), 0) * 10) / 10;
+  const faltaPartes = Math.round((horasTotais - somaPartes) * 10) / 10;
 
   const aberto = comVolta ? hFimVolta === null : hFimIda === null;
   const rotuloBotao = semHorimetro ? "Registrar voo antigo" : aberto ? (comVolta ? "Registrar ida e decolei na volta" : "Decolei") : comVolta ? "Registrar ida e volta" : "Registrar voo";
@@ -253,16 +272,77 @@ O voo fica marcado como pendente de horímetro até o administrador conferir.
             Sociedade — horas divididas entre os sócios
           </p>
         ) : (
-          <Select id="socio_id" name="socio_id" defaultValue={socioLogadoId ?? ""} required className="h-12">
-            <option value="" disabled>
-              Escolha…
-            </option>
-            {socios.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.apelido}
+          <>
+            <Select
+              id="socio_id"
+              name={dividir ? undefined : "socio_id"}
+              value={socioSel}
+              onChange={(e) => setSocioSel(e.target.value)}
+              required={!dividir}
+              className="h-12"
+            >
+              <option value="" disabled>
+                Escolha…
               </option>
-            ))}
-          </Select>
+              {socios.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.apelido}
+                </option>
+              ))}
+              <option value="DIVIDIR">DIVIDIR ENTRE SÓCIOS…</option>
+            </Select>
+            {dividir && horasTotais <= 0 && (
+              <p className="text-xs text-atencao">Informe os horímetros para dividir as horas — ou divida depois, na ficha do voo.</p>
+            )}
+            {dividir && horasTotais > 0 && (
+              <div className="space-y-2 rounded-lg border border-marinho-100 p-3 dark:border-marinho-300">
+                {partes.map((p, i) => (
+                  <div key={p.chave} className="flex items-center gap-2">
+                    <Select
+                      value={p.socio}
+                      name={p.socio ? "parte_socio" : undefined}
+                      onChange={(e) => setPartes((l) => l.map((x, j) => (j === i ? { ...x, socio: e.target.value } : x)))}
+                      className="h-11 flex-1"
+                    >
+                      <option value="">—</option>
+                      <option value="SOCIEDADE">SOCIEDADE (todos)</option>
+                      {socios.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.apelido}
+                        </option>
+                      ))}
+                    </Select>
+                    <Input
+                      inputMode="decimal"
+                      placeholder="0,0"
+                      value={p.horas}
+                      name={p.socio ? "parte_horas" : undefined}
+                      onChange={(e) => setPartes((l) => l.map((x, j) => (j === i ? { ...x, horas: e.target.value } : x)))}
+                      className="h-11 w-24 tabular"
+                    />
+                    <button type="button" onClick={() => setPartes((l) => l.filter((_, j) => j !== i))} title="Tirar" className="text-marinho-300 hover:text-erro">
+                      <X className="size-5" />
+                    </button>
+                  </div>
+                ))}
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPartes((l) => [...l, { chave: proximaParte, socio: "", horas: faltaPartes > 0 ? String(faltaPartes).replace(".", ",") : "" }]);
+                      setProximaParte((n) => n + 1);
+                    }}
+                    className="inline-flex items-center gap-1 text-sm font-semibold text-laranja-700"
+                  >
+                    <Plus className="size-4" /> outro sócio
+                  </button>
+                  <span className={cn("text-xs", faltaPartes === 0 ? "text-ok" : "text-atencao")}>
+                    {faltaPartes === 0 ? `fecha certinho: ${horasHm(somaPartes)}` : faltaPartes > 0 ? `faltam ${horasHm(faltaPartes)} das ${horasHm(horasTotais)}` : `passou ${horasHm(-faltaPartes)} das ${horasHm(horasTotais)}`}
+                  </span>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
       {!pilotoFixo && (
