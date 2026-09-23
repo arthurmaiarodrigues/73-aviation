@@ -410,3 +410,30 @@ export async function registrarPerna(_anterior: Resultado, form: FormData): Prom
   revalidatePath("/inicio");
   redirect(`/voos/${id}?perna=1`);
 }
+
+/**
+ * Divide as horas do voo entre sócios (ou deixa uma parte para a
+ * sociedade, dividida igual). Lista vazia volta ao sócio responsável.
+ */
+export async function definirDivisao(_anterior: Resultado, form: FormData): Promise<Resultado> {
+  const { user, usuario } = await usuarioDaSessao();
+  if (!user || !usuario?.ativo) return { ok: false, mensagem: "Sem sessão." };
+  const id = texto(form, "id");
+  if (!id || !UUID.test(id)) return { ok: false, mensagem: "Voo inválido." };
+
+  const socios = form.getAll("parte_socio").map((v) => String(v));
+  const horas = form.getAll("parte_horas").map((v) => lerNumero(String(v)));
+  const partes = socios
+    .map((s, i) => ({ socio_id: s === "SOCIEDADE" ? null : s, horas: horas[i] ?? 0 }))
+    .filter((p) => p.horas > 0 && (p.socio_id === null || UUID.test(p.socio_id)));
+
+  const supabase = await criarClienteServidor();
+  const { error } = await supabase.rpc("definir_divisao_voo", { p_voo: id, p_partes: partes });
+  if (error) return { ok: false, mensagem: error.message.replace(/^.*?(?:ERROR|error):\s*/, "") };
+
+  revalidatePath(`/voos/${id}`);
+  revalidatePath("/voos");
+  revalidatePath("/inicio");
+  revalidatePath("/extratos");
+  return { ok: true, mensagem: partes.length === 0 ? "Divisão desfeita — o voo volta a ser do sócio responsável." : "Divisão salva. Horas, fundo de reserva e rateios por horas já usam ela." };
+}

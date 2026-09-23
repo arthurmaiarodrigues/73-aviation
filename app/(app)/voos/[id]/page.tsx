@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormularioPouso } from "./formulario-pouso";
 import { FormularioPerna } from "./formulario-perna";
 import { FormularioEdicao } from "./formulario-edicao";
+import { DivisaoVoo } from "./divisao";
 
 export const metadata: Metadata = { title: "Voo" };
 
@@ -61,7 +62,10 @@ export default async function PaginaVoo({
           {voo.pendente_horimetro && <Badge variant="erro">horímetro pendente</Badge>}
         </div>
         <p className="mt-1 text-sm text-marinho-300">
-          {voo.socio ?? "Sociedade"} · {ROTULO_NATUREZA[voo.natureza]}
+          {voo.divisao.length > 0
+            ? voo.divisao.map((d) => `${socios.find((s) => s.id === d.socio_id)?.apelido ?? "Sociedade"} ${fmtHoras(d.horas)}`).join(" · ")
+            : (voo.socio ?? "Sociedade")}{" "}
+          · {ROTULO_NATUREZA[voo.natureza]}
           {voo.piloto ? ` · piloto ${voo.piloto}` : ""}
         </p>
       </div>
@@ -167,6 +171,21 @@ export default async function PaginaVoo({
             />
           </CardContent>
         </Card>
+      )}
+
+      {!emAberto && voo.horas > 0 && podeEditar && (
+        <details open={voo.divisao.length > 0}>
+          <summary className="cursor-pointer text-sm font-semibold text-laranja-700">Dividir o voo entre sócios</summary>
+          <div className="mt-4">
+            <DivisaoVoo
+              id={voo.id}
+              horasVoo={voo.horas}
+              socios={socios.map((s) => ({ id: s.id, apelido: s.apelido }))}
+              socioResponsavel={voo.socio_id}
+              inicial={voo.divisao}
+            />
+          </div>
+        </details>
       )}
 
       {podeEditar && !emAberto && (

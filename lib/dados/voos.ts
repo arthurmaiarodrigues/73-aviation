@@ -10,6 +10,8 @@ export type VooLinha = {
   data_volta: string | null;
   socio_id: string | null;
   socio: string | null;
+  /** Voo repartido: horas de cada sócio (socio_id null = parte da sociedade). */
+  divisao: { socio_id: string | null; horas: number }[];
   piloto: string | null;
   origem: string | null;
   destino: string | null;
@@ -46,7 +48,7 @@ export type FiltroVoos = {
 const SELECT = `id, data, data_volta, socio_id, origem, destino, escalas, horas_pernas, combustivel_pernas, horimetro_pernas, pernas_concluidas, horimetro_inicial, horimetro_final, horas,
   combustivel_inicial_l, combustivel_final_l, pousos, natureza, status, pendente_horimetro, observacao,
   foto_horimetro_inicial, foto_horimetro_final, autor_id,
-  socios ( apelido ), pilotos ( nome )`;
+  socios ( apelido ), pilotos ( nome ), voo_socios ( socio_id, horas )`;
 
 type LinhaBruta = {
   id: string; data: string; data_volta?: string | null; socio_id: string | null; origem: string | null; destino: string | null; escalas: string[] | null; horas_pernas: (string | number)[] | null; combustivel_pernas: (string | number)[] | null; horimetro_pernas?: (string | number)[] | null; pernas_concluidas?: number | null;
@@ -55,6 +57,7 @@ type LinhaBruta = {
   natureza: NaturezaVoo; status: "RASCUNHO" | "CONFIRMADO"; pendente_horimetro: boolean; observacao: string | null;
   foto_horimetro_inicial: string | null; foto_horimetro_final: string | null; autor_id: string | null;
   socios: { apelido: string } | null; pilotos: { nome: string } | null;
+  voo_socios?: { socio_id: string | null; horas: string | number }[] | null;
 };
 
 function n(v: string | null): number | null {
@@ -68,6 +71,7 @@ function mapear(v: LinhaBruta): VooLinha {
     data_volta: v.data_volta ?? null,
     socio_id: v.socio_id,
     socio: v.socios?.apelido ?? null,
+    divisao: (v.voo_socios ?? []).map((d) => ({ socio_id: d.socio_id, horas: Number(d.horas) })).sort((a, b) => b.horas - a.horas),
     piloto: v.pilotos?.nome ?? null,
     origem: v.origem,
     destino: v.destino,
