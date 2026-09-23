@@ -44,6 +44,8 @@ export function FormularioEdicao({
 }) {
   const [estado, acao] = useActionState(editarVoo, INICIAL);
   const [natureza, setNatureza] = useState<NaturezaVoo>(voo.natureza);
+  const [data, setData] = useState(voo.data);
+  const [dataVolta, setDataVolta] = useState(voo.data_volta ?? "");
   const [confirmarApagar, setConfirmarApagar] = useState(false);
   const usoComum = ehUsoComum(natureza);
 
@@ -55,8 +57,20 @@ export function FormularioEdicao({
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="data">Data</Label>
-            <Input id="data" name="data" type="date" defaultValue={voo.data} required />
+            <Label htmlFor="data">Data da saída</Label>
+            <Input id="data" name="data" type="date" value={data} onChange={(e) => setData(e.target.value)} required />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="data_volta">Data da chegada</Label>
+            <Input
+              id="data_volta"
+              name="data_volta"
+              type="date"
+              value={dataVolta}
+              min={data || undefined}
+              onChange={(e) => setDataVolta(e.target.value)}
+            />
+            <p className="text-xs text-marinho-300">Vazio (ou igual à saída) = voo terminou no mesmo dia.</p>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="natureza">Natureza</Label>

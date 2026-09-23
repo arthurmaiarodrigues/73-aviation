@@ -356,6 +356,11 @@ export async function editarVoo(_anterior: Resultado, form: FormData): Promise<R
     .from("voos")
     .update({
       data: texto(form, "data") ?? hoje(),
+      data_volta: (() => {
+        const saida = texto(form, "data") ?? hoje();
+        const chegada = texto(form, "data_volta");
+        return chegada && chegada > saida ? chegada : null;
+      })(),
       socio_id: socioId,
       piloto_id: pilotoBruto && UUID.test(pilotoBruto) ? pilotoBruto : null,
       origem: icao(form, "origem"),
