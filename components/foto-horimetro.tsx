@@ -52,6 +52,7 @@ export function FotoHorimetro({
   const [fase, setFase] = useState<"parado" | "enviando" | "lendo">("parado");
   const [erro, setErro] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const galeriaRef = useRef<HTMLInputElement>(null);
 
   async function tratarArquivo(arquivo: File | undefined) {
     if (!arquivo) return;
@@ -115,6 +116,8 @@ export function FotoHorimetro({
         className="hidden"
         onChange={(e) => tratarArquivo(e.target.files?.[0])}
       />
+      {/* sem capture: o celular abre a galeria e os arquivos */}
+      <input ref={galeriaRef} type="file" accept="image/*" className="hidden" onChange={(e) => tratarArquivo(e.target.files?.[0])} />
 
       {previa ? (
         <div className="relative">
@@ -149,6 +152,10 @@ export function FotoHorimetro({
           {!obrigatoria && <span className="text-xs">opcional</span>}
         </button>
       )}
+
+      <button type="button" onClick={() => galeriaRef.current?.click()} disabled={fase !== "parado"} className="text-xs font-semibold text-laranja-700">
+        {previa ? "trocar por uma foto já tirada" : "ou escolher uma foto já tirada"}
+      </button>
 
       {erro && <p className="text-sm text-erro">{erro}</p>}
       {leitura?.observacao && <p className="text-xs text-marinho-300">{leitura.observacao}</p>}

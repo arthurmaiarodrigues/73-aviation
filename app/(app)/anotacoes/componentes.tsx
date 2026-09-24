@@ -77,8 +77,8 @@ export function FormularioAnotacao({ hoje, horimetro }: { hoje: string; horimetr
       <div className="flex flex-wrap items-center gap-3">
         <label className="inline-flex h-12 cursor-pointer items-center gap-2 rounded bg-laranja px-4 text-sm font-semibold text-marinho hover:bg-laranja-700 hover:text-areia">
           {enviando ? <Loader2 className="size-4 animate-spin" /> : <Camera className="size-4" />}
-          {enviando ? "Enviando…" : foto ? "Trocar foto" : "Foto do problema"}
-          <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => tratarFoto(e.target.files?.[0])} disabled={enviando} />
+          {enviando ? "Enviando…" : foto ? "Trocar foto" : "Anexar foto (câmera ou galeria)"}
+          <input type="file" accept="image/*" className="hidden" onChange={(e) => tratarFoto(e.target.files?.[0])} disabled={enviando} />
         </label>
         {foto && <span className="text-xs text-ok">foto anexada</span>}
         {erro && <span className="text-xs text-erro">{erro}</span>}

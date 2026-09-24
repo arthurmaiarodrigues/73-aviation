@@ -99,7 +99,7 @@ export function FormularioAbastecimento({
           <label className="inline-flex h-12 cursor-pointer items-center gap-2 rounded bg-laranja px-4 text-sm font-semibold text-marinho hover:bg-laranja-700 hover:text-areia">
             {enviando || lendo ? <Loader2 className="size-4 animate-spin" /> : <Paperclip className="size-4" />}
             {lendo ? "Lendo a nota…" : enviando ? "Enviando…" : comprovante ? "Trocar nota" : "Foto da nota do combustível"}
-            <input type="file" accept="image/*,application/pdf" capture="environment" className="hidden" onChange={(e) => tratarComprovante(e.target.files?.[0])} disabled={enviando || lendo} />
+            <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => tratarComprovante(e.target.files?.[0])} disabled={enviando || lendo} />
           </label>
           {comprovante && !lendo && <span className="text-xs text-ok">anexada</span>}
           {leitura && <span className={`text-xs ${leitura.confianca >= 0.8 ? "text-ok" : "text-atencao"}`}>lida da foto ({Math.round(leitura.confianca * 100)} %) — confira litros e valor</span>}

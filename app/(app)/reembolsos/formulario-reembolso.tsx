@@ -72,8 +72,8 @@ export function FormularioReembolso({
       <div className="rounded-lg border border-dashed border-marinho-300 p-4">
         <label className="inline-flex h-12 cursor-pointer items-center gap-2 rounded bg-laranja px-4 text-sm font-semibold text-marinho hover:bg-laranja-700 hover:text-areia">
           {enviando ? <Loader2 className="size-4 animate-spin" /> : <Paperclip className="size-4" />}
-          {enviando ? "Enviando…" : comprovante ? "Trocar nota" : "Foto da nota"}
-          <input type="file" accept="image/*,application/pdf" capture="environment" className="hidden" onChange={(e) => tratarComprovante(e.target.files?.[0])} disabled={enviando} />
+          {enviando ? "Enviando…" : comprovante ? "Trocar nota" : "Anexar nota (foto, galeria ou PDF)"}
+          <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => tratarComprovante(e.target.files?.[0])} disabled={enviando} />
         </label>
         {comprovante && <span className="ml-3 text-xs text-ok">anexada</span>}
         {erro && <p className="mt-2 text-xs text-erro">{erro}</p>}

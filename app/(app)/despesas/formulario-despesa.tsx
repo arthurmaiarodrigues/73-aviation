@@ -167,8 +167,8 @@ export function FormularioDespesa({
             <div className="flex flex-wrap items-center gap-3">
               <label className="inline-flex h-12 cursor-pointer items-center gap-2 rounded bg-laranja px-4 text-sm font-semibold text-marinho hover:bg-laranja-700 hover:text-areia">
                 {enviando || lendo ? <Loader2 className="size-4 animate-spin" /> : <Paperclip className="size-4" />}
-                {lendo ? "Lendo o comprovante…" : enviando ? "Enviando…" : comprovante ? "Trocar comprovante" : "Foto ou PDF do comprovante"}
-                <input type="file" accept="image/*,application/pdf" capture="environment" className="hidden" onChange={(e) => tratarComprovante(e.target.files?.[0])} disabled={enviando || lendo} />
+                {lendo ? "Lendo o comprovante…" : enviando ? "Enviando…" : comprovante ? "Trocar comprovante" : "Anexar comprovante (foto, galeria ou PDF)"}
+                <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => tratarComprovante(e.target.files?.[0])} disabled={enviando || lendo} />
               </label>
               {comprovante && !lendo && <span className="text-xs text-ok">anexado</span>}
               {leitura && (
