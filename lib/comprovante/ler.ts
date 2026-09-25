@@ -10,6 +10,9 @@ import sharp from "sharp";
 
 export const MODELO = "claude-sonnet-5";
 const TIMEOUT_MS = 60_000;
+/** Nota de oficina com muitas linhas precisa de espaço para todos os itens. */
+const TOKENS = 4_000;
+const TOKENS_RETENTATIVA = 12_000;
 
 export const CATEGORIAS_VALIDAS = [
   "COMBUSTÍVEL", "ÓLEO", "HANGAR", "SEGURO", "MANUTENÇÃO", "PEÇAS", "TAXAS DE POUSO E NAVEGAÇÃO",
@@ -17,6 +20,8 @@ export const CATEGORIAS_VALIDAS = [
 ] as const;
 
 export type ComprovanteLido = {
+  /** A resposta do modelo foi cortada (nota enorme): confira os itens. */
+  cortada?: boolean;
   legivel: boolean;
   fornecedor: string | null;
   cnpj_cpf: string | null;
@@ -97,10 +102,11 @@ export async function lerComprovante(bytes: Buffer, tipo: string): Promise<Compr
       ? { type: "document", source: { type: "base64", media_type: "application/pdf", data: bytes.toString("base64") } }
       : { type: "image", source: { type: "base64", media_type: "image/jpeg", data: (await prepararImagem(bytes)).toString("base64") } };
 
-  const resposta = await cliente.messages.create(
+  const pedir = (maxTokens: number) =>
+    cliente.messages.create(
     {
       model: MODELO,
-      max_tokens: 600,
+      max_tokens: maxTokens,
       thinking: { type: "disabled" },
       system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
       tools: [FERRAMENTA],
@@ -109,6 +115,10 @@ export async function lerComprovante(bytes: Buffer, tipo: string): Promise<Compr
     },
     { timeout: TIMEOUT_MS },
   );
+
+  let resposta = await pedir(TOKENS);
+  // Resposta cortada no meio da lista de itens: repete com mais espaço.
+  if (resposta.stop_reason === "max_tokens") resposta = await pedir(TOKENS_RETENTATIVA);
 
   const chamada = resposta.content.find((b): b is Anthropic.ToolUseBlock => b.type === "tool_use" && b.name === "registrar_comprovante");
   if (!chamada) throw new Error(`O modelo não devolveu a leitura (stop_reason: ${resposta.stop_reason ?? "?"}).`);
@@ -134,6 +144,7 @@ export async function lerComprovante(bytes: Buffer, tipo: string): Promise<Compr
     categoria,
     aerodromo: aerodromo && /^[A-Z0-9]{4}$/.test(aerodromo) ? aerodromo : null,
     itens: itens.length >= 2 ? itens : [],
+    cortada: resposta.stop_reason === "max_tokens",
     confianca: Math.max(0, Math.min(1, Number(b.confianca ?? 0))),
     observacao: String(b.observacao ?? "").trim(),
     modelo: MODELO,
