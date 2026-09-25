@@ -35,7 +35,8 @@ export default async function PaginaExtratos({ searchParams }: { searchParams: P
       <div>
         <h1 className="text-2xl font-semibold">Extratos</h1>
         <p className="mt-1 text-sm text-marinho-300">
-          Créditos (aportes, o que pagou do bolso, combustível que deixou a mais) − débitos (sua parte nos rateios, combustível que usou a mais, fundo de reserva). Saldo positivo: a sociedade deve a você.
+          Créditos (aportes, o que pagou do bolso) − débitos (sua parte nos rateios, fundo de reserva). Saldo positivo: a sociedade deve a você. O
+          combustível entra na compra do tanque, dividida pelos litros que cada um retirou.
         </p>
       </div>
 
