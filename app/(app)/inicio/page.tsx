@@ -362,7 +362,7 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
               <p className="text-xs uppercase tracking-wide text-marinho-300">Fundo de reserva</p>
               <CardTitle className="tabular text-xl">{reais(fundo ?? 0)}</CardTitle>
               <Link href="/fundo" className="text-xs text-laranja-700 hover:underline">
-                {reais(aeronave.fundo_reserva_por_hora)} por hora voada · ver fundo
+                {aeronave.fundo_reserva_por_hora > 0 ? `${reais(aeronave.fundo_reserva_por_hora)} por hora voada` : "valor por hora a definir"} · ver fundo
               </Link>
             </CardHeader>
           </Card>

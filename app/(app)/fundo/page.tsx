@@ -40,6 +40,12 @@ export default async function PaginaFundo() {
       <div>
         <h1 className="text-2xl font-semibold">Fundo de reserva</h1>
         <p className="text-sm text-marinho-300">Cada hora voada deixa um valor guardado para as revisões grandes (motor, hélice). Sai só quando uma manutenção é paga pelo fundo.</p>
+        {valorAtual <= 0 && (
+          <p className="mt-2 rounded-md border border-atencao bg-atencao/10 px-3 py-2 text-sm">
+            Fundo zerado: nenhuma hora está sendo cobrada. Quando os sócios decidirem o valor, lance abaixo o R$/h e o mês a partir do qual vale — os meses abertos
+            são recalculados na hora.
+          </p>
+        )}
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
@@ -55,8 +61,10 @@ export default async function PaginaFundo() {
         <Card>
           <CardHeader className="p-4">
             <p className="text-xs uppercase tracking-wide text-marinho-300">Valor por hora</p>
-            <CardTitle className="tabular text-2xl">{reais(valorAtual)}</CardTitle>
-            <p className="text-xs text-marinho-300">{vigente ? `desde ${mesPorExtenso(vigente.vigente_desde)}` : "valor inicial da aeronave"}</p>
+            <CardTitle className={cn("tabular text-2xl", valorAtual <= 0 && "text-marinho-300")}>{valorAtual > 0 ? reais(valorAtual) : "a definir"}</CardTitle>
+            <p className="text-xs text-marinho-300">
+              {valorAtual > 0 ? (vigente ? `desde ${mesPorExtenso(vigente.vigente_desde)}` : "valor inicial da aeronave") : "nada é cobrado enquanto os sócios não decidirem"}
+            </p>
           </CardHeader>
         </Card>
         <Card>

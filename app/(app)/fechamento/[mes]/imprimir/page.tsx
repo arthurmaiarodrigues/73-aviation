@@ -206,7 +206,11 @@ export default async function PaginaImprimir({ params, searchParams }: { params:
         <div className="text-xs text-marinho-300">
           <p>Saldo positivo: a sociedade deve ao sócio. Negativo: o sócio deve à sociedade.</p>
           <p className="mt-1">Uso comum (translado, teste, piloto de fora) dividido em partes iguais. Combustível é pago na compra do tanque, dividida pelos litros que cada sócio retirou desde a compra anterior; os litros acima são só controle (sem leitura de tanque, o consumo é estimado por {aeronave.consumo_medio_lh ?? "—"} L/h).</p>
-          <p className="mt-1">Fundo de reserva: {reais(aeronave.fundo_reserva_por_hora)} por hora voada.</p>
+          <p className="mt-1">
+            {aeronave.fundo_reserva_por_hora > 0
+              ? `Fundo de reserva: ${reais(aeronave.fundo_reserva_por_hora)} por hora voada.`
+              : "Fundo de reserva: valor por hora ainda a decidir — nada cobrado neste período."}
+          </p>
           {fechamento?.observacao && <p className="mt-1">Observação: {fechamento.observacao}</p>}
         </div>
       </div>
