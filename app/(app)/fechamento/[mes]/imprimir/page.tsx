@@ -161,9 +161,10 @@ export default async function PaginaImprimir({ params, searchParams }: { params:
               ["% de uso no mês", (s) => (totalHoras > 0 ? `${((s.horas / totalHoras) * 100).toFixed(1).replace(".", ",")} %` : "—")],
               ["Parte nos rateios", (s) => reais(s.rateado)],
               ["Fundo de reserva", (s) => reais(s.fundo)],
-              ["Combustível (abastecido − usado)", (s) => `${fmtLitros(s.saldo_litros)} = ${reais(s.combustivel_valor)}`],
-              ["Créditos (aportes, pagou do bolso, combustível)", (s) => reais(s.creditos)],
-              ["Débitos (rateios, fundo, combustível)", (s) => reais(s.debitos)],
+              ["Combustível usado no mês (litros)", (s) => fmtLitros(s.litros_consumidos)],
+              ["Combustível retirado do tanque (litros)", (s) => fmtLitros(s.litros_abastecidos)],
+              ["Créditos (aportes, pagou do bolso)", (s) => reais(s.creditos)],
+              ["Débitos (rateios, fundo)", (s) => reais(s.debitos)],
               ["Saldo do mês", (s) => reais(s.saldo_mes)],
               ["Saldo acumulado com a sociedade", (s) => reais(s.saldo_acumulado)],
             ] as [string, (s: (typeof resumo)[number]) => string][]
@@ -204,7 +205,7 @@ export default async function PaginaImprimir({ params, searchParams }: { params:
         </div>
         <div className="text-xs text-marinho-300">
           <p>Saldo positivo: a sociedade deve ao sócio. Negativo: o sócio deve à sociedade.</p>
-          <p className="mt-1">Uso comum (translado, teste, piloto de fora) dividido em partes iguais. Combustível pelo preço médio dos abastecimentos do mês; sem leitura de tanque, consumo estimado por {aeronave.consumo_medio_lh ?? "—"} L/h.</p>
+          <p className="mt-1">Uso comum (translado, teste, piloto de fora) dividido em partes iguais. Combustível é pago na compra do tanque, dividida pelos litros que cada sócio retirou desde a compra anterior; os litros acima são só controle (sem leitura de tanque, o consumo é estimado por {aeronave.consumo_medio_lh ?? "—"} L/h).</p>
           <p className="mt-1">Fundo de reserva: {reais(aeronave.fundo_reserva_por_hora)} por hora voada.</p>
           {fechamento?.observacao && <p className="mt-1">Observação: {fechamento.observacao}</p>}
         </div>

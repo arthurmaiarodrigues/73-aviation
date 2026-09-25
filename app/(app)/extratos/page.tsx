@@ -76,8 +76,6 @@ export default async function PaginaExtratos({ searchParams }: { searchParams: P
                       <Cabecalho numerico>Abasteceu</Cabecalho>
                       <Cabecalho numerico>Usou</Cabecalho>
                       <Cabecalho numerico>Saldo</Cabecalho>
-                      <Cabecalho numerico>R$/L</Cabecalho>
-                      <Cabecalho numerico>Valor</Cabecalho>
                     </tr>
                   </TabelaCabecalho>
                   <TabelaCorpo>
@@ -96,16 +94,13 @@ export default async function PaginaExtratos({ searchParams }: { searchParams: P
                         <Celula numerico className={cn("font-semibold", c.saldo_litros < 0 ? "text-erro" : "text-ok")}>
                           {fmtLitros(c.saldo_litros)}
                         </Celula>
-                        <Celula numerico>{c.preco_litro === null ? "—" : reais(c.preco_litro)}</Celula>
-                        <Celula numerico className={cn("font-semibold", c.valor < 0 ? "text-erro" : "text-ok")}>
-                          {reais(c.valor)}
-                        </Celula>
                       </TabelaLinha>
                     ))}
                   </TabelaCorpo>
                 </Tabela>
                 <p className="mt-2 text-xs text-marinho-300">
-                  Consumo sem leitura de combustível é estimado por {aeronave.consumo_medio_lh ?? "—"} L/h. Sem abastecimento no mês, vale o último preço conhecido.
+                  Controle de litros, sem valor no extrato: o combustível é pago na compra do tanque, dividida pelos litros que cada sócio retirou desde a compra
+                  anterior. Consumo sem leitura de tanque é estimado por {aeronave.consumo_medio_lh ?? "—"} L/h.
                 </p>
               </CardContent>
             </Card>

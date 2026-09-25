@@ -120,7 +120,7 @@ export default async function PaginaFechamento({ searchParams }: { searchParams:
             <Cabecalho numerico>Horas</Cabecalho>
             <Cabecalho numerico>Rateios</Cabecalho>
             <Cabecalho numerico>Fundo</Cabecalho>
-            <Cabecalho numerico>Combustível</Cabecalho>
+            <Cabecalho numerico>Combustível (L)</Cabecalho>
             <Cabecalho numerico>Créditos</Cabecalho>
             <Cabecalho numerico>Débitos</Cabecalho>
             <Cabecalho numerico>{periodo ? "Saldo do período" : "Saldo do mês"}</Cabecalho>
@@ -140,8 +140,8 @@ export default async function PaginaFechamento({ searchParams }: { searchParams:
               </Celula>
               <Celula numerico>{reais(s.rateado)}</Celula>
               <Celula numerico>{reais(s.fundo)}</Celula>
-              <Celula numerico className={cn(s.combustivel_valor < 0 && "text-erro", s.combustivel_valor > 0 && "text-ok")} title={`${fmtLitros(s.litros_abastecidos)} abastecidos − ${fmtLitros(s.litros_consumidos)} usados = ${fmtLitros(s.saldo_litros)}`}>
-                {reais(s.combustivel_valor)} <span className="text-xs text-marinho-300">({fmtLitros(s.saldo_litros)})</span>
+              <Celula numerico title={`${fmtLitros(s.litros_abastecidos)} abastecidos − ${fmtLitros(s.litros_consumidos)} usados`}>
+                {fmtLitros(s.litros_consumidos)} <span className="text-xs text-marinho-300">({fmtLitros(s.litros_abastecidos)} abast.)</span>
               </Celula>
               <Celula numerico className="text-ok">{reais(s.creditos)}</Celula>
               <Celula numerico className="text-erro">{reais(s.debitos)}</Celula>
