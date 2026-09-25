@@ -58,7 +58,9 @@ export function FormularioDespesa({
   const [categoriaId, setCategoriaId] = useState(String(despesa?.categoria_id ?? categorias[0]?.id ?? ""));
   const [criterio, setCriterio] = useState<CriterioRateio>(despesa?.criterio ?? "IGUAL");
   const [socioDireto, setSocioDireto] = useState(despesa?.socio_direto_id ?? "");
-  const [pagador, setPagador] = useState(despesa ? (despesa.pagador_socio_id ?? "CAIXA") : (socioLogadoId ?? "CAIXA"));
+  const [pagador, setPagador] = useState(
+    despesa ? (despesa.pagador_socio_id ?? (despesa.pago_pelos_socios ? "SOCIOS" : "CAIXA")) : (socioLogadoId ?? "CAIXA"),
+  );
   const [comprovante, setComprovante] = useState<string | null>(despesa?.comprovante_path ?? null);
   const [enviando, setEnviando] = useState(false);
   const [erroArquivo, setErroArquivo] = useState<string | null>(null);
@@ -227,12 +229,18 @@ export function FormularioDespesa({
             <Label htmlFor="pagador">Quem pagou</Label>
             <Select id="pagador" name="pagador" value={pagador} onChange={(e) => setPagador(e.target.value)} className="h-12">
               <option value="CAIXA">Caixa da sociedade</option>
+              <option value="SOCIOS">Cada sócio pagou a parte dele (direto ao fornecedor)</option>
               {socios.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.apelido} (do próprio bolso)
                 </option>
               ))}
             </Select>
+            {pagador === "SOCIOS" && (
+              <p className="text-xs text-marinho-300">
+                Não sai do caixa e não vira cobrança no extrato: cada um já pagou a parte dele. Continua no custo por sócio.
+              </p>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="criterio">Rateio</Label>

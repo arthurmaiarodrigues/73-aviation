@@ -13,6 +13,8 @@ export type DespesaLinha = {
   fornecedor_id: string | null;
   valor: number;
   pagador_socio_id: string | null;
+  /** Cada sócio pagou a parte dele direto (fora do caixa e do extrato). */
+  pago_pelos_socios: boolean;
   pagador: string;
   criterio: CriterioRateio;
   socio_direto_id: string | null;
@@ -40,7 +42,7 @@ export type FiltroDespesas = {
   status?: string;
 };
 
-const SELECT = `id, data, descricao, categoria_id, fornecedor_id, valor, pagador_socio_id, criterio, socio_direto_id,
+const SELECT = `id, data, descricao, categoria_id, fornecedor_id, valor, pagador_socio_id, pago_pelos_socios, criterio, socio_direto_id,
   periodo_inicio, periodo_fim, status, comprovante_path, voo_id, observacao, autor_id, tanque, itens,
   categorias_despesa ( nome ), fornecedores ( nome ),
   pagador:socios!despesas_pagador_socio_id_fkey ( apelido ),
@@ -49,7 +51,7 @@ const SELECT = `id, data, descricao, categoria_id, fornecedor_id, valor, pagador
 
 type Bruta = {
   id: string; data: string; descricao: string; categoria_id: number; fornecedor_id: string | null; valor: string;
-  pagador_socio_id: string | null; criterio: CriterioRateio; socio_direto_id: string | null;
+  pagador_socio_id: string | null; pago_pelos_socios: boolean; criterio: CriterioRateio; socio_direto_id: string | null;
   periodo_inicio: string | null; periodo_fim: string | null; status: StatusDespesa; comprovante_path: string | null;
   voo_id: string | null; observacao: string | null; autor_id: string | null;
   categorias_despesa: { nome: string } | null; fornecedores: { nome: string } | null;
@@ -70,7 +72,8 @@ function mapear(d: Bruta): DespesaLinha {
     fornecedor_id: d.fornecedor_id,
     valor: Number(d.valor),
     pagador_socio_id: d.pagador_socio_id,
-    pagador: d.pagador?.apelido ?? "CAIXA",
+    pago_pelos_socios: Boolean(d.pago_pelos_socios),
+    pagador: d.pagador?.apelido ?? (d.pago_pelos_socios ? "CADA SÓCIO (direto)" : "CAIXA"),
     criterio: d.criterio,
     tanque: d.tanque ?? null,
     itens: Array.isArray(d.itens) ? d.itens.map((i) => ({ descricao: String(i.descricao), valor: Number(i.valor) })) : [],
