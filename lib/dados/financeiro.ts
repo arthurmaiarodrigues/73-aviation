@@ -99,6 +99,14 @@ function mapear(d: Bruta): DespesaLinha {
   };
 }
 
+/** As despesas geradas pelos itens de uma manutenção, com o rateio de cada uma. */
+export async function despesasDaManutencao(manutencaoId: string): Promise<DespesaLinha[]> {
+  const supabase = await criarClienteServidor();
+  const { data, error } = await supabase.from("despesas").select(SELECT).eq("manutencao_id", manutencaoId).is("deleted_at", null).order("created_at");
+  if (error) throw new Error(`Despesas da manutenção: ${error.message}`);
+  return (data as unknown as Bruta[]).map(mapear);
+}
+
 export async function listarDespesas(aeronaveId: string, filtro: FiltroDespesas = {}, limite = 500): Promise<DespesaLinha[]> {
   const supabase = await criarClienteServidor();
   let q = supabase

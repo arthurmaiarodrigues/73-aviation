@@ -155,7 +155,7 @@ export function BarraLateral({
   return (
     <>
       {/* Celular: cabeçalho com o botão do menu */}
-      <header className="flex items-center justify-between bg-marinho px-4 py-3 text-areia md:hidden">
+      <header className="flex items-center justify-between bg-marinho px-4 py-3 text-areia md:hidden print:hidden">
         <Logo />
         <button
           type="button"

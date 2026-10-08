@@ -35,8 +35,9 @@
     size: A4;
     margin: 16mm;
   }
+  /* Só a barra lateral e o que estiver marcado: o cabeçalho dos relatórios
+     também é <header> e precisa sair no papel. */
   aside,
-  header,
   .print\:hidden {
     display: none !important;
   }

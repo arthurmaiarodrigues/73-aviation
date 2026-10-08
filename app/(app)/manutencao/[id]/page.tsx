@@ -76,7 +76,17 @@ export default async function PaginaManutencaoFicha({ params, searchParams }: { 
         <Card>
           <CardHeader className="flex-row items-baseline justify-between">
             <CardTitle>Nota da oficina · {reais(m.total)}</CardTitle>
-            <span className="text-sm text-marinho-300">{m.itens.length} {m.itens.length === 1 ? "item" : "itens"}</span>
+            <span className="text-sm text-marinho-300">
+              {m.itens.length} {m.itens.length === 1 ? "item" : "itens"}
+              {m.itens.length > 0 && (
+                <>
+                  {" · "}
+                  <Link href={`/manutencao/${m.id}/imprimir`} className="text-laranja-700 hover:underline">
+                    relatório para os sócios
+                  </Link>
+                </>
+              )}
+            </span>
           </CardHeader>
           <CardContent className="space-y-4">
             <Tabela>
