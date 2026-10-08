@@ -10,7 +10,11 @@
 alter table contas_pagar add column if not exists linha_digitavel text;
 alter table contas_pagar add column if not exists pix_copia_cola text;
 
-create or replace view v_contas_pagar with (security_invoker = true) as
+-- Colunas novas no meio da view: o "create or replace" não aceita mudar a
+-- ordem nem o nome das colunas, então a view sai e entra de novo.
+drop view if exists v_contas_pagar;
+
+create view v_contas_pagar with (security_invoker = true) as
 select c.id, c.aeronave_id, c.descricao, c.valor, c.vencimento, c.documento, c.observacao, c.boleto_path,
        c.linha_digitavel, c.pix_copia_cola,
        c.despesa_id, c.pago_em, c.pagador_socio_id, c.comprovante_path, c.created_at,
