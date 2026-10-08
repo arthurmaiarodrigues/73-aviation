@@ -33,7 +33,7 @@ export default async function PaginaContas() {
         <div>
           <h1 className="text-2xl font-semibold">Contas a pagar</h1>
           <p className="mt-1 text-sm text-marinho-300">
-            Boletos e vencimentos. Não entra em rateio nem no extrato: o custo vem da nota lançada em Despesas, e aqui você liga uma coisa na outra.
+            Boletos e vencimentos. Não entra em rateio nem no extrato: o custo vem da nota lançada em Despesas, e aqui você liga uma coisa na outra. Clique no nome da conta para editar.
           </p>
         </div>
         <a href="/contas/exportar" className="rounded border border-marinho-300 px-3 py-2 text-sm font-semibold hover:border-laranja">

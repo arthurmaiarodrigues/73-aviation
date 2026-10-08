@@ -50,6 +50,7 @@ export async function salvarConta(_a: Resultado, form: FormData): Promise<Result
   if (!vencimento) return { ok: false, mensagem: "Informe o vencimento." };
 
   const categoria = texto(form, "categoria_id");
+  const boleto = texto(form, "boleto_path");
   const campos = {
     descricao,
     fornecedor_id: uuid(form, "fornecedor_id"),
@@ -58,20 +59,20 @@ export async function salvarConta(_a: Resultado, form: FormData): Promise<Result
     vencimento,
     documento: texto(form, "documento"),
     observacao: texto(form, "observacao"),
-    boleto_path: texto(form, "boleto_path"),
   };
 
   const supabase = await criarClienteServidor();
   const id = uuid(form, "id");
   if (id) {
-    const { error } = await supabase.from("contas_pagar").update(campos).eq("id", id);
+    // Sem anexo novo, o boleto que já estava lá continua.
+    const { error } = await supabase.from("contas_pagar").update(boleto ? { ...campos, boleto_path: boleto } : campos).eq("id", id);
     if (error) return { ok: false, mensagem: `Falha ao gravar: ${error.message}` };
     revalidar();
     return { ok: true, mensagem: "Conta atualizada." };
   }
 
   const aeronave = await aeronaveAtiva();
-  const { error } = await supabase.from("contas_pagar").insert({ ...campos, aeronave_id: aeronave.id, autor_id: quem.id });
+  const { error } = await supabase.from("contas_pagar").insert({ ...campos, boleto_path: boleto, aeronave_id: aeronave.id, autor_id: quem.id });
   if (error) return { ok: false, mensagem: `Falha ao gravar: ${error.message}` };
   revalidar();
   return { ok: true, mensagem: "Conta lançada. Ela não entra no rateio — o custo vem da nota." };

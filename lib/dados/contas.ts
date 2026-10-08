@@ -85,3 +85,33 @@ export async function notasParaConta(contaId: string): Promise<NotaCandidata[]> 
     distancia: Number(n.distancia),
   }));
 }
+
+export async function buscarConta(id: string): Promise<ContaPagar | null> {
+  const supabase = await criarClienteServidor();
+  const { data, error } = await supabase.from("v_contas_pagar").select("*").eq("id", id).maybeSingle();
+  if (error) throw new Error(`Conta: ${error.message}`);
+  if (!data) return null;
+  return {
+    id: data.id,
+    descricao: data.descricao,
+    valor: Number(data.valor),
+    vencimento: data.vencimento,
+    documento: data.documento,
+    observacao: data.observacao,
+    boleto_path: data.boleto_path,
+    despesa_id: data.despesa_id,
+    pago_em: data.pago_em,
+    pagador_socio_id: data.pagador_socio_id,
+    pagador: data.pagador,
+    comprovante_path: data.comprovante_path,
+    fornecedor_id: data.fornecedor_id,
+    fornecedor: data.fornecedor,
+    categoria_id: data.categoria_id,
+    categoria: data.categoria,
+    nota_descricao: data.nota_descricao,
+    nota_data: data.nota_data,
+    nota_valor: data.nota_valor === null ? null : Number(data.nota_valor),
+    situacao: data.situacao as SituacaoConta,
+    dias: Number(data.dias),
+  };
+}

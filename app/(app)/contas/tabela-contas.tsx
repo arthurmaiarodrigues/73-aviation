@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { Check, Link2, Loader2, Trash2, Undo2, Unlink } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -73,7 +73,9 @@ export function TabelaContas({
                 )}
               </Celula>
               <Celula>
-                {c.descricao}
+                <Link href={`/contas/${c.id}`} className="hover:text-laranja-700 hover:underline">
+                  {c.descricao}
+                </Link>
                 <span className="block text-xs text-marinho-300">{[c.fornecedor, c.categoria, c.documento].filter(Boolean).join(" · ") || "—"}</span>
               </Celula>
               <Celula numerico className="font-semibold">
@@ -157,19 +159,23 @@ function Sugestoes({ conta, aoLigar }: { conta: ContaPagar; aoLigar: (m: { ok: b
   const router = useRouter();
   const [notas, setNotas] = useState<NotaCandidata[] | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
-  const [pendente, iniciar] = useTransition();
 
-  if (notas === null && !pendente) {
-    iniciar(async () => {
-      const r = await sugestoesDaConta(conta.id);
+  // Busca as notas parecidas quando o bloco abre.
+  useEffect(() => {
+    let vivo = true;
+    sugestoesDaConta(conta.id).then((r) => {
+      if (!vivo) return;
       setNotas(r.notas);
       setAviso(r.mensagem || null);
     });
-  }
+    return () => {
+      vivo = false;
+    };
+  }, [conta.id]);
 
   return (
     <div className="mt-2 space-y-1 rounded border border-marinho-100 p-2 text-sm dark:border-marinho-300">
-      {pendente && <span className="text-xs text-marinho-300">procurando notas parecidas…</span>}
+      {notas === null && <span className="text-xs text-marinho-300">procurando notas parecidas…</span>}
       {aviso && <p className="text-xs text-marinho-300">{aviso}</p>}
       {(notas ?? []).map((n) => (
         <div key={n.despesa_id} className="flex flex-wrap items-center gap-2">
