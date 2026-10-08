@@ -35,9 +35,10 @@ export type LinhaReembolso = {
 const ROTULO: Record<string, string> = { IGUAL: "todos, partes iguais", POR_HORAS: "todos, pelas horas", DIRETO: "um sócio" };
 
 /**
- * A tabela onde o admin confere: marca as linhas "a conferir" (uma, várias
- * ou todas), escolhe a divisão e confirma de uma vez. Para os outros
- * perfis é só a lista, com o botão de marcar como reembolsado.
+ * O reembolso do piloto já entra valendo. Aqui o admin ajusta a divisão
+ * quando precisar: marca as linhas (uma, várias ou todas), escolhe como
+ * dividir e aplica. Para os outros perfis é só a lista, com o botão de
+ * marcar como reembolsado.
  */
 export function TabelaReembolsos({
   itens,
@@ -53,12 +54,13 @@ export function TabelaReembolsos({
   socios: { id: string; apelido: string }[];
 }) {
   const router = useRouter();
-  const pendentes = itens.filter((i) => i.status === "PENDENTE");
+  // Dá para ajustar enquanto ninguém pagou ainda.
+  const ajustaveis = itens.filter((i) => !i.reembolsado_em);
   const [marcados, setMarcados] = useState<string[]>([]);
   const [divisao, setDivisao] = useState("MANTER");
   const [pendente, iniciar] = useTransition();
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
-  const confere = perfil === "admin" && pendentes.length > 0;
+  const confere = perfil === "admin" && ajustaveis.length > 0;
 
   const total = itens.filter((i) => marcados.includes(i.id)).reduce((s, i) => s + i.valor, 0);
   const alternar = (id: string) => setMarcados((m) => (m.includes(id) ? m.filter((x) => x !== id) : [...m, id]));
@@ -70,17 +72,17 @@ export function TabelaReembolsos({
       {confere && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-info/50 bg-info/5 p-3">
           <span className="text-sm">
-            <strong>{pendentes.length}</strong> a conferir · marque as linhas e confirme
+            Ajustar a divisão: marque as linhas e escolha como dividir
           </span>
           <button
             type="button"
-            onClick={() => setMarcados(marcados.length === pendentes.length ? [] : pendentes.map((i) => i.id))}
+            onClick={() => setMarcados(marcados.length === ajustaveis.length ? [] : ajustaveis.map((i) => i.id))}
             className="text-sm font-semibold text-laranja-700"
           >
-            {marcados.length === pendentes.length ? "desmarcar todas" : "marcar todas"}
+            {marcados.length === ajustaveis.length ? "desmarcar todas" : "marcar todas"}
           </button>
           <Select value={divisao} onChange={(e) => setDivisao(e.target.value)} className="h-10 w-auto text-sm">
-            <option value="MANTER">Manter a divisão do piloto</option>
+            <option value="MANTER">Como está</option>
             <option value="TODOS_IGUAL">Todos — partes iguais</option>
             <option value="TODOS_HORAS">Todos — pelas horas voadas</option>
             {socios.map((s) => (
@@ -92,7 +94,7 @@ export function TabelaReembolsos({
           <Button
             type="button"
             size="pequeno"
-            disabled={pendente || marcados.length === 0}
+            disabled={pendente || marcados.length === 0 || divisao === "MANTER"}
             onClick={() =>
               iniciar(async () => {
                 const r = await confirmarVarios(
@@ -109,7 +111,7 @@ export function TabelaReembolsos({
             }
           >
             {pendente ? <Loader2 className="animate-spin" /> : <ShieldCheck />}
-            Confirmar {marcados.length > 0 ? `${marcados.length} · ${reais(total)}` : ""}
+            Aplicar {marcados.length > 0 ? `a ${marcados.length} · ${reais(total)}` : ""}
           </Button>
         </div>
       )}
@@ -138,7 +140,7 @@ export function TabelaReembolsos({
             <TabelaLinha key={r.id} className={cn(marcados.includes(r.id) && "bg-info/10")}>
               {confere && (
                 <Celula>
-                  {r.status === "PENDENTE" && (
+                  {!r.reembolsado_em && (
                     <input type="checkbox" checked={marcados.includes(r.id)} onChange={() => alternar(r.id)} className="size-5" aria-label={`marcar ${r.descricao}`} />
                   )}
                 </Celula>

@@ -29,7 +29,6 @@ export default async function PaginaReembolsos() {
   // comprovante do PIX de cada sócio (o mais recente)
   const pagamentos = confirmadosDe(reembolsos);
   const urlsPix = await urlsDosComprovantes(socios.map((s) => pagamentos.find((c) => c.socio_id === s.id && c.caminho)?.caminho ?? null));
-  const aConferir = reembolsos.filter((r) => r.status === "PENDENTE");
   const pendentes = reembolsos.filter((r) => !r.reembolsado_em && r.status !== "PENDENTE");
   // o sócio vê a parte dele nos reembolsos de todos; piloto e admin veem o total
   const parte = (r: { socio_id: string | null; valor: number; partes: { socio_id: string; valor: number }[] }) =>
@@ -75,11 +74,6 @@ export default async function PaginaReembolsos() {
         </CardHeader>
       </Card>
 
-      {aConferir.length > 0 && piloto && (
-        <p className="rounded border border-info/40 bg-info/10 p-3 text-sm">
-          {aConferir.length === 1 ? "1 lançamento seu está" : `${aConferir.length} lançamentos seus estão`} com o administrador para conferir a divisão.
-        </p>
-      )}
       {piloto && usuario.pilotoId && (
         <FormularioReembolso
           socios={socios.map((s) => ({ id: s.id, apelido: s.apelido }))}

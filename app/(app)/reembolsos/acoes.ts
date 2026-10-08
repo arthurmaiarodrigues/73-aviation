@@ -60,21 +60,30 @@ export async function salvarReembolso(_a: Resultado, form: FormData): Promise<Re
     criterio: deTodos ? (porHoras ? "POR_HORAS" : "IGUAL") : "DIRETO",
     socio_direto_id: deTodos ? null : socioId,
     reembolso_piloto_id: usuario.pilotoId,
-    status: "PENDENTE",
+    // Entra valendo: o administrador ajusta a divisão depois, se precisar.
+    status: "APROVADA",
+    pago_pelos_socios: deTodos,
     observacao: texto(form, "observacao") ? caixaAlta(texto(form, "observacao")!) : null,
     autor_id: user.id,
   });
   if (error) return { ok: false, mensagem: /está fechado/.test(error.message) ? error.message : `Falha ao gravar: ${error.message}` };
 
-  // A divisão só vale depois que o administrador confere: é ele quem recebe o aviso.
+  // Já vale: avisa quem vai pagar (o sócio, ou todos) e o administrador.
   const valorTexto = `R$ ${valor.toFixed(2).replace(".", ",")}`;
-  const divisao = deTodos ? (porHoras ? "todos, conforme as horas voadas" : "todos, partes iguais") : "um sócio";
-  await notificar(
-    { perfis: ["admin"] },
-    { titulo: "Reembolso a conferir", corpo: `${usuario.nome.split(" ")[0]} pagou ${caixaAlta(descricao)} em ${caixaAlta(cidade)} — ${valorTexto} (${divisao}).`, url: "/reembolsos", tag: "reembolso" },
-  );
+  const divisao = deTodos ? (porHoras ? ", dividido pelas horas voadas" : ", dividido em partes iguais") : "";
+  const alvo = deTodos
+    ? await supabase.from("socios").select("usuario_id").is("ativo_ate", null).not("usuario_id", "is", null).then((r) => (r.data ?? []).map((s) => s.usuario_id as string))
+    : await supabase.from("socios").select("usuario_id").eq("id", socioId!).maybeSingle().then((r) => (r.data?.usuario_id ? [r.data.usuario_id as string] : []));
+  const aviso = {
+    titulo: "Reembolso ao piloto",
+    corpo: `${usuario.nome.split(" ")[0]} pagou ${caixaAlta(descricao)} em ${caixaAlta(cidade)} — ${valorTexto}${divisao}.`,
+    url: "/reembolsos",
+    tag: "reembolso",
+  };
+  if (alvo.length > 0) await notificar({ usuarios: alvo }, aviso);
+  await notificar({ perfis: ["admin"] }, aviso);
   revalidar();
-  return { ok: true, mensagem: "Lançado. O administrador confere a divisão e confirma; aí os sócios são avisados." };
+  return { ok: true, mensagem: "Lançado e já dividido. Os sócios foram avisados; o administrador pode ajustar a divisão depois." };
 }
 
 /** Sócio que deve, piloto (ao receber) ou admin. */
@@ -90,13 +99,13 @@ export async function marcarReembolsado(id: string, desfazer = false): Promise<R
 }
 
 /**
- * O administrador confere a divisão antes de o reembolso entrar nas contas:
- * confirma como está ou corrige (um sócio, todos igual, todos pelas horas).
- * Só depois disso vira rateio, extrato e saída de caixa.
+ * O reembolso já entra valendo com a divisão que o piloto escolheu; aqui o
+ * administrador ajusta depois (um sócio, todos igual, todos pelas horas) e
+ * o rateio é refeito na hora.
  */
 export async function confirmarReembolso(id: string, criterio: "IGUAL" | "POR_HORAS" | "DIRETO", socio?: string | null): Promise<Resultado> {
   const { user, usuario } = await usuarioDaSessao();
-  if (!user || !usuario?.ativo || usuario.perfil !== "admin") return { ok: false, mensagem: "Só o administrador confirma." };
+  if (!user || !usuario?.ativo || usuario.perfil !== "admin") return { ok: false, mensagem: "Só o administrador ajusta a divisão." };
   if (!UUID.test(id)) return { ok: false, mensagem: "Reembolso inválido." };
   if (criterio === "DIRETO" && (!socio || !UUID.test(socio))) return { ok: false, mensagem: "Escolha o sócio." };
 
@@ -121,13 +130,13 @@ export async function confirmarReembolso(id: string, criterio: "IGUAL" | "POR_HO
     );
   }
   revalidar();
-  return { ok: true, mensagem: "Confirmado — a divisão entrou nas contas." };
+  return { ok: true, mensagem: "Divisão ajustada — o rateio foi refeito." };
 }
 
-/** Confirma vários de uma vez; `criterio` nulo mantém o que o piloto marcou. */
+/** Ajusta a divisão de vários de uma vez; `criterio` nulo mantém o que está. */
 export async function confirmarVarios(ids: string[], criterio: "IGUAL" | "POR_HORAS" | "DIRETO" | null, socio?: string | null): Promise<Resultado> {
   const { user, usuario } = await usuarioDaSessao();
-  if (!user || !usuario?.ativo || usuario.perfil !== "admin") return { ok: false, mensagem: "Só o administrador confirma." };
+  if (!user || !usuario?.ativo || usuario.perfil !== "admin") return { ok: false, mensagem: "Só o administrador ajusta a divisão." };
   const lista = ids.filter((id) => UUID.test(id));
   if (lista.length === 0) return { ok: false, mensagem: "Escolha ao menos um reembolso." };
   if (criterio === "DIRETO" && (!socio || !UUID.test(socio))) return { ok: false, mensagem: "Escolha o sócio." };
@@ -155,14 +164,14 @@ export async function confirmarVarios(ids: string[], criterio: "IGUAL" | "POR_HO
   if (avisar.size > 0) {
     await notificar(
       { usuarios: [...avisar] },
-      { titulo: "Reembolso ao piloto", corpo: `${feitos === 1 ? "1 reembolso confirmado" : `${feitos} reembolsos confirmados`} pelo administrador — veja a sua parte.`, url: "/reembolsos", tag: "reembolso" },
+      { titulo: "Reembolso ao piloto", corpo: `${feitos === 1 ? "1 reembolso teve a divisão ajustada" : `${feitos} reembolsos tiveram a divisão ajustada`} pelo administrador — veja a sua parte.`, url: "/reembolsos", tag: "reembolso" },
     );
   }
   revalidar();
-  if (feitos === 0) return { ok: false, mensagem: falhas[0] ?? "Nada confirmado." };
+  if (feitos === 0) return { ok: false, mensagem: falhas[0] ?? "Nada ajustado." };
   return {
     ok: true,
-    mensagem: `${feitos === 1 ? "1 reembolso confirmado" : `${feitos} reembolsos confirmados`}.${falhas.length > 0 ? ` ${falhas.length} falharam: ${falhas[0]}` : ""}`,
+    mensagem: `${feitos === 1 ? "1 reembolso ajustado" : `${feitos} reembolsos ajustados`}.${falhas.length > 0 ? ` ${falhas.length} falharam: ${falhas[0]}` : ""}`,
   };
 }
 

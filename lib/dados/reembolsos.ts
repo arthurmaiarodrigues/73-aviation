@@ -22,7 +22,7 @@ export type Reembolso = {
   /** Onde o piloto gastou (GOIÂNIA, PORTO SEGURO…). */
   cidade: string | null;
   reembolsado_em: string | null;
-  /** PENDENTE = esperando o admin confirmar a divisão. */
+  /** PENDENTE só existe em lançamentos antigos: hoje o reembolso já nasce valendo. */
   status: "PENDENTE" | "APROVADA" | "RATEADA";
   criterio: "IGUAL" | "POR_HORAS" | "DIRETO" | "MANUAL";
   /** Quanto cabe a cada sócio (vazio enquanto o admin não confirma). */
