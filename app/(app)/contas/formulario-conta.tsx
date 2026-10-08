@@ -11,6 +11,8 @@ import { Select, Textarea } from "@/components/ui/select";
 import { Alerta } from "@/components/ui/alerta";
 import { Badge } from "@/components/ui/badge";
 import { enviarArquivo } from "@/lib/upload-cliente";
+import { lerLinhaDigitavel } from "@/lib/boleto/linha";
+import { cn } from "@/lib/utils";
 import { salvarConta, type Resultado } from "./acoes";
 
 const INICIAL: Resultado = { ok: true, mensagem: "" };
@@ -34,6 +36,8 @@ export type ContaParaEditar = {
   observacao: string | null;
   fornecedor_id: string | null;
   categoria_id: number | null;
+  linha_digitavel: string | null;
+  pix_copia_cola: string | null;
 };
 
 type Leitura = { confianca: number; conferido: boolean; observacao: string; beneficiario: string | null; semCadastro: string | null };
@@ -63,6 +67,10 @@ export function FormularioConta({
   const [fornecedorId, setFornecedorId] = useState(conta?.fornecedor_id ?? "");
   const [categoriaId, setCategoriaId] = useState(conta?.categoria_id ? String(conta.categoria_id) : "");
   const [documento, setDocumento] = useState(conta?.documento ?? "");
+  const [linha, setLinha] = useState(conta?.linha_digitavel ?? "");
+  const [pix, setPix] = useState(conta?.pix_copia_cola ?? "");
+  const digitos = linha.replace(/\D/g, "");
+  const linhaConfere = digitos.length === 0 ? null : lerLinhaDigitavel(digitos);
 
   async function tratarArquivo(arquivo: File | undefined) {
     if (!arquivo) return;
@@ -90,6 +98,8 @@ export function FormularioConta({
         vencimento: string | null;
         valor: number | null;
         documento: string | null;
+        linha_digitavel: string | null;
+        pix_copia_cola: string | null;
         descricao: string | null;
         categoria: string | null;
         conferido: boolean;
@@ -101,6 +111,8 @@ export function FormularioConta({
       if (lido.vencimento) setVencimento(lido.vencimento);
       if (lido.valor !== null) setValor(lido.valor.toFixed(2).replace(".", ","));
       if (lido.documento) setDocumento(lido.documento);
+      if (lido.linha_digitavel) setLinha(lido.linha_digitavel);
+      if (lido.pix_copia_cola) setPix(lido.pix_copia_cola);
       if (lido.descricao) setDescricao(lido.descricao);
       const cat = categorias.find((c) => c.nome === lido.categoria);
       if (cat) setCategoriaId(String(cat.id));
@@ -194,6 +206,41 @@ export function FormularioConta({
         <div className="space-y-1.5 sm:col-span-2">
           <Label htmlFor="observacao">Observação</Label>
           <Textarea id="observacao" name="observacao" defaultValue={conta?.observacao ?? ""} rows={2} className="uppercase" />
+        </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label htmlFor="linha_digitavel">Linha digitável (código de barras)</Label>
+          <Input
+            id="linha_digitavel"
+            name="linha_digitavel"
+            value={linha}
+            onChange={(e) => setLinha(e.target.value)}
+            inputMode="numeric"
+            placeholder="00000.00000 00000.000000 00000.000000 0 00000000000000"
+            className="tabular h-12"
+          />
+          {linhaConfere && (
+            <p className={cn("text-xs", linhaConfere.valida ? "text-ok" : "text-atencao")}>
+              {linhaConfere.valida
+                ? `código confere${linhaConfere.vencimento ? ` · vence ${linhaConfere.vencimento.split("-").reverse().join("/")}` : ""}${
+                    linhaConfere.valor ? ` · R$ ${linhaConfere.valor.toFixed(2).replace(".", ",")}` : ""
+                  }`
+                : `${digitos.length} dígitos — confira o código (o esperado são 47, ou 48 em conta de consumo)`}
+            </p>
+          )}
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="pix_copia_cola">PIX copia e cola</Label>
+          <Textarea
+            id="pix_copia_cola"
+            name="pix_copia_cola"
+            value={pix}
+            onChange={(e) => setPix(e.target.value)}
+            rows={2}
+            placeholder="cole aqui o código PIX do boleto, se houver"
+          />
         </div>
       </div>
 

@@ -9,6 +9,7 @@ import { buscarConta } from "@/lib/dados/contas";
 import { urlDoComprovante } from "@/lib/dados/financeiro";
 import { data as fmtData, hoje, reais } from "@/lib/formato";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { BotaoCopiar, linhaFormatada } from "@/components/botao-copiar";
 import { FormularioConta } from "../formulario-conta";
 
 export const metadata: Metadata = { title: "Conta a pagar" };
@@ -38,7 +39,26 @@ export default async function PaginaConta({ params }: { params: Promise<{ id: st
           {conta.pago_em ? ` · paga em ${fmtData(conta.pago_em)}${conta.pagador ? ` por ${conta.pagador}` : ""}` : ""}
           {conta.nota_descricao ? ` · nota: ${conta.nota_descricao}` : " · sem nota ligada"}
         </p>
-        <p className="mt-1 flex gap-4 text-sm">
+        {(conta.linha_digitavel || conta.pix_copia_cola) && (
+          <div className="mt-3 space-y-2 rounded border border-marinho-100 p-3 dark:border-marinho-300">
+            {conta.linha_digitavel && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs uppercase tracking-wide text-marinho-300">Código de barras</span>
+                <span className="tabular text-sm">{linhaFormatada(conta.linha_digitavel)}</span>
+                <BotaoCopiar valor={conta.linha_digitavel} />
+              </div>
+            )}
+            {conta.pix_copia_cola && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs uppercase tracking-wide text-marinho-300">PIX copia e cola</span>
+                <span className="max-w-xl truncate text-sm">{conta.pix_copia_cola}</span>
+                <BotaoCopiar valor={conta.pix_copia_cola} />
+              </div>
+            )}
+          </div>
+        )}
+
+        <p className="mt-3 flex gap-4 text-sm">
           {boleto && (
             <a href={boleto} target="_blank" rel="noreferrer" className="text-laranja-700 hover:underline">
               ver o boleto
@@ -70,6 +90,8 @@ export default async function PaginaConta({ params }: { params: Promise<{ id: st
               observacao: conta.observacao,
               fornecedor_id: conta.fornecedor_id,
               categoria_id: conta.categoria_id,
+              linha_digitavel: conta.linha_digitavel,
+              pix_copia_cola: conta.pix_copia_cola,
             }}
           />
         </CardContent>

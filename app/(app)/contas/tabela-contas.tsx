@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alerta } from "@/components/ui/alerta";
 import { Cabecalho, Celula, Tabela, TabelaCabecalho, TabelaCorpo, TabelaLinha, TabelaRodape } from "@/components/ui/tabela";
 import { enviarArquivo } from "@/lib/upload-cliente";
+import { BotaoCopiar } from "@/components/botao-copiar";
 import { data as fmtData, reais } from "@/lib/formato";
 import { cn } from "@/lib/utils";
 import type { ContaPagar, NotaCandidata } from "@/lib/dados/contas";
@@ -77,6 +78,12 @@ export function TabelaContas({
                   {c.descricao}
                 </Link>
                 <span className="block text-xs text-marinho-300">{[c.fornecedor, c.categoria, c.documento].filter(Boolean).join(" · ") || "—"}</span>
+                {!c.pago_em && (c.linha_digitavel || c.pix_copia_cola) && (
+                  <span className="mt-0.5 flex flex-wrap items-center gap-1">
+                    {c.linha_digitavel && <BotaoCopiar valor={c.linha_digitavel} rotulo="código de barras" />}
+                    {c.pix_copia_cola && <BotaoCopiar valor={c.pix_copia_cola} rotulo="PIX" />}
+                  </span>
+                )}
               </Celula>
               <Celula numerico className="font-semibold">
                 {reais(c.valor)}

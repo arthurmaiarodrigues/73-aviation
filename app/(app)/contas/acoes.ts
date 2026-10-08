@@ -58,6 +58,8 @@ export async function salvarConta(_a: Resultado, form: FormData): Promise<Result
     valor,
     vencimento,
     documento: texto(form, "documento"),
+    linha_digitavel: texto(form, "linha_digitavel"),
+    pix_copia_cola: texto(form, "pix_copia_cola"),
     observacao: texto(form, "observacao"),
   };
 

@@ -25,6 +25,8 @@ export type BoletoLido = {
   descricao: string | null;
   categoria: (typeof CATEGORIAS_VALIDAS)[number] | null;
   linha_digitavel: string | null;
+  /** O "copia e cola" do PIX, quando o boleto traz o texto impresso. */
+  pix_copia_cola: string | null;
   /** O vencimento e o valor vieram da linha digitável conferida. */
   conferido: boolean;
   confianca: number;
@@ -41,6 +43,7 @@ Regras:
 - vencimento: o campo VENCIMENTO, no formato AAAA-MM-DD (datas brasileiras são DD/MM/AAAA).
 - valor: o VALOR DO DOCUMENTO (ou "valor cobrado"), número com ponto decimal (1.234,56 → 1234.56). Ignore juros/multa calculados para depois do vencimento.
 - documento: o "número do documento" ou o "nosso número", como impresso.
+- pix_copia_cola: o código PIX "copia e cola" quando ele estiver IMPRESSO COMO TEXTO (começa por 00020101…). Não tente adivinhar pelo QR Code: se só houver o quadrado do QR, deixe nulo.
 - linha_digitavel: a sequência de números do topo do boleto, SÓ OS DÍGITOS, sem pontos e espaços. São 47 dígitos (cobrança) ou 48 (conta de consumo). Copie com cuidado, dígito a dígito; se não conseguir ler todos, deixe nulo.
 - descricao: resumo curto em CAIXA ALTA do que é a conta (ex.: "HANGAR OUTUBRO", "PARCELA 2/4 SEGURO RETA"). Use a instrução/demonstrativo do boleto se houver.
 - categoria: uma das opções válidas, pelo que dá para entender do beneficiário e do demonstrativo.
@@ -60,12 +63,13 @@ const FERRAMENTA: Anthropic.Tool = {
       valor: { type: ["number", "null"] },
       documento: { type: ["string", "null"] },
       linha_digitavel: { type: ["string", "null"], description: "só dígitos" },
+      pix_copia_cola: { type: ["string", "null"] },
       descricao: { type: ["string", "null"] },
       categoria: { type: ["string", "null"], enum: [...CATEGORIAS_VALIDAS, null] },
       confianca: { type: "number", minimum: 0, maximum: 1 },
       observacao: { type: "string" },
     },
-    required: ["legivel", "beneficiario", "cnpj_cpf", "vencimento", "valor", "documento", "linha_digitavel", "descricao", "categoria", "confianca", "observacao"],
+    required: ["legivel", "beneficiario", "cnpj_cpf", "vencimento", "valor", "documento", "linha_digitavel", "pix_copia_cola", "descricao", "categoria", "confianca", "observacao"],
   },
 };
 
@@ -136,6 +140,7 @@ export async function lerBoleto(bytes: Buffer, tipo: string): Promise<BoletoLido
     descricao: txt(b.descricao),
     categoria: CATEGORIAS_VALIDAS.find((c) => c === b.categoria) ?? null,
     linha_digitavel: linha?.digitos ?? null,
+    pix_copia_cola: typeof b.pix_copia_cola === "string" && b.pix_copia_cola.trim().length > 40 ? b.pix_copia_cola.trim() : null,
     conferido,
     confianca: Math.max(0, Math.min(1, Number(b.confianca ?? 0))),
     observacao: [String(b.observacao ?? "").trim(), ...avisos].filter(Boolean).join(" · "),

@@ -10,6 +10,8 @@ export type ContaPagar = {
   valor: number;
   vencimento: string;
   documento: string | null;
+  linha_digitavel: string | null;
+  pix_copia_cola: string | null;
   observacao: string | null;
   boleto_path: string | null;
   despesa_id: string | null;
@@ -51,6 +53,8 @@ export async function listarContas(aeronaveId: string, filtro: { abertas?: boole
     valor: Number(c.valor),
     vencimento: c.vencimento,
     documento: c.documento,
+    linha_digitavel: c.linha_digitavel,
+    pix_copia_cola: c.pix_copia_cola,
     observacao: c.observacao,
     boleto_path: c.boleto_path,
     despesa_id: c.despesa_id,
@@ -97,6 +101,8 @@ export async function buscarConta(id: string): Promise<ContaPagar | null> {
     valor: Number(data.valor),
     vencimento: data.vencimento,
     documento: data.documento,
+    linha_digitavel: data.linha_digitavel,
+    pix_copia_cola: data.pix_copia_cola,
     observacao: data.observacao,
     boleto_path: data.boleto_path,
     despesa_id: data.despesa_id,

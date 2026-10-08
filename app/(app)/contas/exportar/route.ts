@@ -34,6 +34,7 @@ export async function GET() {
     { header: "PAGA EM", key: "pago_em", width: 14, style: { numFmt: DATA_BR } },
     { header: "QUEM PAGOU", key: "pagador", width: 14 },
     { header: "NOTA LANÇADA", key: "nota", width: 40 },
+    { header: "CÓDIGO DE BARRAS", key: "linha", width: 52 },
     { header: "OBSERVAÇÃO", key: "observacao", width: 30 },
   ];
   ws.columns = colunas;
@@ -51,6 +52,7 @@ export async function GET() {
       pago_em: c.pago_em ? new Date(`${c.pago_em}T12:00:00`) : null,
       pagador: c.pago_em ? (c.pagador ?? "CAIXA") : "",
       nota: c.nota_descricao ?? "",
+      linha: c.linha_digitavel ?? "",
       observacao: c.observacao ?? "",
     });
   }
