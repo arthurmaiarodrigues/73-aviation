@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Cabecalho, Celula, Tabela, TabelaCabecalho, TabelaCorpo, TabelaLinha, TabelaRodape } from "@/components/ui/tabela";
 import { BotaoAcao, BotaoApagarManutencao, FormularioConcluir, FormularioItemManutencao, FormularioManutencao } from "../componentes";
+import { LeitorNotaOficina } from "../nota-oficina";
 
 export const metadata: Metadata = { title: "Manutenção" };
 
@@ -75,7 +76,7 @@ export default async function PaginaManutencaoFicha({ params, searchParams }: { 
         <Card>
           <CardHeader className="flex-row items-baseline justify-between">
             <CardTitle>Nota da oficina · {reais(m.total)}</CardTitle>
-            <span className="text-sm text-marinho-300">{m.itens.length} item{m.itens.length === 1 ? "" : "ns"}</span>
+            <span className="text-sm text-marinho-300">{m.itens.length} {m.itens.length === 1 ? "item" : "itens"}</span>
           </CardHeader>
           <CardContent className="space-y-4">
             <Tabela>
@@ -126,8 +127,16 @@ export default async function PaginaManutencaoFicha({ params, searchParams }: { 
               )}
             </Tabela>
             {admin && (
-              <details className="rounded border border-dashed border-marinho-300 p-3" open={m.itens.length === 0}>
-                <summary className="cursor-pointer text-sm font-semibold text-laranja-700">+ Item da nota</summary>
+              <details className="rounded border border-dashed border-laranja p-3" open={m.itens.length === 0}>
+                <summary className="cursor-pointer text-sm font-semibold text-laranja-700">Ler a nota da oficina por foto</summary>
+                <div className="mt-3">
+                  <LeitorNotaOficina manutencaoId={m.id} plano={plano} />
+                </div>
+              </details>
+            )}
+            {admin && (
+              <details className="rounded border border-dashed border-marinho-300 p-3">
+                <summary className="cursor-pointer text-sm font-semibold text-laranja-700">+ Item da nota (um a um)</summary>
                 <div className="mt-3">
                   <FormularioItemManutencao manutencaoId={m.id} plano={plano} />
                 </div>

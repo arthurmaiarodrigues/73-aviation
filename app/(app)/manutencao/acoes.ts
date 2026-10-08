@@ -150,6 +150,54 @@ export async function salvarItemManutencao(_a: Resultado, form: FormData): Promi
   return { ok: true, mensagem: "Item lançado; a despesa e o rateio foram gerados." };
 }
 
+/**
+ * A nota da oficina inteira de uma vez: as linhas lidas da foto (já conferidas
+ * na tela) viram itens, cada um com a sua despesa e o seu rateio. O arquivo da
+ * nota fica como comprovante de todas elas.
+ */
+export async function lancarItensDaNota(_a: Resultado, form: FormData): Promise<Resultado> {
+  const adm = await exigirAdminAcao();
+  if (!adm.ok) return adm;
+  const manutencaoId = uuid(form, "manutencao_id");
+  if (!manutencaoId) return { ok: false, mensagem: "Manutenção inválida." };
+
+  const descricoes = form.getAll("item_descricao").map(String);
+  const valores = form.getAll("item_valor").map(String);
+  const tipos = form.getAll("item_tipo").map(String);
+  const planos = form.getAll("item_plano").map(String);
+  if (descricoes.length === 0) return { ok: false, mensagem: "Leia a nota ou lance os itens um a um." };
+
+  const linhas = [];
+  for (let i = 0; i < descricoes.length; i++) {
+    const descricao = descricoes[i]?.trim().replace(/\s+/g, " ").toLocaleUpperCase("pt-BR");
+    const valor = lerNumero(valores[i]);
+    if (!descricao || valor === null || valor < 0) return { ok: false, mensagem: `Confira a linha ${i + 1}: falta a descrição ou o valor.` };
+    linhas.push({
+      manutencao_id: manutencaoId,
+      plano_item_id: UUID.test(planos[i] ?? "") ? planos[i] : null,
+      descricao,
+      valor,
+      tipo_custo: ["POR_USO", "POR_TEMPO", "IGUAL"].includes(tipos[i] ?? "") ? tipos[i] : "IGUAL",
+      pago_pelo_fundo: false,
+    });
+  }
+
+  const supabase = await criarClienteServidor();
+  const { data, error } = await supabase.from("manutencao_itens").insert(linhas).select("despesa_id");
+  if (error) return { ok: false, mensagem: traduzir(error.message) };
+
+  // A nota vale como comprovante de cada despesa gerada.
+  const comprovante = texto(form, "comprovante_path");
+  if (comprovante) {
+    const ids = (data ?? []).map((d) => d.despesa_id).filter((x): x is string => !!x);
+    if (ids.length > 0) await supabase.from("despesas").update({ comprovante_path: comprovante }).in("id", ids);
+  }
+
+  revalidar(manutencaoId);
+  const total = linhas.reduce((s, l) => s + l.valor, 0);
+  return { ok: true, mensagem: `${linhas.length} itens lançados (R$ ${total.toFixed(2).replace(".", ",")}). Cada um virou despesa com o rateio dele.` };
+}
+
 export async function apagarItemManutencao(id: string, manutencaoId: string): Promise<Resultado> {
   const adm = await exigirAdminAcao();
   if (!adm.ok) return adm;
