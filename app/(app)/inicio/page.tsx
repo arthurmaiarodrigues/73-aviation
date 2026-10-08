@@ -12,6 +12,7 @@ import { saldoDoCaixa, saldoDoFundo, saldosDosSocios } from "@/lib/dados/finance
 import { ciclosRevisao, listarPlano, resumoManutencao } from "@/lib/dados/manutencao";
 import { listarReembolsos } from "@/lib/dados/reembolsos";
 import { listarAnotacoes } from "@/lib/dados/anotacoes";
+import { listarContas } from "@/lib/dados/contas";
 import { ROTULO_BLOQUEIO, agendaDoDia, fila, garantirEscolhaAberta, mesSeguinte, proximasReservas, reservasSemVoo, vezDeEscolher } from "@/lib/dados/agenda";
 import { BotaoAcao } from "@/app/(app)/agenda/botoes";
 import { data as fmtData, horas as fmtHoras, horimetro as fmtHorimetro, hoje, inicioDoMes, mesPorExtenso, reais, trimestreDe } from "@/lib/formato";
@@ -41,7 +42,11 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
     listarVoos(aeronave.id, {}, 5),
     listarSocios({ somenteAtivos: true }),
   ]);
-  const [saldos, caixa, fundo] = valores ? await Promise.all([saldosDosSocios(), saldoDoCaixa(), saldoDoFundo(aeronave.id)]) : [[], null, null];
+  const [saldos, caixa, fundo, contas] = valores
+    ? await Promise.all([saldosDosSocios(), saldoDoCaixa(), saldoDoFundo(aeronave.id), listarContas(aeronave.id, { abertas: true })])
+    : [[], null, null, []];
+  // Contas a pagar que já venceram ou vencem nos próximos 7 dias.
+  const contasAlerta = contas.filter((c) => c.situacao === "VENCIDA" || c.situacao === "VENCE_EM_BREVE");
 
   // Abrir a escolha do mês, avisar reserva sem voo e resolver pedidos não é
   // coisa que a tela precise esperar: roda depois de responder (Next after).
@@ -257,6 +262,25 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
               </li>
             ))}
           </ul>
+        </Alerta>
+      )}
+
+      {contasAlerta.length > 0 && (
+        <Alerta tom={contasAlerta.some((c) => c.situacao === "VENCIDA") ? "erro" : "atencao"}>
+          <p className="font-semibold">
+            {contasAlerta.length === 1 ? "1 conta a pagar" : `${contasAlerta.length} contas a pagar`} —{" "}
+            {reais(contasAlerta.reduce((t, c) => t + c.valor, 0))}
+          </p>
+          <ul className="mt-1 space-y-0.5 text-sm">
+            {contasAlerta.slice(0, 4).map((c) => (
+              <li key={c.id}>
+                {c.descricao} · {reais(c.valor)} · {c.dias < 0 ? `venceu há ${-c.dias} dia(s)` : c.dias === 0 ? "vence hoje" : `vence em ${c.dias} dia(s)`}
+              </li>
+            ))}
+          </ul>
+          <Link href="/contas" className="text-sm underline">
+            ver contas a pagar
+          </Link>
         </Alerta>
       )}
 

@@ -9,6 +9,7 @@ const SOCIO: ItemMenu[] = [
   { rotulo: "Combustível", href: "/combustivel", icone: "combustivel" },
   { rotulo: "Despesas", href: "/despesas", icone: "despesas" },
   { rotulo: "Reembolsos", href: "/reembolsos", icone: "despesas" },
+  { rotulo: "Contas a pagar", href: "/contas", icone: "contas" },
   { rotulo: "Aportes", href: "/aportes", icone: "aportes" },
   { rotulo: "Extratos", href: "/extratos", icone: "extratos" },
   { rotulo: "Fundo de reserva", href: "/fundo", icone: "aportes" },

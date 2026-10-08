@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  CalendarClock,
   CalendarDays,
   Camera,
   ClipboardList,
@@ -45,6 +46,7 @@ const ICONES = {
   cadastros: NotebookPen,
   instalar: Smartphone,
   anotacoes: ClipboardPen,
+  contas: CalendarClock,
 } as const;
 
 export function BarraLateral({
