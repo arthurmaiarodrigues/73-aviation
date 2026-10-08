@@ -28,16 +28,53 @@ export function FormularioAporte({ socios, hoje, socioLogadoId }: { socios: { id
   const [estado, acao] = useActionState(salvarAporte, INICIAL);
   const [comprovante, setComprovante] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const [lendo, setLendo] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [leitura, setLeitura] = useState<{ confianca: number; observacao: string } | null>(null);
+  const [aviso, setAviso] = useState<string | null>(null);
+  const [socio, setSocio] = useState(socioLogadoId ?? "");
+  const [data, setData] = useState(hoje);
+  const [valor, setValor] = useState("");
+  const [descricao, setDescricao] = useState("");
 
   async function tratarComprovante(arquivo: File | undefined) {
     if (!arquivo) return;
     setErro(null);
     setEnviando(true);
+    // Sobe e manda ler ao mesmo tempo; a leitura é acessória.
+    const leituraPromessa = ler(arquivo);
     const r = await enviarArquivo(arquivo, "comprovantes", "COMPROVANTE - APORTE");
     setEnviando(false);
-    if (!r.ok) return setErro(r.mensagem);
-    setComprovante(r.caminho);
+    if (r.ok) setComprovante(r.caminho);
+    else setErro(r.mensagem);
+    await leituraPromessa;
+  }
+
+  /** Comprovante de PIX/transferência: tira dele a data, o valor e quem mandou. */
+  async function ler(arquivo: File) {
+    setLendo(true);
+    setAviso(null);
+    try {
+      const form = new FormData();
+      form.append("arquivo", arquivo);
+      const resp = await fetch("/api/aporte", { method: "POST", body: form });
+      const lido = (await resp.json()) as { erro?: string; legivel: boolean; pagador: string | null; data: string | null; valor: number | null; descricao: string | null; confianca: number; observacao: string };
+      if (!resp.ok) throw new Error(lido.erro ?? "Falha na leitura.");
+      if (lido.data) setData(lido.data);
+      if (lido.valor !== null) setValor(lido.valor.toFixed(2).replace(".", ","));
+      if (lido.descricao) setDescricao(lido.descricao);
+      // Quem pagou é o sócio do aporte: se o nome bate, já marca ele.
+      const nome = (lido.pagador ?? "").toUpperCase();
+      const doSocio = socios.find((s) => nome.includes(s.apelido));
+      if (doSocio) setSocio(doSocio.id);
+      else if (nome) setAviso(`Quem pagou no comprovante: ${nome}. Confira o sócio.`);
+      setLeitura({ confianca: lido.confianca, observacao: lido.observacao });
+      if (!lido.legivel) setErro("Anexei o comprovante, mas não consegui ler os campos. Preencha à mão.");
+    } catch (e) {
+      setErro(`Comprovante anexado, mas não consegui ler: ${e instanceof Error ? e.message : "falha"}. Preencha à mão.`);
+    } finally {
+      setLendo(false);
+    }
   }
 
   return (
@@ -48,7 +85,7 @@ export function FormularioAporte({ socios, hoje, socioLogadoId }: { socios: { id
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="space-y-1.5">
           <Label htmlFor="socio_id">Sócio</Label>
-          <Select id="socio_id" name="socio_id" defaultValue={socioLogadoId ?? ""} required className="h-12">
+          <Select id="socio_id" name="socio_id" value={socio} onChange={(e) => setSocio(e.target.value)} required className="h-12">
             <option value="" disabled>
               Escolha…
             </option>
@@ -61,23 +98,26 @@ export function FormularioAporte({ socios, hoje, socioLogadoId }: { socios: { id
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="data">Data</Label>
-          <Input id="data" name="data" type="date" defaultValue={hoje} required className="h-12" />
+          <Input id="data" name="data" type="date" value={data} onChange={(e) => setData(e.target.value)} required className="h-12" />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="valor">Valor (R$)</Label>
-          <Input id="valor" name="valor" inputMode="decimal" placeholder="0,00" required className="h-12 text-lg font-semibold tabular" />
+          <Input id="valor" name="valor" inputMode="decimal" value={valor} onChange={(e) => setValor(e.target.value)} placeholder="0,00" required className="h-12 text-lg font-semibold tabular" />
         </div>
         <div className="space-y-1.5 sm:col-span-2">
           <Label htmlFor="descricao">Descrição</Label>
-          <Input id="descricao" name="descricao" placeholder="ex.: APORTE MENSAL" className="h-12 uppercase" />
+          <Input id="descricao" name="descricao" value={descricao} onChange={(e) => setDescricao(e.target.value)} placeholder="ex.: APORTE MENSAL" className="h-12 uppercase" />
         </div>
         <div className="space-y-1.5">
           <Label>Comprovante</Label>
           <label className="inline-flex h-12 w-full cursor-pointer items-center justify-center gap-2 rounded border border-marinho-100 bg-areia-200 px-4 text-sm font-semibold hover:border-laranja dark:border-marinho-300 dark:bg-marinho-700">
-            {enviando ? <Loader2 className="size-4 animate-spin" /> : <Paperclip className="size-4" />}
-            {comprovante ? "Anexado" : "Foto ou PDF"}
-            <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => tratarComprovante(e.target.files?.[0])} disabled={enviando} />
+            {enviando || lendo ? <Loader2 className="size-4 animate-spin" /> : <Paperclip className="size-4" />}
+            {lendo ? "Lendo…" : comprovante ? "Anexado" : "Foto ou PDF"}
+            <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => tratarComprovante(e.target.files?.[0])} disabled={enviando || lendo} />
           </label>
+          {leitura && <p className="text-xs text-marinho-300">lido do comprovante ({Math.round(leitura.confianca * 100)} %) — confira os campos</p>}
+          {aviso && <p className="text-xs text-atencao">{aviso}</p>}
+          {leitura?.observacao && <p className="text-xs text-atencao">{leitura.observacao}</p>}
           {erro && <p className="text-xs text-erro">{erro}</p>}
         </div>
       </div>
