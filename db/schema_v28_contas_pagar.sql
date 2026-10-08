@@ -82,11 +82,10 @@ $$
   select d.id, d.data, d.descricao, d.valor, f.nome,
          round(abs(d.valor - c.valor), 2),
          abs(d.data - c.vencimento)
-  from despesas d, c
+  from c
+  join despesas d on d.aeronave_id = c.aeronave_id and d.deleted_at is null
   left join fornecedores f on f.id = d.fornecedor_id
-  where d.aeronave_id = c.aeronave_id
-    and d.deleted_at is null
-    and not exists (select 1 from contas_pagar x where x.despesa_id = d.id and x.deleted_at is null and x.id <> c.id)
+  where not exists (select 1 from contas_pagar x where x.despesa_id = d.id and x.deleted_at is null and x.id <> c.id)
     and abs(d.data - c.vencimento) <= p_dias
     and (abs(d.valor - c.valor) <= 0.05 or (c.fornecedor_id is not null and d.fornecedor_id = c.fornecedor_id))
   order by round(abs(d.valor - c.valor), 2), abs(d.data - c.vencimento)
