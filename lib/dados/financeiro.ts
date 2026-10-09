@@ -31,6 +31,8 @@ export type DespesaLinha = {
   /** Linhas da nota, quando discriminada (registro; o rateio é da despesa inteira). */
   itens: { descricao: string; valor: number }[];
   rateios: { socio_id: string; apelido: string; percentual: number; valor: number; horas_base: number | null; litros_base: number | null }[];
+  /** Quando mais de um sócio pagou, o que cada um colocou. */
+  pagadores: { socio_id: string; apelido: string; valor: number }[];
 };
 
 export type FiltroDespesas = {
@@ -47,7 +49,8 @@ const SELECT = `id, data, descricao, categoria_id, fornecedor_id, valor, pagador
   categorias_despesa ( nome ), fornecedores ( nome ),
   pagador:socios!despesas_pagador_socio_id_fkey ( apelido ),
   direto:socios!despesas_socio_direto_id_fkey ( apelido ),
-  rateios ( socio_id, percentual, valor, horas_base, litros_base, socios ( apelido ) )`;
+  rateios ( socio_id, percentual, valor, horas_base, litros_base, socios ( apelido ) ),
+  despesa_pagadores ( socio_id, valor, socios ( apelido ) )`;
 
 type Bruta = {
   id: string; data: string; descricao: string; categoria_id: number; fornecedor_id: string | null; valor: string;
@@ -59,6 +62,7 @@ type Bruta = {
   tanque?: "COMPRA" | "RETIRADA" | null;
   itens?: { descricao: string; valor: number }[] | null;
   rateios: { socio_id: string; percentual: string; valor: string; horas_base: string | null; litros_base?: string | null; socios: { apelido: string } | null }[];
+  despesa_pagadores?: { socio_id: string; valor: string; socios: { apelido: string } | null }[] | null;
 };
 
 function mapear(d: Bruta): DespesaLinha {
@@ -73,7 +77,9 @@ function mapear(d: Bruta): DespesaLinha {
     valor: Number(d.valor),
     pagador_socio_id: d.pagador_socio_id,
     pago_pelos_socios: Boolean(d.pago_pelos_socios),
-    pagador: d.pagador?.apelido ?? (d.pago_pelos_socios ? "CADA SÓCIO (direto)" : "CAIXA"),
+    pagador:
+      d.pagador?.apelido ??
+      ((d.despesa_pagadores ?? []).length > 0 ? "VÁRIOS SÓCIOS" : d.pago_pelos_socios ? "CADA SÓCIO (direto)" : "CAIXA"),
     criterio: d.criterio,
     tanque: d.tanque ?? null,
     itens: Array.isArray(d.itens) ? d.itens.map((i) => ({ descricao: String(i.descricao), valor: Number(i.valor) })) : [],
@@ -86,6 +92,7 @@ function mapear(d: Bruta): DespesaLinha {
     voo_id: d.voo_id,
     observacao: d.observacao,
     autor_id: d.autor_id,
+    pagadores: (d.despesa_pagadores ?? []).map((p) => ({ socio_id: p.socio_id, apelido: p.socios?.apelido ?? "", valor: Number(p.valor) })).sort((a, b) => b.valor - a.valor),
     rateios: (d.rateios ?? [])
       .map((r) => ({
         socio_id: r.socio_id,

@@ -52,7 +52,10 @@ export default async function PaginaDespesa({
         </div>
         <p className="mt-1 text-sm text-marinho-300">
           {fmtData(despesa.data)} · {despesa.categoria}
-          {despesa.fornecedor ? ` · ${despesa.fornecedor}` : ""} · pago por {despesa.pagador}
+          {despesa.fornecedor ? ` · ${despesa.fornecedor}` : ""} ·{" "}
+          {despesa.pagadores.length > 0
+            ? `pago por ${despesa.pagadores.map((p) => `${p.apelido} ${reais(p.valor)}`).join(" · ")}`
+            : `pago por ${despesa.pagador}`}
         </p>
       </div>
 

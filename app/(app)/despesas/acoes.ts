@@ -103,6 +103,15 @@ function lerCampos(form: FormData): { ok: true; campos: Campos; manuais: { socio
   };
 }
 
+/** Quem pagou e quanto, quando a despesa foi dividida entre vários sócios. */
+function pagadoresDoForm(form: FormData): { socio_id: string; valor: number }[] {
+  const socios = form.getAll("pagador_socio").map(String);
+  const valores = form.getAll("pagador_valor").map(String);
+  return socios
+    .map((socio_id, i) => ({ socio_id, valor: lerNumero(valores[i]) ?? 0 }))
+    .filter((p) => UUID.test(p.socio_id) && p.valor > 0);
+}
+
 /** Itens discriminados na nota (campo `itens_json`): ficam na própria despesa, só para registro. */
 function itensDaNota(form: FormData): { descricao: string; valor: number }[] {
   const bruto = texto(form, "itens_json");
@@ -123,6 +132,19 @@ async function gravarManuais(despesaId: string, manuais: { socio_id: string; per
   const supabase = await criarClienteServidor();
   const { error } = await supabase.rpc("definir_rateio_manual", { p_despesa: despesaId, p_percentuais: manuais });
   if (error) throw new Error(traduzir(error.message));
+}
+
+/**
+ * Vários pagadores: grava quem colocou quanto (o banco confere a soma).
+ * Fora dessa opção, limpa a lista para a despesa voltar a ter um pagador só.
+ */
+async function gravarPagadores(despesaId: string, form: FormData): Promise<string | null> {
+  const varios = form.get("pagador") === "VARIOS";
+  const partes = varios ? pagadoresDoForm(form) : [];
+  if (varios && partes.length === 0) return "Informe quem pagou e quanto.";
+  const supabase = await criarClienteServidor();
+  const { error } = await supabase.rpc("definir_pagadores", { p_despesa: despesaId, p_partes: partes });
+  return error ? traduzir(error.message) : null;
 }
 
 export async function salvarDespesa(_anterior: Resultado, form: FormData): Promise<Resultado> {
@@ -148,6 +170,9 @@ export async function salvarDespesa(_anterior: Resultado, form: FormData): Promi
       return { ok: false, mensagem: e instanceof Error ? e.message : "Falha no rateio manual." };
     }
   }
+
+  const erroPagadores = await gravarPagadores(criada.id, form);
+  if (erroPagadores) return { ok: false, mensagem: erroPagadores };
 
   revalidatePath("/despesas");
   revalidatePath("/extratos");
@@ -175,6 +200,9 @@ export async function editarDespesa(_anterior: Resultado, form: FormData): Promi
       return { ok: false, mensagem: e instanceof Error ? e.message : "Falha no rateio manual." };
     }
   }
+
+  const erroPagadores = await gravarPagadores(id, form);
+  if (erroPagadores) return { ok: false, mensagem: erroPagadores };
 
   revalidatePath("/despesas");
   revalidatePath(`/despesas/${id}`);

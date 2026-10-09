@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, Textarea } from "@/components/ui/select";
 import { Alerta } from "@/components/ui/alerta";
+import { Badge } from "@/components/ui/badge";
 import { enviarArquivo } from "@/lib/upload-cliente";
 import { CRITERIOS, ROTULO_CRITERIO, type CriterioRateio } from "@/lib/tipos";
 import { data as fmtData, reais } from "@/lib/formato";
@@ -59,7 +60,9 @@ export function FormularioDespesa({
   const [criterio, setCriterio] = useState<CriterioRateio>(despesa?.criterio ?? "IGUAL");
   const [socioDireto, setSocioDireto] = useState(despesa?.socio_direto_id ?? "");
   const [pagador, setPagador] = useState(
-    despesa ? (despesa.pagador_socio_id ?? (despesa.pago_pelos_socios ? "SOCIOS" : "CAIXA")) : (socioLogadoId ?? "CAIXA"),
+    despesa
+      ? (despesa.pagadores?.length ? "VARIOS" : (despesa.pagador_socio_id ?? (despesa.pago_pelos_socios ? "SOCIOS" : "CAIXA")))
+      : (socioLogadoId ?? "CAIXA"),
   );
   const [comprovante, setComprovante] = useState<string | null>(despesa?.comprovante_path ?? null);
   const [enviando, setEnviando] = useState(false);
@@ -71,10 +74,17 @@ export function FormularioDespesa({
   const [sugestao, setSugestao] = useState<string | null>(null);
   const [descricao, setDescricao] = useState(despesa?.descricao ?? "");
   const [valor, setValor] = useState(despesa ? despesa.valor.toFixed(2).replace(".", ",") : "");
+  // Vários pagadores: cada linha é um sócio e o que ele colocou.
+  const [pagadores, setPagadores] = useState<{ socio_id: string; valor: string }[]>(
+    despesa?.pagadores?.length ? despesa.pagadores.map((p) => ({ socio_id: p.socio_id, valor: p.valor.toFixed(2).replace(".", ",") })) : [{ socio_id: "", valor: "" }],
+  );
   const [leitura, setLeitura] = useState<{ confianca: number; observacao: string; fornecedor: string | null } | null>(null);
   const [itens, setItens] = useState<{ descricao: string; valor: string }[]>((despesa?.itens ?? []).map((i) => ({ descricao: i.descricao, valor: i.valor.toFixed(2).replace(".", ",") })));
   const numero = (t: string) => Number(t.replace(/\./g, "").replace(",", ".")) || 0;
   const somaItens = itens.reduce((t, i) => t + numero(i.valor), 0);
+  const somaPagadores = pagadores.reduce((t, p) => t + numero(p.valor), 0);
+  const valorNumero = numero(valor);
+  const mudarPagador = (i: number, campo: "socio_id" | "valor", v: string) => setPagadores((l) => l.map((x, k) => (k === i ? { ...x, [campo]: v } : x)));
   const [lendo, setLendo] = useState(false);
 
   const categoriaNome = categorias.find((c) => String(c.id) === categoriaId)?.nome ?? "";
@@ -230,6 +240,7 @@ export function FormularioDespesa({
             <Select id="pagador" name="pagador" value={pagador} onChange={(e) => setPagador(e.target.value)} className="h-12">
               <option value="CAIXA">Caixa da sociedade</option>
               <option value="SOCIOS">Cada sócio pagou a parte dele (direto ao fornecedor)</option>
+              <option value="VARIOS">Vários sócios pagaram (valores diferentes)…</option>
               {socios.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.apelido} (do próprio bolso)
@@ -240,6 +251,9 @@ export function FormularioDespesa({
               <p className="text-xs text-marinho-300">
                 Não sai do caixa e não vira cobrança no extrato: cada um já pagou a parte dele. Continua no custo por sócio.
               </p>
+            )}
+            {pagador === "VARIOS" && (
+              <p className="text-xs text-marinho-300">Cada um entra com crédito do que colocou; o rateio continua dividindo o custo pela regra escolhida ao lado.</p>
             )}
           </div>
           <div className="space-y-1.5">
@@ -253,6 +267,52 @@ export function FormularioDespesa({
             </Select>
           </div>
         </div>
+
+        {pagador === "VARIOS" && (
+          <div className="space-y-3 rounded-lg border border-laranja p-4">
+            <p className="text-sm font-semibold">Quem pagou e quanto</p>
+            {pagadores.map((p, i) => (
+              <div key={i} className="grid gap-2 sm:grid-cols-[1fr_200px_auto]">
+                <Select name="pagador_socio" value={p.socio_id} onChange={(e) => mudarPagador(i, "socio_id", e.target.value)} className="h-11">
+                  <option value="">Escolha o sócio…</option>
+                  {socios.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.apelido}
+                    </option>
+                  ))}
+                </Select>
+                <Input
+                  name="pagador_valor"
+                  inputMode="decimal"
+                  value={p.valor}
+                  onChange={(e) => mudarPagador(i, "valor", e.target.value)}
+                  placeholder="0,00"
+                  className="tabular h-11 font-semibold"
+                />
+                <Button type="button" variant="fantasma" size="pequeno" onClick={() => setPagadores((l) => l.filter((_, k) => k !== i))}>
+                  tirar
+                </Button>
+              </div>
+            ))}
+            <div className="flex flex-wrap items-center gap-3">
+              <Button type="button" variant="secundario" size="pequeno" onClick={() => setPagadores((l) => [...l, { socio_id: "", valor: "" }])}>
+                + sócio
+              </Button>
+              <span className="tabular text-sm">
+                Soma: <strong>{reais(somaPagadores)}</strong> de {reais(valorNumero)}
+              </span>
+              {valorNumero > 0 && (
+                <Badge variant={Math.abs(somaPagadores - valorNumero) < 0.01 ? "ok" : "atencao"}>
+                  {Math.abs(somaPagadores - valorNumero) < 0.01
+                    ? "fecha certinho"
+                    : somaPagadores < valorNumero
+                      ? `faltam ${reais(valorNumero - somaPagadores)}`
+                      : `${reais(somaPagadores - valorNumero)} a mais`}
+                </Badge>
+              )}
+            </div>
+          </div>
+        )}
 
         {sugestao && <Alerta tom="info">{sugestao}</Alerta>}
 
