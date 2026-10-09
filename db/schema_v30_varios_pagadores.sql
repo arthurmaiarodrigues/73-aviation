@@ -65,8 +65,9 @@ begin
 
   if abs(v_soma - d.valor) > 0.01 then
     delete from despesa_pagadores where despesa_id = p_despesa;
-    raise exception 'A soma do que cada um pagou (%) não bate com o valor da despesa (%).',
-      to_char(v_soma, 'FM999G999G990D00'), to_char(d.valor, 'FM999G999G990D00');
+    -- em português: 29280.00 vira 29280,00 (o to_char do banco usa ponto)
+    raise exception 'A soma do que cada um pagou (R$ %) não bate com o valor da despesa (R$ %).',
+      replace(to_char(v_soma, 'FM9999999990.00'), '.', ','), replace(to_char(d.valor, 'FM9999999990.00'), '.', ',');
   end if;
 
   -- Com vários pagadores não existe um pagador único nem "cada um a sua parte".
