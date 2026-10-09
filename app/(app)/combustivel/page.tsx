@@ -191,7 +191,10 @@ export default async function PaginaCombustivel() {
                 <Celula numerico>{m.tipo === "COMPRA" && m.preco_litro !== null ? reais(m.preco_litro) : "—"}</Celula>
                 <Celula numerico>{m.tipo === "COMPRA" && m.valor !== null ? reais(m.valor) : "—"}</Celula>
                 <Celula numerico>{fmtLitros(m.saldo_litros)}</Celula>
-                <Celula>
+                <Celula className="whitespace-nowrap text-right">
+                  <Link href={`/combustivel/${m.id}`} className="mr-3 text-xs text-laranja-700 hover:underline">
+                    editar
+                  </Link>
                   <BotaoApagarMovimento id={m.id} />
                 </Celula>
               </TabelaLinha>

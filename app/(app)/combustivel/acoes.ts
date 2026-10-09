@@ -101,3 +101,47 @@ export async function apagarMovimentoTanque(id: string): Promise<Resultado> {
   revalidar();
   return { ok: true, mensagem: "Movimento apagado." };
 }
+
+/**
+ * Corrige um movimento já lançado (data, litros, valor, quem, observação).
+ * O banco reflete de novo: a compra reajusta a despesa e o preço médio; a
+ * retirada reajusta o abastecimento e os litros do sócio.
+ */
+export async function editarMovimentoTanque(_anterior: Resultado, form: FormData): Promise<Resultado> {
+  const { user, usuario } = await usuarioDaSessao();
+  if (!user || !usuario?.ativo || !veValores(usuario.perfil)) return { ok: false, mensagem: "Sem acesso." };
+  const id = texto(form, "id");
+  if (!id || !UUID.test(id)) return { ok: false, mensagem: "Movimento inválido." };
+
+  const supabase = await criarClienteServidor();
+  const { data: atual, error: erroBusca } = await supabase.from("tanque_movimentos").select("tipo").eq("id", id).is("deleted_at", null).maybeSingle();
+  if (erroBusca) return { ok: false, mensagem: erroBusca.message };
+  if (!atual) return { ok: false, mensagem: "Movimento não encontrado." };
+  const tipo = atual.tipo as (typeof TIPOS)[number];
+
+  const litros = lerNumero(form.get("litros"));
+  if (litros === null || (tipo !== "AJUSTE" && litros <= 0)) return { ok: false, mensagem: "Informe os litros." };
+  const valor = tipo === "COMPRA" ? lerNumero(form.get("valor")) : null;
+  if (tipo === "COMPRA" && (valor === null || valor < 0)) return { ok: false, mensagem: "Informe o valor pago." };
+
+  const socioBruto = texto(form, "socio_id");
+  const fornecedorBruto = texto(form, "fornecedor_id");
+  const comprovante = texto(form, "comprovante_path");
+
+  const campos: Record<string, unknown> = {
+    data: texto(form, "data") ?? hoje(),
+    litros: tipo === "RETIRADA" ? Math.abs(litros) : litros,
+    valor,
+    socio_id: socioBruto && socioBruto !== "SOCIEDADE" && socioBruto !== "CAIXA" && UUID.test(socioBruto) ? socioBruto : null,
+    fornecedor_id: tipo === "COMPRA" && fornecedorBruto && UUID.test(fornecedorBruto) ? fornecedorBruto : null,
+    observacao: texto(form, "observacao") ? caixaAlta(texto(form, "observacao")!) : null,
+  };
+  // Sem anexo novo, o comprovante que já estava lá continua.
+  if (comprovante) campos.comprovante_path = comprovante;
+
+  const { error } = await supabase.from("tanque_movimentos").update(campos).eq("id", id);
+  if (error) return { ok: false, mensagem: /está fechado|Registre a compra/.test(error.message) ? error.message : `Falha ao gravar: ${error.message}` };
+
+  revalidar();
+  return { ok: true, mensagem: "Movimento corrigido." };
+}

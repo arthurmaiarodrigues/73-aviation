@@ -111,3 +111,42 @@ export async function usoDesdeUltimaCompra(aeronaveId: string, ultimaCompra: str
   if (error) throw new Error(`Uso do tanque: ${error.message}`);
   return ((data ?? []) as { socio_id: string; litros: string | number }[]).map((l) => ({ socio_id: l.socio_id, litros: Number(l.litros) }));
 }
+
+/** Um movimento do tanque como está gravado, para a tela de edição. */
+export async function buscarMovimentoTanque(id: string): Promise<
+  | {
+      id: string;
+      data: string;
+      tipo: TipoMovimentoTanque;
+      litros: number;
+      valor: number | null;
+      socio_id: string | null;
+      fornecedor_id: string | null;
+      voo_id: string | null;
+      observacao: string | null;
+      comprovante_path: string | null;
+    }
+  | null
+> {
+  const supabase = await criarClienteServidor();
+  const { data, error } = await supabase
+    .from("tanque_movimentos")
+    .select("id, data, tipo, litros, valor, socio_id, fornecedor_id, voo_id, observacao, comprovante_path")
+    .eq("id", id)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (error) throw new Error(`Movimento do tanque: ${error.message}`);
+  if (!data) return null;
+  return {
+    id: data.id,
+    data: data.data,
+    tipo: data.tipo as TipoMovimentoTanque,
+    litros: Number(data.litros),
+    valor: data.valor === null ? null : Number(data.valor),
+    socio_id: data.socio_id,
+    fornecedor_id: data.fornecedor_id,
+    voo_id: data.voo_id,
+    observacao: data.observacao,
+    comprovante_path: data.comprovante_path,
+  };
+}
