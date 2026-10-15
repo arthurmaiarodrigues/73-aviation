@@ -50,6 +50,7 @@ type Campos = {
   fornecedor_id: string | null;
   categoria_id: number;
   valor: number;
+  desconto: number;
   pagador_socio_id: string | null;
   pago_pelos_socios: boolean;
   criterio: CriterioRateio;
@@ -89,6 +90,7 @@ function lerCampos(form: FormData): { ok: true; campos: Campos; manuais: { socio
       fornecedor_id: uuid(form, "fornecedor_id"),
       categoria_id,
       valor,
+      desconto: lerNumero(form.get("desconto")) ?? 0,
       pagador_socio_id: pagadorBruto && pagadorBruto !== "CAIXA" && pagadorBruto !== "SOCIOS" && UUID.test(pagadorBruto) ? pagadorBruto : null,
       // cada sócio pagou a parte dele direto: fora do caixa e fora do extrato
       pago_pelos_socios: pagadorBruto === "SOCIOS",

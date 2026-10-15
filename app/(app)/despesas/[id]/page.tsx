@@ -81,7 +81,14 @@ export default async function PaginaDespesa({
 
       <Card>
         <CardHeader className="flex-row items-baseline justify-between">
-          <CardTitle>{reais(despesa.valor)}</CardTitle>
+          <CardTitle>
+            {reais(despesa.valor)}
+            {despesa.desconto > 0 && (
+              <span className="ml-2 text-sm font-normal text-marinho-300">
+                nota de {reais(despesa.valor + despesa.desconto)} − {reais(despesa.desconto)} de desconto
+              </span>
+            )}
+          </CardTitle>
           <span className="text-sm text-marinho-300">
             {despesa.tanque === "COMPRA" ? (despesa.rateios.some((r) => r.litros_base) ? "Por litros retirados do tanque desde a compra anterior" : "Igual — estoque inicial do tanque") : ROTULO_CRITERIO[despesa.criterio]}
             {despesa.socio_direto ? ` — ${despesa.socio_direto}` : ""}

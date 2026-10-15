@@ -12,6 +12,8 @@ export type DespesaLinha = {
   fornecedor: string | null;
   fornecedor_id: string | null;
   valor: number;
+  /** Abatimento sobre a nota; o valor já é o líquido pago. */
+  desconto: number;
   pagador_socio_id: string | null;
   /** Cada sócio pagou a parte dele direto (fora do caixa e do extrato). */
   pago_pelos_socios: boolean;
@@ -44,7 +46,7 @@ export type FiltroDespesas = {
   status?: string;
 };
 
-const SELECT = `id, data, descricao, categoria_id, fornecedor_id, valor, pagador_socio_id, pago_pelos_socios, criterio, socio_direto_id,
+const SELECT = `id, data, descricao, categoria_id, fornecedor_id, valor, desconto, pagador_socio_id, pago_pelos_socios, criterio, socio_direto_id,
   periodo_inicio, periodo_fim, status, comprovante_path, voo_id, observacao, autor_id, tanque, itens,
   categorias_despesa ( nome ), fornecedores ( nome ),
   pagador:socios!despesas_pagador_socio_id_fkey ( apelido ),
@@ -53,7 +55,7 @@ const SELECT = `id, data, descricao, categoria_id, fornecedor_id, valor, pagador
   despesa_pagadores ( socio_id, valor, socios ( apelido ) )`;
 
 type Bruta = {
-  id: string; data: string; descricao: string; categoria_id: number; fornecedor_id: string | null; valor: string;
+  id: string; data: string; descricao: string; categoria_id: number; fornecedor_id: string | null; valor: string; desconto?: string | null;
   pagador_socio_id: string | null; pago_pelos_socios: boolean; criterio: CriterioRateio; socio_direto_id: string | null;
   periodo_inicio: string | null; periodo_fim: string | null; status: StatusDespesa; comprovante_path: string | null;
   voo_id: string | null; observacao: string | null; autor_id: string | null;
@@ -75,6 +77,7 @@ function mapear(d: Bruta): DespesaLinha {
     fornecedor: d.fornecedores?.nome ?? null,
     fornecedor_id: d.fornecedor_id,
     valor: Number(d.valor),
+    desconto: Number(d.desconto ?? 0),
     pagador_socio_id: d.pagador_socio_id,
     pago_pelos_socios: Boolean(d.pago_pelos_socios),
     pagador:

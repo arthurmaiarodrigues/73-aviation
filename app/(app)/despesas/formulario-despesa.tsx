@@ -78,10 +78,12 @@ export function FormularioDespesa({
   const [pagadores, setPagadores] = useState<{ socio_id: string; valor: string }[]>(
     despesa?.pagadores?.length ? despesa.pagadores.map((p) => ({ socio_id: p.socio_id, valor: p.valor.toFixed(2).replace(".", ",") })) : [{ socio_id: "", valor: "" }],
   );
+  const [desconto, setDesconto] = useState(despesa && despesa.desconto > 0 ? despesa.desconto.toFixed(2).replace(".", ",") : "");
   const [leitura, setLeitura] = useState<{ confianca: number; observacao: string; fornecedor: string | null } | null>(null);
   const [itens, setItens] = useState<{ descricao: string; valor: string }[]>((despesa?.itens ?? []).map((i) => ({ descricao: i.descricao, valor: i.valor.toFixed(2).replace(".", ",") })));
   const numero = (t: string) => Number(t.replace(/\./g, "").replace(",", ".")) || 0;
   const somaItens = itens.reduce((t, i) => t + numero(i.valor), 0);
+  const descontoNumero = numero(desconto);
   const somaPagadores = pagadores.reduce((t, p) => t + numero(p.valor), 0);
   const valorNumero = numero(valor);
   const mudarPagador = (i: number, campo: "socio_id" | "valor", v: string) => setPagadores((l) => l.map((x, k) => (k === i ? { ...x, [campo]: v } : x)));
@@ -201,8 +203,15 @@ export function FormularioDespesa({
             <Input id="data" name="data" type="date" value={data} onChange={(e) => setData(e.target.value)} required className="h-12" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="valor">Valor (R$)</Label>
+            <Label htmlFor="valor">Valor pago (R$)</Label>
             <Input id="valor" name="valor" inputMode="decimal" placeholder="0,00" value={valor} onChange={(e) => setValor(e.target.value)} required className="h-12 text-lg font-semibold tabular" />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="desconto">Desconto (R$)</Label>
+            <Input id="desconto" name="desconto" inputMode="decimal" placeholder="0,00" value={desconto} onChange={(e) => setDesconto(e.target.value)} className="tabular h-12" />
+            <p className="text-xs text-marinho-300">
+              {descontoNumero > 0 ? `Nota de ${reais(valorNumero + descontoNumero)} com ${reais(descontoNumero)} de desconto.` : "À vista, negociado: o valor pago acima já é o líquido."}
+            </p>
           </div>
           <div className="space-y-1.5 sm:col-span-2">
             <Label htmlFor="descricao">Descrição</Label>
@@ -399,10 +408,18 @@ export function FormularioDespesa({
             </div>
           ))}
           {itens.length > 0 && (
-            <p className={"text-right text-sm " + (Math.abs(somaItens - numero(valor)) > 0.01 ? "text-atencao" : "text-marinho-300")}>
-              Soma dos itens: <strong className="tabular">{reais(somaItens)}</strong>
-              {Math.abs(somaItens - numero(valor)) > 0.01 ? ` · difere do valor da despesa (${reais(numero(valor))})` : " · bate com o valor da despesa"}
-            </p>
+            <div className="text-right text-sm">
+              <p className={Math.abs(somaItens - valorNumero - descontoNumero) > 0.01 ? "text-atencao" : "text-marinho-300"}>
+                Soma dos itens: <strong className="tabular">{reais(somaItens)}</strong>
+                {descontoNumero > 0 ? ` − ${reais(descontoNumero)} de desconto = ${reais(somaItens - descontoNumero)}` : ""}
+                {Math.abs(somaItens - valorNumero - descontoNumero) > 0.01 ? ` · difere do valor pago (${reais(valorNumero)})` : " · bate com o valor pago"}
+              </p>
+              {somaItens - valorNumero > 0.01 && Math.abs(somaItens - valorNumero - descontoNumero) > 0.01 && (
+                <Button type="button" variant="secundario" size="pequeno" className="mt-1" onClick={() => setDesconto((somaItens - valorNumero).toFixed(2).replace(".", ","))}>
+                  lançar a diferença de {reais(somaItens - valorNumero)} como desconto
+                </Button>
+              )}
+            </div>
           )}
         </div>
 

@@ -34,6 +34,7 @@ export async function GET(request: Request) {
     { header: "PAGOU", key: "pagador", width: 14 },
     { header: "RATEIO", key: "criterio", width: 20 },
     { header: "VALOR", key: "valor", width: 14, style: { numFmt: MOEDA } },
+    { header: "DESCONTO", key: "desconto", width: 12, style: { numFmt: MOEDA } },
     ...socios.map((s) => ({ header: s.apelido, key: `s_${s.id}`, width: 14, style: { numFmt: MOEDA } })),
     { header: "SITUAÇÃO", key: "status", width: 12 },
     { header: "OBSERVAÇÃO", key: "obs", width: 30 },
@@ -50,6 +51,7 @@ export async function GET(request: Request) {
       pagador: d.pagador,
       criterio: ROTULO_CRITERIO[d.criterio].toUpperCase() + (d.socio_direto ? ` → ${d.socio_direto}` : ""),
       valor: d.valor,
+      desconto: d.desconto > 0 ? d.desconto : null,
       status: d.status,
       obs: d.observacao ?? "",
     };
@@ -57,7 +59,7 @@ export async function GET(request: Request) {
     ws.addRow(linha);
   }
 
-  const totais: (string | number | null)[] = ["TOTAL", null, null, null, null, null, despesas.reduce((s, d) => s + d.valor, 0)];
+  const totais: (string | number | null)[] = ["TOTAL", null, null, null, null, null, despesas.reduce((s, d) => s + d.valor, 0), despesas.reduce((s, d) => s + d.desconto, 0)];
   for (const s of socios) totais.push(despesas.reduce((acc, d) => acc + (d.rateios.find((r) => r.socio_id === s.id)?.valor ?? 0), 0));
   adicionarTotal(ws, totais);
 
