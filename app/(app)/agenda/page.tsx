@@ -28,7 +28,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BotaoAcao } from "./botoes";
-import { FormularioBloqueio, FormularioEditarReserva, FormularioReserva } from "./formularios";
+import { FormularioBloqueio, FormularioEditarReserva, FormularioIndisponivel, FormularioReserva } from "./formularios";
 import { SeletorTroca } from "./seletor-troca";
 
 export const metadata: Metadata = { title: "Agenda" };
@@ -49,6 +49,7 @@ export default async function PaginaAgenda({ searchParams }: { searchParams: Pro
   const mes = /^\d{4}-\d{2}$/.test(busca.mes ?? "") ? `${busca.mes}-01` : `${h.slice(0, 7)}-01`;
   const socioLogado = usuario.socioId;
   const admin = usuario.perfil === "admin";
+  const piloto = usuario.perfil === "piloto";
 
   await garantirEscolhaAberta(aeronave.id);
 
@@ -323,10 +324,18 @@ export default async function PaginaAgenda({ searchParams }: { searchParams: Pro
           <CardTitle className="flex items-center gap-2 text-lg">
             <Lock className="size-4" /> Avião indisponível
           </CardTitle>
-          <CardDescription>Manutenção, documento vencido, avião fora da base. Bloqueio vence reserva.</CardDescription>
+          <CardDescription>Manutenção, documento vencido, avião fora da base, piloto indisponível. Bloqueio vence reserva.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {admin && <FormularioBloqueio hoje={h} />}
+          {(piloto || admin) && (
+            <details className="rounded border border-dashed border-marinho-300 p-3" open={piloto}>
+              <summary className="cursor-pointer text-sm font-semibold text-laranja-700">Não vou estar disponível (recesso, férias, compromisso)</summary>
+              <div className="mt-3">
+                <FormularioIndisponivel hoje={h} />
+              </div>
+            </details>
+          )}
           <ul className="divide-y divide-marinho-100 text-sm dark:divide-marinho-300">
             {bloqueios.map((b) => (
               <li key={b.id} className="flex flex-wrap items-center gap-2 py-2">
@@ -336,7 +345,10 @@ export default async function PaginaAgenda({ searchParams }: { searchParams: Pro
                   {b.fim !== b.inicio ? ` – ${fmtData(b.fim)}` : ""}
                 </span>
                 <span className="text-marinho-300">{b.motivo}</span>
-                {admin && <BotaoAcao acao="removerBloqueio" id={b.id} rotulo="Remover" variant="fantasma" confirmar="Liberar o avião neste período?" />}
+                {admin && b.tipo !== "PILOTO" && <BotaoAcao acao="removerBloqueio" id={b.id} rotulo="Remover" variant="fantasma" confirmar="Liberar o avião neste período?" />}
+                {b.tipo === "PILOTO" && (admin || (piloto && b.piloto_id === usuario.pilotoId)) && (
+                  <BotaoAcao acao="liberarIndisponivel" id={b.id} rotulo="Estou disponível" variant="fantasma" confirmar="Liberar estes dias?" />
+                )}
               </li>
             ))}
             {bloqueios.length === 0 && <li className="py-2 text-marinho-300">Nenhum bloqueio no mês.</li>}

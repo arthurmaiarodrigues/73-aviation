@@ -298,3 +298,49 @@ export async function marcarNaoRealizada(id: string): Promise<Resultado> {
   revalidar();
   return { ok: true, mensagem: "Marcada como não realizada. Não conta como uso." };
 }
+
+/**
+ * O piloto marca os dias em que não está disponível (recesso, férias,
+ * compromisso). Vira bloqueio na agenda: ninguém reserva esses dias.
+ */
+export async function marcarIndisponivel(_a: Resultado, form: FormData): Promise<Resultado> {
+  const { user, usuario } = await usuarioDaSessao();
+  if (!user || !usuario?.ativo || !(usuario.perfil === "piloto" || usuario.perfil === "admin")) {
+    return { ok: false, mensagem: "Só o piloto ou o administrador marca indisponibilidade." };
+  }
+  const inicio = texto(form, "inicio");
+  const fim = texto(form, "fim") ?? inicio;
+  const tipo = texto(form, "motivo_tipo") ?? "RECESSO";
+  const detalhe = texto(form, "motivo");
+  if (!inicio) return { ok: false, mensagem: "Informe o período." };
+  const motivo = [tipo, detalhe].filter(Boolean).join(" — ");
+
+  const supabase = await criarClienteServidor();
+  const { error } = await supabase.rpc("marcar_indisponivel", { p_inicio: inicio, p_fim: fim, p_motivo: motivo });
+  if (error) return { ok: false, mensagem: error.message.replace(/^.*?(?:ERROR|error):\s*/, "") };
+
+  // Os sócios precisam saber antes de marcar viagem.
+  await notificar(
+    { perfis: ["admin", "socio"] },
+    {
+      titulo: "Piloto indisponível",
+      corpo: `${usuario.nome.split(" ")[0]} não está disponível de ${fmtData(inicio)} a ${fmtData(fim)} (${motivo.toLowerCase()}).`,
+      url: "/agenda",
+      tag: "agenda",
+    },
+  );
+  revalidar();
+  return { ok: true, mensagem: "Período marcado como indisponível. A agenda já bloqueou esses dias." };
+}
+
+/** O próprio piloto (ou o admin) volta a ficar disponível no período. */
+export async function liberarIndisponivel(id: string): Promise<Resultado> {
+  const { user, usuario } = await usuarioDaSessao();
+  if (!user || !usuario?.ativo) return { ok: false, mensagem: "Sem sessão." };
+  if (!UUID.test(id)) return { ok: false, mensagem: "Bloqueio inválido." };
+  const supabase = await criarClienteServidor();
+  const { error } = await supabase.rpc("liberar_indisponivel", { p_bloqueio: id });
+  if (error) return { ok: false, mensagem: error.message.replace(/^.*?(?:ERROR|error):\s*/, "") };
+  revalidar();
+  return { ok: true, mensagem: "Período liberado." };
+}

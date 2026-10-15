@@ -68,8 +68,10 @@ export type Bloqueio = {
   id: string;
   inicio: string;
   fim: string;
-  tipo: "MANUTENCAO" | "DOCUMENTO" | "FORA_DA_BASE" | "OUTRO";
+  tipo: "MANUTENCAO" | "DOCUMENTO" | "FORA_DA_BASE" | "PILOTO" | "OUTRO";
   motivo: string;
+  /** Quem marcou, quando é indisponibilidade de piloto. */
+  piloto_id: string | null;
 };
 
 export type DiaAgenda = {
@@ -91,6 +93,7 @@ export const ROTULO_BLOQUEIO: Record<Bloqueio["tipo"], string> = {
   MANUTENCAO: "Manutenção",
   DOCUMENTO: "Documento vencido",
   FORA_DA_BASE: "Fora da base",
+  PILOTO: "Piloto indisponível",
   OUTRO: "Indisponível",
 };
 
@@ -263,7 +266,7 @@ export async function listarBloqueios(aeronaveId: string, de: string, ate: strin
   const supabase = await criarClienteServidor();
   const { data, error } = await supabase
     .from("bloqueios")
-    .select("id, inicio, fim, tipo, motivo")
+    .select("id, inicio, fim, tipo, motivo, piloto_id")
     .eq("aeronave_id", aeronaveId)
     .is("deleted_at", null)
     .lte("inicio", ate)

@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Alerta } from "@/components/ui/alerta";
 import { SeletorAerodromo } from "@/components/seletor-aerodromo";
-import { bloquear, editarReserva, reservar, type Resultado } from "./acoes";
+import { bloquear, editarReserva, marcarIndisponivel, reservar, type Resultado } from "./acoes";
 
 const INICIAL: Resultado = { ok: true, mensagem: "" };
 
@@ -156,6 +156,53 @@ export function FormularioBloqueio({ hoje }: { hoje: string }) {
         </div>
       </div>
       <Botao rotulo="Bloquear avião" icone={<Lock />} />
+    </form>
+  );
+}
+
+/**
+ * O piloto marca o período em que não está disponível. Vira bloqueio: a
+ * agenda pinta os dias e ninguém reserva nesse intervalo.
+ */
+export function FormularioIndisponivel({ hoje }: { hoje: string }) {
+  const [estado, acao] = useActionState(marcarIndisponivel, INICIAL);
+  return (
+    <form action={acao} className="space-y-3">
+      {estado.mensagem && <Alerta tom={estado.ok ? "ok" : "erro"}>{estado.mensagem}</Alerta>}
+      <div className="grid gap-3 sm:grid-cols-4">
+        <div className="space-y-1">
+          <Label htmlFor="i-inicio" className="text-xs">
+            De
+          </Label>
+          <Input id="i-inicio" name="inicio" type="date" defaultValue={hoje} required />
+        </div>
+        <div className="space-y-1">
+          <Label htmlFor="i-fim" className="text-xs">
+            Até
+          </Label>
+          <Input id="i-fim" name="fim" type="date" />
+        </div>
+        <div className="space-y-1">
+          <Label htmlFor="i-tipo" className="text-xs">
+            Motivo
+          </Label>
+          <Select id="i-tipo" name="motivo_tipo" defaultValue="RECESSO">
+            <option value="RECESSO">Recesso</option>
+            <option value="FÉRIAS">Férias</option>
+            <option value="COMPROMISSO">Compromisso</option>
+            <option value="TREINAMENTO">Treinamento</option>
+            <option value="SAÚDE">Saúde</option>
+            <option value="OUTRO">Outro</option>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <Label htmlFor="i-detalhe" className="text-xs">
+            Detalhe (opcional)
+          </Label>
+          <Input id="i-detalhe" name="motivo" placeholder="VIAGEM DE FAMÍLIA" className="uppercase" />
+        </div>
+      </div>
+      <Botao rotulo="Marcar indisponível" icone={<Lock />} />
     </form>
   );
 }
