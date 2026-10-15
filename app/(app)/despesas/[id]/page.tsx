@@ -9,6 +9,8 @@ import { buscarDespesa, urlDoComprovante } from "@/lib/dados/financeiro";
 import { listarVoos } from "@/lib/dados/voos";
 import { data as fmtData, horas as fmtHoras, hoje, percentual, reais } from "@/lib/formato";
 import { ROTULO_CRITERIO } from "@/lib/tipos";
+import { ratearProporcional } from "@/lib/proporcional";
+import { cn } from "@/lib/utils";
 import { Alerta } from "@/components/ui/alerta";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,6 +30,9 @@ export default async function PaginaDespesa({
   const usuario = await exigirValores();
   const despesa = await buscarDespesa(id);
   if (!despesa) notFound();
+  // Desconto da nota espalhado pelos itens, proporcional a cada um.
+  const comDesconto =
+    despesa.desconto > 0 && despesa.itens.length > 0 ? ratearProporcional(despesa.itens.map((i) => i.valor), despesa.valor) : null;
 
   const aeronave = await aeronaveAtiva();
   const [socios, categorias, fornecedores, voos, comprovante] = await Promise.all([
@@ -71,10 +76,19 @@ export default async function PaginaDespesa({
               {despesa.itens.map((i, idx) => (
                 <li key={idx} className="flex items-center justify-between gap-3 py-1.5">
                   <span>{i.descricao}</span>
-                  <span className="tabular font-semibold">{reais(i.valor)}</span>
+                  <span className="flex items-baseline gap-3">
+                    <span className={cn("tabular", comDesconto ? "text-marinho-300 line-through" : "font-semibold")}>{reais(i.valor)}</span>
+                    {comDesconto && <span className="tabular font-semibold">{reais(comDesconto[idx])}</span>}
+                  </span>
                 </li>
               ))}
             </ul>
+            {comDesconto && (
+              <p className="mt-2 flex items-baseline justify-between gap-3 border-t border-marinho pt-2 text-sm font-semibold">
+                <span>Com o desconto de {reais(despesa.desconto)} dividido entre os itens</span>
+                <span className="tabular">{reais(despesa.valor)}</span>
+              </p>
+            )}
           </CardContent>
         </Card>
       )}
