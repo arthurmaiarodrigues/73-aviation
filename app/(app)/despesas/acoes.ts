@@ -67,6 +67,8 @@ function lerCampos(form: FormData): { ok: true; campos: Campos; manuais: { socio
   if (!descricao) return { ok: false, mensagem: "Descreva a despesa." };
   const valor = lerNumero(form.get("valor"));
   if (valor === null || valor < 0) return { ok: false, mensagem: "Informe o valor." };
+  const desconto = lerNumero(form.get("desconto")) ?? 0;
+  if (desconto > 0 && valor <= 0) return { ok: false, mensagem: "O desconto não pode ser maior que o valor da nota." };
   const categoria_id = Number(texto(form, "categoria_id"));
   if (!Number.isInteger(categoria_id)) return { ok: false, mensagem: "Escolha a categoria." };
   const criterio = (texto(form, "criterio") ?? "IGUAL") as CriterioRateio;
@@ -90,7 +92,7 @@ function lerCampos(form: FormData): { ok: true; campos: Campos; manuais: { socio
       fornecedor_id: uuid(form, "fornecedor_id"),
       categoria_id,
       valor,
-      desconto: lerNumero(form.get("desconto")) ?? 0,
+      desconto,
       pagador_socio_id: pagadorBruto && pagadorBruto !== "CAIXA" && pagadorBruto !== "SOCIOS" && UUID.test(pagadorBruto) ? pagadorBruto : null,
       // cada sócio pagou a parte dele direto: fora do caixa e fora do extrato
       pago_pelos_socios: pagadorBruto === "SOCIOS",
