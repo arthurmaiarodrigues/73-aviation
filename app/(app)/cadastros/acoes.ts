@@ -4,10 +4,13 @@ import { revalidatePath } from "next/cache";
 
 import { usuarioDaSessao } from "@/lib/perfil";
 import { criarClienteServidor } from "@/lib/supabase/server";
+import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { veValores } from "@/lib/tipos";
-import { hoje, lerNumero } from "@/lib/formato";
+import { caixaAlta, hoje, lerNumero } from "@/lib/formato";
 
 export type Resultado = { ok: boolean; mensagem: string };
+/** Criação de acesso devolve também o link pessoal para mandar. */
+export type ResultadoAcesso = Resultado & { link: string | null };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -198,4 +201,84 @@ export async function salvarAerodromo(_a: Resultado, form: FormData): Promise<Re
   if (error) return { ok: false, mensagem: /row-level/i.test(error.message) ? "Só o administrador altera aeródromo já cadastrado." : error.message };
   revalidatePath("/cadastros");
   return { ok: true, mensagem: "Aeródromo salvo." };
+}
+
+/**
+ * Cria o acesso de alguém direto pelo app: faz o login no Auth, grava o
+ * perfil e devolve o link pessoal para mandar (WhatsApp, e-mail). O token
+ * vai no fragmento (#th=…), que a prévia do WhatsApp não gasta.
+ * Usa a chave secreta — só o administrador chega aqui.
+ */
+export async function criarAcesso(_a: ResultadoAcesso, form: FormData): Promise<ResultadoAcesso> {
+  const adm = await exigirAdminAcao();
+  if (!adm.ok) return { ok: false, mensagem: adm.mensagem, link: null };
+
+  const email = (texto(form, "email") ?? "").toLowerCase();
+  const nome = caixaAlta(texto(form, "nome") ?? "");
+  const perfil = texto(form, "perfil") ?? "socio";
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ok: false, mensagem: "Informe um e-mail válido.", link: null };
+  if (!nome) return { ok: false, mensagem: "Informe o nome.", link: null };
+  if (!["admin", "socio", "piloto", "espectador"].includes(perfil)) return { ok: false, mensagem: "Perfil inválido.", link: null };
+
+  const admin = criarClienteAdmin();
+
+  // Cria no Auth; se o e-mail já existe, aproveita o login que está lá.
+  let usuarioId: string | null = null;
+  const { data: criado, error: erroCriar } = await admin.auth.admin.createUser({
+    email,
+    email_confirm: true,
+    user_metadata: { nome },
+  });
+  if (erroCriar) {
+    const jaExiste = erroCriar.status === 422 || /already been registered|already exists/i.test(erroCriar.message);
+    if (!jaExiste) return { ok: false, mensagem: `Falha no login: ${erroCriar.message}`, link: null };
+    const { data: lista } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+    usuarioId = lista?.users.find((u) => u.email?.toLowerCase() === email)?.id ?? null;
+    if (!usuarioId) return { ok: false, mensagem: "O e-mail já existe, mas não consegui encontrá-lo.", link: null };
+  } else {
+    usuarioId = criado.user.id;
+  }
+
+  const { error: erroPerfil } = await admin.from("usuarios").upsert({ id: usuarioId, nome, perfil, ativo: true }, { onConflict: "id" });
+  if (erroPerfil) return { ok: false, mensagem: `Login criado, mas falhou o perfil: ${erroPerfil.message}`, link: null };
+
+  // Sócio com o mesmo apelido e ainda sem login fica vinculado.
+  if (perfil === "socio") {
+    const apelido = nome.split(" ")[0];
+    const { data: socio } = await admin.from("socios").select("id, usuario_id").eq("apelido", apelido).maybeSingle();
+    if (socio && !socio.usuario_id) await admin.from("socios").update({ usuario_id: usuarioId }).eq("id", socio.id);
+  }
+  if (perfil === "piloto") {
+    const { data: piloto } = await admin.from("pilotos").select("id, usuario_id").eq("nome", nome).maybeSingle();
+    if (piloto && !piloto.usuario_id) await admin.from("pilotos").update({ usuario_id: usuarioId }).eq("id", piloto.id);
+  }
+
+  const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://ppznm.vercel.app";
+  const { data: magico, error: erroLink } = await admin.auth.admin.generateLink({ type: "magiclink", email });
+  const link = erroLink || !magico?.properties?.hashed_token ? null : `${site}/auth/definir-senha#th=${magico.properties.hashed_token}`;
+
+  revalidatePath("/cadastros");
+  return {
+    ok: true,
+    mensagem: link
+      ? "Acesso criado. Mande o link abaixo para a pessoa escolher a senha (vale 12 h)."
+      : "Acesso criado, mas não consegui gerar o link. Use o botão de link de acesso na linha do usuário.",
+    link,
+  };
+}
+
+/** Novo link de acesso para quem já tem login (esqueceu a senha, link venceu). */
+export async function linkDeAcesso(id: string): Promise<ResultadoAcesso> {
+  const adm = await exigirAdminAcao();
+  if (!adm.ok) return { ok: false, mensagem: adm.mensagem, link: null };
+  if (!UUID.test(id)) return { ok: false, mensagem: "Usuário inválido.", link: null };
+
+  const admin = criarClienteAdmin();
+  const { data: usuario, error } = await admin.auth.admin.getUserById(id);
+  if (error || !usuario?.user?.email) return { ok: false, mensagem: "Não achei o e-mail desse login.", link: null };
+
+  const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://ppznm.vercel.app";
+  const { data: magico, error: erroLink } = await admin.auth.admin.generateLink({ type: "magiclink", email: usuario.user.email });
+  if (erroLink || !magico?.properties?.hashed_token) return { ok: false, mensagem: `Falha ao gerar o link: ${erroLink?.message ?? "sem token"}`, link: null };
+  return { ok: true, mensagem: `Link de ${usuario.user.email} — vale 12 h.`, link: `${site}/auth/definir-senha#th=${magico.properties.hashed_token}` };
 }

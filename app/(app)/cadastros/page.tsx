@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { exigirSessao } from "@/lib/perfil";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { aeronaveAtiva, listarAerodromos, listarFornecedores, listarSocios } from "@/lib/dados/cadastros";
+import { NovoAcesso, BotaoLinkAcesso } from "./novo-acesso";
 import { ROTULO_PERFIL, type Perfil } from "@/lib/tipos";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -139,11 +140,12 @@ export default async function PaginaCadastros() {
         <Card>
           <CardHeader>
             <CardTitle>Usuários</CardTitle>
-            <CardDescription>
-              Login novo: <code className="rounded bg-areia-200 px-1 dark:bg-marinho-700">npm run criar-usuario -- email senha &quot;NOME&quot; socio</code> no computador, ou convite pelo painel do Supabase.
-            </CardDescription>
+            <CardDescription>Crie o acesso aqui mesmo e mande o link para a pessoa escolher a senha.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-5">
+            <div className="rounded-lg border border-laranja p-4">
+              <NovoAcesso />
+            </div>
             {(usuarios ?? []).map((u) => (
               <FormularioAcao key={u.id} acao={salvarUsuario} className="grid items-end gap-3 sm:grid-cols-5">
                 <input type="hidden" name="id" value={u.id} />
@@ -161,7 +163,10 @@ export default async function PaginaCadastros() {
                 <label className="flex items-center gap-2 pb-2 text-sm">
                   <input type="checkbox" name="ativo" defaultChecked={u.ativo} /> ativo
                 </label>
-                <p className="pb-2 text-xs text-marinho-300">{socios.find((s) => s.usuario_id === u.id)?.apelido ?? "não é sócio"}</p>
+                <div className="space-y-1 pb-1">
+                  <p className="text-xs text-marinho-300">{socios.find((s) => s.usuario_id === u.id)?.apelido ?? "não é sócio"}</p>
+                  <BotaoLinkAcesso id={u.id} />
+                </div>
               </FormularioAcao>
             ))}
           </CardContent>
