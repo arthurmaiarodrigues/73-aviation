@@ -36,6 +36,11 @@ const PILOTO: ItemMenu[] = [
   { rotulo: "Instalar o app", href: "/instalar", icone: "instalar" },
 ];
 
+// Espectador vê as mesmas telas do sócio, sem o atalho de lançar voo.
+const ESPECTADOR: ItemMenu[] = SOCIO.filter((i) => i.href !== "/voos/novo");
+
 export function menuDoPerfil(perfil: Perfil): ItemMenu[] {
-  return perfil === "piloto" ? PILOTO : SOCIO;
+  if (perfil === "piloto") return PILOTO;
+  if (perfil === "espectador") return ESPECTADOR;
+  return SOCIO;
 }

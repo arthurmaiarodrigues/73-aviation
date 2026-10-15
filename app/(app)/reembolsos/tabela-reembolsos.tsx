@@ -48,7 +48,7 @@ export function TabelaReembolsos({
   socios,
 }: {
   itens: LinhaReembolso[];
-  perfil: "admin" | "socio" | "piloto";
+  perfil: "admin" | "socio" | "piloto" | "espectador";
   socioId: string | null;
   pilotoId: string | null;
   socios: { id: string; apelido: string }[];

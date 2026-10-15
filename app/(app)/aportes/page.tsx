@@ -6,6 +6,7 @@ import { listarSocios } from "@/lib/dados/cadastros";
 import { listarAportes, saldoDoCaixa, urlDoComprovante } from "@/lib/dados/financeiro";
 import { data as fmtData, hoje, reais } from "@/lib/formato";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { podeLancar } from "@/lib/tipos";
 import { Cabecalho, Celula, Tabela, TabelaCabecalho, TabelaCorpo, TabelaLinha, TabelaRodape } from "@/components/ui/tabela";
 import { BotaoApagarAporte, FormularioAporte } from "./formulario-aporte";
 
@@ -51,7 +52,9 @@ export default async function PaginaAportes() {
           <CardTitle>Novo aporte</CardTitle>
         </CardHeader>
         <CardContent>
-          <FormularioAporte socios={socios.map((s) => ({ id: s.id, apelido: s.apelido }))} hoje={hoje()} socioLogadoId={usuario.socioId} />
+          {podeLancar(usuario.perfil) && (
+            <FormularioAporte socios={socios.map((s) => ({ id: s.id, apelido: s.apelido }))} hoje={hoje()} socioLogadoId={usuario.socioId} />
+          )}
         </CardContent>
       </Card>
 

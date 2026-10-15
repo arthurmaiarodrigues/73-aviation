@@ -16,7 +16,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { vincularSocio } from "./vincular-socio.mjs";
 
-const PERFIS = ["admin", "socio", "piloto"];
+const PERFIS = ["admin", "socio", "piloto", "espectador"];
 
 const [email, senha, nome, perfil = "socio"] = process.argv.slice(2);
 

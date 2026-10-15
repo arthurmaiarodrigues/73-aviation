@@ -16,7 +16,7 @@ import { listarContas } from "@/lib/dados/contas";
 import { ROTULO_BLOQUEIO, agendaDoDia, fila, garantirEscolhaAberta, mesSeguinte, proximasReservas, reservasSemVoo, vezDeEscolher } from "@/lib/dados/agenda";
 import { BotaoAcao } from "@/app/(app)/agenda/botoes";
 import { data as fmtData, horas as fmtHoras, horimetro as fmtHorimetro, hoje, inicioDoMes, mesPorExtenso, reais, trimestreDe } from "@/lib/formato";
-import { veValores } from "@/lib/tipos";
+import { veDados } from "@/lib/tipos";
 import { cn } from "@/lib/utils";
 import { Alerta } from "@/components/ui/alerta";
 import { Badge } from "@/components/ui/badge";
@@ -32,7 +32,7 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
   const usuario = await exigirSessao();
   const aeronave = await aeronaveAtiva();
   const mes = inicioDoMes(hoje());
-  const valores = veValores(usuario.perfil);
+  const valores = veDados(usuario.perfil);
 
   const [ultimo, aberto, local, pendentes, ultimosVoos, socios] = await Promise.all([
     ultimoHorimetro(aeronave.id),

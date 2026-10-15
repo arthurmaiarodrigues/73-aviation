@@ -8,7 +8,7 @@ import { listarAbastecimentos } from "@/lib/dados/financeiro";
 import { ROTULO_MOVIMENTO, movimentosDoTanque, retiradasRecentes, saldoDoTanque, saldoLitrosTanque, tanquePorSocio, usoDesdeUltimaCompra } from "@/lib/dados/tanque";
 import { listarVoos } from "@/lib/dados/voos";
 import { data as fmtData, hoje, inicioDoMes, litros as fmtLitros, mesPorExtenso, reais } from "@/lib/formato";
-import { veValores } from "@/lib/tipos";
+import { veDados, podeLancar } from "@/lib/tipos";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,7 +20,8 @@ export const metadata: Metadata = { title: "Combustível" };
 export default async function PaginaCombustivel() {
   const usuario = await exigirSessao();
   const aeronave = await aeronaveAtiva();
-  if (!veValores(usuario.perfil)) return <CombustivelPiloto aeronaveId={aeronave.id} capacidade={aeronave.capacidade_combustivel_l} />;
+  const lancar = podeLancar(usuario.perfil);
+  if (!veDados(usuario.perfil)) return <CombustivelPiloto aeronaveId={aeronave.id} capacidade={aeronave.capacidade_combustivel_l} />;
   const mes = inicioDoMes(hoje());
   const [saldo, movimentos, porSocio, socios, fornecedores, voos, fora] = await Promise.all([
     saldoDoTanque(aeronave.id),
@@ -92,6 +93,7 @@ export default async function PaginaCombustivel() {
         </CardHeader>
       </Card>
 
+      {lancar && (
       <FormularioTanque
         socios={socios.map((s) => ({ id: s.id, apelido: s.apelido }))}
         fornecedores={fornecedores.map((f) => ({ id: f.id, nome: f.nome }))}
@@ -101,6 +103,7 @@ export default async function PaginaCombustivel() {
         saldoLitros={saldo.litros}
         precoLitro={saldo.preco_litro}
       />
+      )}
 
       {/* Próxima compra */}
       <Card className="border-info">
@@ -192,10 +195,14 @@ export default async function PaginaCombustivel() {
                 <Celula numerico>{m.tipo === "COMPRA" && m.valor !== null ? reais(m.valor) : "—"}</Celula>
                 <Celula numerico>{fmtLitros(m.saldo_litros)}</Celula>
                 <Celula className="whitespace-nowrap text-right">
-                  <Link href={`/combustivel/${m.id}`} className="mr-3 text-xs text-laranja-700 hover:underline">
-                    editar
-                  </Link>
-                  <BotaoApagarMovimento id={m.id} />
+                  {lancar && (
+                    <>
+                      <Link href={`/combustivel/${m.id}`} className="mr-3 text-xs text-laranja-700 hover:underline">
+                        editar
+                      </Link>
+                      <BotaoApagarMovimento id={m.id} />
+                    </>
+                  )}
                 </Celula>
               </TabelaLinha>
             ))}

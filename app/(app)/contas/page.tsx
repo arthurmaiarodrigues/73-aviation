@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { FileText } from "lucide-react";
 
 import { exigirValores } from "@/lib/perfil";
+import { podeLancar } from "@/lib/tipos";
 import { aeronaveAtiva, listarCategorias, listarFornecedores, listarSocios } from "@/lib/dados/cadastros";
 import { listarContas } from "@/lib/dados/contas";
 import { hoje, reais } from "@/lib/formato";
@@ -21,6 +22,7 @@ export default async function PaginaContas() {
     listarSocios({ somenteAtivos: true }),
   ]);
 
+  const lancar = podeLancar(usuario.perfil);
   const abertas = contas.filter((c) => !c.pago_em);
   const vencidas = abertas.filter((c) => c.situacao === "VENCIDA");
   const logo = abertas.filter((c) => c.situacao === "VENCE_EM_BREVE");
@@ -72,6 +74,7 @@ export default async function PaginaContas() {
         </Card>
       </div>
 
+      {lancar && (
       <Card className="border-laranja">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
@@ -86,11 +89,13 @@ export default async function PaginaContas() {
           />
         </CardContent>
       </Card>
+      )}
 
       <TabelaContas
         contas={contas}
         socios={socios.map((s) => ({ id: s.id, apelido: s.apelido }))}
         admin={usuario.perfil === "admin"}
+        lancar={lancar}
         hoje={hoje()}
       />
     </div>

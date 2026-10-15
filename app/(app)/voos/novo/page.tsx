@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
-import { exigirSessao } from "@/lib/perfil";
+import { exigirLancamento } from "@/lib/perfil";
 import { aeronaveAtiva, aerodromosRecentes, listarPilotos, listarSocios } from "@/lib/dados/cadastros";
 import { ondeEstaAviao, ultimoHorimetro, vooEmAberto } from "@/lib/dados/voos";
 import { agendaDoDia } from "@/lib/dados/agenda";
@@ -13,7 +13,7 @@ export const metadata: Metadata = { title: "Registrar voo" };
 
 export default async function PaginaNovoVoo({ searchParams }: { searchParams: Promise<{ data?: string; socio?: string; destino?: string; origem?: string }> }) {
   const busca = await searchParams;
-  const usuario = await exigirSessao();
+  const usuario = await exigirLancamento();
   const aeronave = await aeronaveAtiva();
 
   // Já tem um voo aberto (decolou e não registrou o pouso): fecha ele primeiro.

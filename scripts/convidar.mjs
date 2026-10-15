@@ -14,7 +14,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { vincularSocio } from "./vincular-socio.mjs";
 
-const PERFIS = ["admin", "socio", "piloto"];
+const PERFIS = ["admin", "socio", "piloto", "espectador"];
 const [email, nome, perfil = "socio"] = process.argv.slice(2);
 const erro = (m) => { console.error(`\n  ✗ ${m}\n`); process.exit(1); };
 if (!email || !nome) erro('Uso: npm run convidar -- <email> "<NOME>" [socio|piloto|admin]');

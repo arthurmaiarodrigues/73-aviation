@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { usuarioDaSessao } from "@/lib/perfil";
 import { criarClienteServidor } from "@/lib/supabase/server";
+import { veValores } from "@/lib/tipos";
 import { hoje, lerNumero } from "@/lib/formato";
 
 export type Resultado = { ok: boolean; mensagem: string };
@@ -96,7 +97,7 @@ export async function salvarUsuario(_a: Resultado, form: FormData): Promise<Resu
   const id = texto(form, "id");
   if (!id || !UUID.test(id)) return { ok: false, mensagem: "Usuário inválido." };
   const perfil = texto(form, "perfil");
-  if (!perfil || !["admin", "socio", "piloto"].includes(perfil)) return { ok: false, mensagem: "Perfil inválido." };
+  if (!perfil || !["admin", "socio", "piloto", "espectador"].includes(perfil)) return { ok: false, mensagem: "Perfil inválido." };
   if (id === adm.id && perfil !== "admin") return { ok: false, mensagem: "Você não pode tirar o próprio perfil de administrador." };
 
   const supabase = await criarClienteServidor();
@@ -168,7 +169,7 @@ export async function ativarPiloto(id: string, ativo: boolean): Promise<Resultad
 
 export async function salvarFornecedor(_a: Resultado, form: FormData): Promise<Resultado> {
   const { user, usuario } = await usuarioDaSessao();
-  if (!user || !usuario?.ativo || usuario.perfil === "piloto") return { ok: false, mensagem: "Sem acesso." };
+  if (!user || !usuario?.ativo || !veValores(usuario.perfil)) return { ok: false, mensagem: "Sem acesso." };
   const nome = texto(form, "nome");
   if (!nome) return { ok: false, mensagem: "Informe o nome." };
   const tipo = texto(form, "tipo") === "PF" ? "PF" : "PJ";

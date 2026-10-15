@@ -30,11 +30,14 @@ export function TabelaContas({
   contas,
   socios,
   admin,
+  lancar,
   hoje,
 }: {
   contas: ContaPagar[];
   socios: { id: string; apelido: string }[];
   admin: boolean;
+  /** Espectador não lança nem marca pagamento. */
+  lancar: boolean;
   hoje: string;
 }) {
   const router = useRouter();
@@ -97,24 +100,28 @@ export function TabelaContas({
                     <span className="text-xs text-marinho-300">
                       {c.nota_data ? fmtData(c.nota_data) : ""} {c.nota_valor !== null && c.nota_valor !== c.valor ? `· ${reais(c.nota_valor)}` : ""}
                     </span>
-                    <Button
-                      type="button"
-                      variant="fantasma"
-                      size="pequeno"
-                      onClick={() =>
-                        ligarNota(c.id, null).then((r) => {
-                          setMsg({ ok: r.ok, texto: r.mensagem });
-                          router.refresh();
-                        })
-                      }
-                    >
-                      <Unlink className="size-4" /> desligar
-                    </Button>
+                    {lancar && (
+                      <Button
+                        type="button"
+                        variant="fantasma"
+                        size="pequeno"
+                        onClick={() =>
+                          ligarNota(c.id, null).then((r) => {
+                            setMsg({ ok: r.ok, texto: r.mensagem });
+                            router.refresh();
+                          })
+                        }
+                      >
+                        <Unlink className="size-4" /> desligar
+                      </Button>
+                    )}
                   </span>
-                ) : (
+                ) : lancar ? (
                   <button type="button" onClick={() => setAberta(aberta === c.id ? null : c.id)} className="inline-flex items-center gap-1 text-sm font-semibold text-laranja-700">
                     <Link2 className="size-4" /> {aberta === c.id ? "fechar" : "ligar a uma nota"}
                   </button>
+                ) : (
+                  <span className="text-marinho-300">—</span>
                 )}
                 {aberta === c.id && !c.despesa_id && <Sugestoes conta={c} aoLigar={(t) => setMsg(t)} />}
               </Celula>
@@ -126,7 +133,7 @@ export function TabelaContas({
                 {c.pago_em && c.pagador && <span className="block text-xs text-marinho-300">por {c.pagador}</span>}
               </Celula>
               <Celula className="whitespace-nowrap text-right">
-                <Pagamento conta={c} socios={socios} hoje={hoje} aoResponder={(t) => setMsg(t)} />
+                {lancar && <Pagamento conta={c} socios={socios} hoje={hoje} aoResponder={(t) => setMsg(t)} />}
                 {admin && (
                   <Button
                     type="button"

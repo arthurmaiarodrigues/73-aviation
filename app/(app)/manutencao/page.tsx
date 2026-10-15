@@ -7,7 +7,7 @@ import { aeronaveAtiva, listarFornecedores, listarSocios } from "@/lib/dados/cad
 import { listarVoos } from "@/lib/dados/voos";
 import { ROTULO_GATILHO, ROTULO_STATUS, listarDocumentos, listarManutencoes, listarPlano, urlDoDocumento, type Situacao } from "@/lib/dados/manutencao";
 import { data as fmtData, hoje, horas as fmtHoras, horimetro as fmtHorimetro, reais } from "@/lib/formato";
-import { veValores } from "@/lib/tipos";
+import { veDados } from "@/lib/tipos";
 import { cn } from "@/lib/utils";
 import { Alerta } from "@/components/ui/alerta";
 import { Badge } from "@/components/ui/badge";
@@ -26,7 +26,7 @@ export default async function PaginaManutencao({ searchParams }: { searchParams:
   const aeronave = await aeronaveAtiva();
   const admin = usuario.perfil === "admin";
   const opera = admin || usuario.perfil === "piloto";
-  const valores = veValores(usuario.perfil);
+  const valores = veDados(usuario.perfil);
 
   const [plano, manutencoes, documentos, fornecedores, socios, voos] = await Promise.all([
     listarPlano(aeronave.id),

@@ -6,6 +6,7 @@ import { ArrowLeft } from "lucide-react";
 import { exigirValores } from "@/lib/perfil";
 import { listarCategorias, listarFornecedores } from "@/lib/dados/cadastros";
 import { buscarConta } from "@/lib/dados/contas";
+import { podeLancar } from "@/lib/tipos";
 import { urlDoComprovante } from "@/lib/dados/financeiro";
 import { data as fmtData, hoje, reais } from "@/lib/formato";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,7 +17,7 @@ export const metadata: Metadata = { title: "Conta a pagar" };
 
 export default async function PaginaConta({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  await exigirValores();
+  const usuario = await exigirValores();
   const conta = await buscarConta(id);
   if (!conta) notFound();
   const [fornecedores, categorias, boleto, comprovante] = await Promise.all([
@@ -72,6 +73,7 @@ export default async function PaginaConta({ params }: { params: Promise<{ id: st
         </p>
       </div>
 
+      {podeLancar(usuario.perfil) && (
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Editar a conta</CardTitle>
@@ -96,6 +98,7 @@ export default async function PaginaConta({ params }: { params: Promise<{ id: st
           />
         </CardContent>
       </Card>
+      )}
     </div>
   );
 }

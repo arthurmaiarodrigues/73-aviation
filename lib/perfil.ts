@@ -4,7 +4,7 @@ import { cache } from "react";
 import { redirect } from "next/navigation";
 
 import { criarClienteServidor } from "@/lib/supabase/server";
-import { veValores, type Perfil } from "@/lib/tipos";
+import { veDados, podeLancar, type Perfil } from "@/lib/tipos";
 
 export type UsuarioSessao = {
   id: string;
@@ -64,10 +64,17 @@ export async function exigirSessao(): Promise<UsuarioSessao> {
   return usuario;
 }
 
-/** Porteiro das telas com valores: piloto de fora não entra. */
+/** Porteiro das telas com valores: piloto de fora não entra; espectador lê. */
 export async function exigirValores(): Promise<UsuarioSessao> {
   const usuario = await exigirSessao();
-  if (!veValores(usuario.perfil)) redirect("/inicio?sem-acesso=valores");
+  if (!veDados(usuario.perfil)) redirect("/inicio?sem-acesso=valores");
+  return usuario;
+}
+
+/** Porteiro das telas de lançamento: espectador não entra. */
+export async function exigirLancamento(): Promise<UsuarioSessao> {
+  const usuario = await exigirSessao();
+  if (!podeLancar(usuario.perfil)) redirect("/inicio?sem-acesso=lancar");
   return usuario;
 }
 

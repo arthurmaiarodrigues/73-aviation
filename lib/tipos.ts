@@ -1,15 +1,26 @@
 /** Perfis do CLAUDE.md — espelham o enum perfil_usuario do banco. */
-export type Perfil = "admin" | "socio" | "piloto";
+export type Perfil = "admin" | "socio" | "piloto" | "espectador";
 
 export const ROTULO_PERFIL: Record<Perfil, string> = {
   admin: "Administrador",
   socio: "Sócio",
   piloto: "Piloto",
+  espectador: "Espectador",
 };
 
-/** Quem enxerga valores: sócio e admin. Piloto de fora, nunca. */
+/** Quem MEXE no dinheiro: sócio e admin (o espectador só olha). */
 export function veValores(perfil: Perfil | null | undefined): boolean {
   return perfil === "admin" || perfil === "socio";
+}
+
+/** Quem ENXERGA os dados e os valores: sócio, admin e espectador. */
+export function veDados(perfil: Perfil | null | undefined): boolean {
+  return perfil === "admin" || perfil === "socio" || perfil === "espectador";
+}
+
+/** Espectador não lança nem edita nada. */
+export function podeLancar(perfil: Perfil | null | undefined): boolean {
+  return perfil === "admin" || perfil === "socio" || perfil === "piloto";
 }
 
 export type NaturezaVoo = "PARTICULAR" | "SOCIEDADE" | "TRANSLADO_MANUTENCAO" | "VOO_TESTE" | "INSTRUCAO";

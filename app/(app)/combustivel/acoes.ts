@@ -6,7 +6,7 @@ import { usuarioDaSessao } from "@/lib/perfil";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { aeronaveAtiva } from "@/lib/dados/cadastros";
 import { caixaAlta, hoje, lerNumero } from "@/lib/formato";
-import { veValores } from "@/lib/tipos";
+import { podeLancar, veValores } from "@/lib/tipos";
 
 export type Resultado = { ok: boolean; mensagem: string };
 
@@ -32,6 +32,7 @@ function revalidar() {
 export async function salvarMovimentoTanque(_anterior: Resultado, form: FormData): Promise<Resultado> {
   const { user, usuario } = await usuarioDaSessao();
   if (!user || !usuario?.ativo) return { ok: false, mensagem: "Sem acesso." };
+  if (!podeLancar(usuario.perfil)) return { ok: false, mensagem: "Espectador não lança nem edita." };
 
   const tipo = texto(form, "tipo") as (typeof TIPOS)[number] | null;
   if (!tipo || !TIPOS.includes(tipo)) return { ok: false, mensagem: "Tipo inválido." };

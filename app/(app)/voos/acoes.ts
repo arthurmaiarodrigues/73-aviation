@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { usuarioDaSessao } from "@/lib/perfil";
+import { podeLancar } from "@/lib/tipos";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { aeronaveAtiva } from "@/lib/dados/cadastros";
 import { ultimoHorimetro } from "@/lib/dados/voos";
@@ -75,6 +76,7 @@ function traduzir(mensagem: string): string {
 export async function salvarVoo(_anterior: Resultado, form: FormData): Promise<Resultado> {
   const { user, usuario } = await usuarioDaSessao();
   if (!user || !usuario?.ativo) return { ok: false, mensagem: "Sem sessão." };
+  if (!podeLancar(usuario.perfil)) return { ok: false, mensagem: "Espectador não lança nem edita." };
 
   const aeronave = await aeronaveAtiva();
   const data = texto(form, "data") ?? hoje();
@@ -275,6 +277,7 @@ export async function salvarVoo(_anterior: Resultado, form: FormData): Promise<R
 export async function registrarPouso(_anterior: Resultado, form: FormData): Promise<Resultado> {
   const { user, usuario } = await usuarioDaSessao();
   if (!user || !usuario?.ativo) return { ok: false, mensagem: "Sem sessão." };
+  if (!podeLancar(usuario.perfil)) return { ok: false, mensagem: "Espectador não lança nem edita." };
 
   const id = texto(form, "id");
   if (!id || !UUID.test(id)) return { ok: false, mensagem: "Voo inválido." };
@@ -333,6 +336,7 @@ export async function registrarPouso(_anterior: Resultado, form: FormData): Prom
 export async function editarVoo(_anterior: Resultado, form: FormData): Promise<Resultado> {
   const { user, usuario } = await usuarioDaSessao();
   if (!user || !usuario?.ativo) return { ok: false, mensagem: "Sem sessão." };
+  if (!podeLancar(usuario.perfil)) return { ok: false, mensagem: "Espectador não lança nem edita." };
 
   const id = texto(form, "id");
   if (!id || !UUID.test(id)) return { ok: false, mensagem: "Voo inválido." };
@@ -414,6 +418,7 @@ export async function apagarVoo(id: string): Promise<Resultado> {
 export async function registrarPerna(_anterior: Resultado, form: FormData): Promise<Resultado> {
   const { user, usuario } = await usuarioDaSessao();
   if (!user || !usuario?.ativo) return { ok: false, mensagem: "Sem sessão." };
+  if (!podeLancar(usuario.perfil)) return { ok: false, mensagem: "Espectador não lança nem edita." };
   const id = texto(form, "id");
   if (!id || !UUID.test(id)) return { ok: false, mensagem: "Voo inválido." };
 
@@ -476,6 +481,7 @@ export async function registrarPerna(_anterior: Resultado, form: FormData): Prom
 export async function definirDivisao(_anterior: Resultado, form: FormData): Promise<Resultado> {
   const { user, usuario } = await usuarioDaSessao();
   if (!user || !usuario?.ativo) return { ok: false, mensagem: "Sem sessão." };
+  if (!podeLancar(usuario.perfil)) return { ok: false, mensagem: "Espectador não lança nem edita." };
   const id = texto(form, "id");
   if (!id || !UUID.test(id)) return { ok: false, mensagem: "Voo inválido." };
 

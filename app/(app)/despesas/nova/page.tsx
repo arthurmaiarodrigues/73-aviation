@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { exigirValores } from "@/lib/perfil";
+import { exigirLancamento } from "@/lib/perfil";
 import { aeronaveAtiva, listarCategorias, listarFornecedores, listarSocios } from "@/lib/dados/cadastros";
 import { listarVoos } from "@/lib/dados/voos";
 import { hoje } from "@/lib/formato";
@@ -9,7 +9,7 @@ import { FormularioDespesa } from "../formulario-despesa";
 export const metadata: Metadata = { title: "Nova despesa" };
 
 export default async function PaginaNovaDespesa() {
-  const usuario = await exigirValores();
+  const usuario = await exigirLancamento();
   const aeronave = await aeronaveAtiva();
   const [socios, categorias, fornecedores, voos] = await Promise.all([
     listarSocios({ somenteAtivos: true }),

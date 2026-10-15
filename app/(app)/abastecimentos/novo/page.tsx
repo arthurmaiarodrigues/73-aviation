@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { exigirValores } from "@/lib/perfil";
+import { exigirLancamento } from "@/lib/perfil";
 import { aeronaveAtiva, aerodromosRecentes, listarSocios } from "@/lib/dados/cadastros";
 import { listarAbastecimentos } from "@/lib/dados/financeiro";
 import { listarVoos } from "@/lib/dados/voos";
@@ -12,7 +12,7 @@ import { FormularioAbastecimento } from "./formulario-abastecimento";
 export const metadata: Metadata = { title: "Abastecimento fora da base" };
 
 export default async function PaginaAbastecer() {
-  const usuario = await exigirValores();
+  const usuario = await exigirLancamento();
   const aeronave = await aeronaveAtiva();
   const [socios, aerodromos, voos, ultimos] = await Promise.all([
     listarSocios({ somenteAtivos: true }),
