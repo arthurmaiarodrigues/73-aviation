@@ -16,7 +16,7 @@ import { listarContas } from "@/lib/dados/contas";
 import { ROTULO_BLOQUEIO, agendaDoDia, fila, garantirEscolhaAberta, mesSeguinte, proximasReservas, reservasSemVoo, vezDeEscolher } from "@/lib/dados/agenda";
 import { BotaoAcao } from "@/app/(app)/agenda/botoes";
 import { data as fmtData, horas as fmtHoras, horimetro as fmtHorimetro, hoje, inicioDoMes, mesPorExtenso, reais, trimestreDe } from "@/lib/formato";
-import { veDados } from "@/lib/tipos";
+import { veDados, podeLancar } from "@/lib/tipos";
 import { cn } from "@/lib/utils";
 import { Alerta } from "@/components/ui/alerta";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +33,7 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
   const aeronave = await aeronaveAtiva();
   const mes = inicioDoMes(hoje());
   const valores = veDados(usuario.perfil);
+  const lancar = podeLancar(usuario.perfil);
 
   const [ultimo, aberto, local, pendentes, ultimosVoos, socios] = await Promise.all([
     ultimoHorimetro(aeronave.id),
@@ -117,17 +118,19 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button asChild size="campo" className="w-auto">
-            <Link href={podePousar && aberto ? `/voos/${aberto.id}` : "/voos/novo"}>
-              <Camera /> {podePousar ? `Pousei em ${pousoEm}` : foraDaBase ? `Registrar a volta de ${foraDaBase.destino}` : "Registrar voo"}
-            </Link>
-          </Button>
+          {lancar && (
+            <Button asChild size="campo" className="w-auto">
+              <Link href={podePousar && aberto ? `/voos/${aberto.id}` : "/voos/novo"}>
+                <Camera /> {podePousar ? `Pousei em ${pousoEm}` : foraDaBase ? `Registrar a volta de ${foraDaBase.destino}` : "Registrar voo"}
+              </Link>
+            </Button>
+          )}
           <Button asChild variant="secundario">
             <Link href="/combustivel">
               <Fuel /> Abastecer
             </Link>
           </Button>
-          {valores && (
+          {valores && lancar && (
             <>
               <Button asChild variant="secundario">
                 <Link href="/despesas/nova">
