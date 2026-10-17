@@ -14,12 +14,17 @@ export type ItemPlano = {
   intervalo_meses: number | null;
   ultima_data: string | null;
   ultimo_horimetro: number | null;
+  /** Horas de célula na última execução — é daqui que sai a próxima. */
+  ultima_celula: number | null;
   aviso_horas: number;
   aviso_dias: number;
   tipo_custo: TipoCusto;
   ordem: number;
   horimetro_atual: number | null;
   proximo_horimetro: number | null;
+  /** Horas de célula hoje e na próxima execução (a conta que o mecânico faz). */
+  celula_atual: number | null;
+  proxima_celula: number | null;
   proxima_data: string | null;
   horas_restantes: number | null;
   dias_restantes: number | null;
@@ -81,12 +86,15 @@ export async function listarPlano(aeronaveId: string): Promise<ItemPlano[]> {
     intervalo_meses: n(p.intervalo_meses),
     ultima_data: p.ultima_data,
     ultimo_horimetro: n(p.ultimo_horimetro),
+    ultima_celula: n(p.ultima_celula),
     aviso_horas: Number(p.aviso_horas),
     aviso_dias: Number(p.aviso_dias),
     tipo_custo: p.tipo_custo,
     ordem: p.ordem,
     horimetro_atual: n(p.horimetro_atual),
     proximo_horimetro: n(p.proximo_horimetro),
+    celula_atual: n(p.celula_atual),
+    proxima_celula: n(p.proxima_celula),
     proxima_data: p.proxima_data,
     horas_restantes: n(p.horas_restantes),
     dias_restantes: n(p.dias_restantes),

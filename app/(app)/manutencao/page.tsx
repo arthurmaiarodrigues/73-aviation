@@ -43,7 +43,7 @@ export default async function PaginaManutencao({ searchParams }: { searchParams:
       <div>
         <h1 className="text-2xl font-semibold">Manutenção</h1>
         <p className="mt-1 text-sm text-marinho-300">
-          {aeronave.matricula} · horímetro {fmtHorimetro(plano[0]?.horimetro_atual ?? null)} · plano por horas e por tempo; nota da oficina item a item.
+          {aeronave.matricula} · {fmtHoras(plano[0]?.celula_atual ?? null)} de célula (horímetro {fmtHorimetro(plano[0]?.horimetro_atual ?? null)}) · plano por horas de voo e por tempo; nota da oficina item a item.
         </p>
       </div>
 
@@ -75,7 +75,7 @@ export default async function PaginaManutencao({ searchParams }: { searchParams:
                 <div className="mt-2 space-y-0.5 text-sm tabular">
                   {p.horas_restantes !== null && (
                     <p className={cn(p.horas_restantes <= 0 && "text-erro")}>
-                      {p.horas_restantes <= 0 ? `${fmtHoras(-p.horas_restantes)} vencidas` : `faltam ${fmtHoras(p.horas_restantes)}`} <span className="text-marinho-300">(próxima em {fmtHorimetro(p.proximo_horimetro)})</span>
+                      {p.horas_restantes <= 0 ? `${fmtHoras(-p.horas_restantes)} vencidas` : `faltam ${fmtHoras(p.horas_restantes)}`} <span className="text-marinho-300">(próxima em {fmtHoras(p.proxima_celula)} de célula)</span>
                     </p>
                   )}
                   {p.dias_restantes !== null && (

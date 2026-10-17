@@ -131,8 +131,8 @@ export function FormularioItemPlano({ item }: { item?: ItemPlano }) {
           <Input name="ultima_data" type="date" defaultValue={item?.ultima_data ?? ""} />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">Última execução (horímetro)</Label>
-          <Input name="ultimo_horimetro" inputMode="decimal" defaultValue={dec(item?.ultimo_horimetro)} className="tabular" />
+          <Label className="text-xs">Última execução (horas de célula)</Label>
+          <Input name="ultima_celula" inputMode="decimal" defaultValue={dec(item?.ultima_celula)} className="tabular" />
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Avisar com (horas)</Label>

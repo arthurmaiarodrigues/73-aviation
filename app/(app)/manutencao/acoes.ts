@@ -60,6 +60,7 @@ export async function salvarItemPlano(_a: Resultado, form: FormData): Promise<Re
     intervalo_meses: gatilho === "POR_HORAS" ? null : Math.round(lerNumero(form.get("intervalo_meses")) ?? 0) || null,
     ultima_data: texto(form, "ultima_data"),
     ultimo_horimetro: lerNumero(form.get("ultimo_horimetro")),
+    ultima_celula: lerNumero(form.get("ultima_celula")),
     aviso_horas: lerNumero(form.get("aviso_horas")) ?? 10,
     aviso_dias: Math.round(lerNumero(form.get("aviso_dias")) ?? 30),
     tipo_custo: texto(form, "tipo_custo") ?? "POR_USO",
