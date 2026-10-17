@@ -112,15 +112,17 @@ begin
 end $$;
 
 -- ---------------------------------------------------------------------
--- 3. Ciclo da revisão: o voo de 26/06/2026 (7,5 h) foi ANTES da troca
--- de óleo daquele dia, então não entra nas horas do ciclo. O marco
--- passa para 27/06 e as despesas por horas do ciclo são recalculadas
--- (o gatilho de rateio dispara na mudança do período).
+-- 3. DESFEITO em 17/10/2026, no mesmo dia. A primeira resposta do Arthur
+-- foi que o voo de 26/06/2026 (7,5 h, MARCELINO) tinha sido ANTES da
+-- troca de óleo daquele dia, e esta migration passou o marco do ciclo
+-- para 27/06 (tirando aquelas horas da conta). Ele corrigiu em seguida:
+-- **o voo conta**. O marco voltou para 26/06 e as 11 despesas POR_HORAS
+-- voltaram a começar em 26/06 (o gatilho de rateio refez tudo).
+--
+-- Por isso as duas linhas de UPDATE saíram daqui: rodar esta migration
+-- de novo não deve mexer no ciclo outra vez. Se algum dia o ciclo
+-- precisar mudar, é pela tela do plano de manutenção.
 -- ---------------------------------------------------------------------
-update plano_execucoes set data = date '2026-06-27' where data = date '2026-06-26';
-
-update despesas set periodo_inicio = date '2026-06-27'
-where periodo_inicio = date '2026-06-26' and criterio = 'POR_HORAS' and deleted_at is null;
 
 -- Com as horas fechando certo, todo rateio por horas de mês aberto é
 -- refeito (eram centavos, mas que ninguém some).
