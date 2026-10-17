@@ -198,6 +198,20 @@ export async function horasPorSocio(aeronaveId: string, de: string, ate: string)
   return ((data ?? []) as { socio_id: string; horas: string }[]).map((l) => ({ socio_id: l.socio_id, horas: Number(l.horas) }));
 }
 
+/** Data do primeiro voo lançado (subtítulo do acumulado). */
+export async function primeiroVoo(aeronaveId: string): Promise<string | null> {
+  const supabase = await criarClienteServidor();
+  const { data } = await supabase
+    .from("voos")
+    .select("data")
+    .eq("aeronave_id", aeronaveId)
+    .is("deleted_at", null)
+    .order("data")
+    .limit(1)
+    .maybeSingle();
+  return data?.data ?? null;
+}
+
 /** URL assinada para mostrar a foto do horímetro (15 min). */
 export async function urlDaFoto(caminho: string | null): Promise<string | null> {
   if (!caminho) return null;

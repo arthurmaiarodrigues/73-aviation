@@ -1,4 +1,4 @@
-import { horasPorSocio, horasPorSocioNoMes } from "@/lib/dados/voos";
+import { horasPorSocio, horasPorSocioNoMes, primeiroVoo } from "@/lib/dados/voos";
 import { ciclosRevisao, listarPlano } from "@/lib/dados/manutencao";
 import { data as fmtData, hoje, mesPorExtenso, trimestreDe } from "@/lib/formato";
 import { HorasPorSocio, type AbaHoras } from "@/components/horas-por-socio";
@@ -25,15 +25,17 @@ export async function AbasHoras({
   meuSocioId: string | null;
 }) {
   const trimestre = trimestreDe(hoje());
-  const [horasMes, plano, ciclos] = await Promise.all([
+  const [horasMes, plano, ciclos, desdeQuando] = await Promise.all([
     horasPorSocioNoMes(aeronaveId, mes),
     listarPlano(aeronaveId),
     ciclosRevisao(aeronaveId),
+    primeiroVoo(aeronaveId),
   ]);
   const revisoes = plano.filter((p) => /^REVIS[ÃA]O \d+ ?H$/.test(p.descricao)).sort((a, b) => (a.intervalo_horas ?? 0) - (b.intervalo_horas ?? 0));
   const anteriores = revisoes.map((r) => ciclos.find((c) => c.plano_item_id === r.id)?.anterior ?? null);
-  const [horasTrimestre, ...resto] = await Promise.all([
+  const [horasTrimestre, horasTotais, ...resto] = await Promise.all([
     horasPorSocio(aeronaveId, trimestre.inicio, trimestre.fim),
+    horasPorSocio(aeronaveId, "2000-01-01", "2099-12-31"),
     ...revisoes.map((r) => horasPorSocio(aeronaveId, r.ultima_data ?? "2000-01-01", "2099-12-31")),
     ...anteriores.map((c) => (c ? horasPorSocio(aeronaveId, c.inicio, c.fim) : Promise.resolve([]))),
   ]);
@@ -49,6 +51,13 @@ export async function AbasHoras({
   const abas: AbaHoras[] = [
     { chave: "mes", rotulo: "Mês", subtitulo: mesPorExtenso(mes), meta: null, linhas: linhas(horasMes, true) },
     { chave: "trimestre", rotulo: "Trimestre", subtitulo: trimestre.rotulo, meta: null, linhas: linhas(horasTrimestre, false) },
+    {
+      chave: "total",
+      rotulo: "Desde o início",
+      subtitulo: desdeQuando ? `todos os voos lançados, desde ${fmtData(desdeQuando)}` : "todos os voos lançados",
+      meta: null,
+      linhas: linhas(horasTotais, false),
+    },
     ...revisoes.map((r, i) => ({
       chave: r.id,
       rotulo: r.descricao.replace("REVISÃO", "Revisão").replace(/(\d+) ?H$/, "$1 h"),
