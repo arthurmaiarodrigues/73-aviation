@@ -33,11 +33,13 @@ export type DespesaLinha = {
   /** Linhas da nota, quando discriminada (registro; o rateio é da despesa inteira). */
   itens: { descricao: string; valor: number }[];
   rateios: { socio_id: string; apelido: string; percentual: number; valor: number; horas_base: number | null; litros_base: number | null }[];
-  /** Quando mais de um sócio pagou, o que cada um colocou. */
-  pagadores: { socio_id: string; apelido: string; valor: number }[];
+  /** Quando mais de um pagou, o que cada um colocou (socio_id nulo = caixa da sociedade). */
+  pagadores: { socio_id: string | null; apelido: string; valor: number }[];
 };
 
 export type FiltroDespesas = {
+  /** Texto livre: descrição, observação, cidade ou nome do fornecedor. */
+  q?: string;
   de?: string;
   ate?: string;
   categoria?: string;
@@ -64,7 +66,7 @@ type Bruta = {
   tanque?: "COMPRA" | "RETIRADA" | null;
   itens?: { descricao: string; valor: number }[] | null;
   rateios: { socio_id: string; percentual: string; valor: string; horas_base: string | null; litros_base?: string | null; socios: { apelido: string } | null }[];
-  despesa_pagadores?: { socio_id: string; valor: string; socios: { apelido: string } | null }[] | null;
+  despesa_pagadores?: { socio_id: string | null; valor: string; socios: { apelido: string } | null }[] | null;
 };
 
 function mapear(d: Bruta): DespesaLinha {
@@ -82,7 +84,11 @@ function mapear(d: Bruta): DespesaLinha {
     pago_pelos_socios: Boolean(d.pago_pelos_socios),
     pagador:
       d.pagador?.apelido ??
-      ((d.despesa_pagadores ?? []).length > 0 ? "VÁRIOS SÓCIOS" : d.pago_pelos_socios ? "CADA SÓCIO (direto)" : "CAIXA"),
+      ((d.despesa_pagadores ?? []).length > 0
+        ? ((d.despesa_pagadores ?? []).some((p) => !p.socio_id) ? "SÓCIOS + CAIXA" : "VÁRIOS SÓCIOS")
+        : d.pago_pelos_socios
+          ? "CADA SÓCIO (direto)"
+          : "CAIXA"),
     criterio: d.criterio,
     tanque: d.tanque ?? null,
     itens: Array.isArray(d.itens) ? d.itens.map((i) => ({ descricao: String(i.descricao), valor: Number(i.valor) })) : [],
@@ -95,7 +101,9 @@ function mapear(d: Bruta): DespesaLinha {
     voo_id: d.voo_id,
     observacao: d.observacao,
     autor_id: d.autor_id,
-    pagadores: (d.despesa_pagadores ?? []).map((p) => ({ socio_id: p.socio_id, apelido: p.socios?.apelido ?? "", valor: Number(p.valor) })).sort((a, b) => b.valor - a.valor),
+    pagadores: (d.despesa_pagadores ?? [])
+      .map((p) => ({ socio_id: p.socio_id ?? null, apelido: p.socio_id ? (p.socios?.apelido ?? "") : "CAIXA", valor: Number(p.valor) }))
+      .sort((a, b) => b.valor - a.valor),
     rateios: (d.rateios ?? [])
       .map((r) => ({
         socio_id: r.socio_id,
@@ -134,6 +142,17 @@ export async function listarDespesas(aeronaveId: string, filtro: FiltroDespesas 
   if (filtro.status) q = q.eq("status", filtro.status);
   if (filtro.socio === "CAIXA") q = q.is("pagador_socio_id", null);
   else if (filtro.socio) q = q.or(`pagador_socio_id.eq.${filtro.socio},socio_direto_id.eq.${filtro.socio}`);
+
+  // Busca livre: texto na despesa ou no nome do fornecedor.
+  const texto = filtro.q?.trim();
+  if (texto) {
+    const limpo = texto.replace(/[%,()]/g, " ").trim();
+    const { data: forn } = await supabase.from("fornecedores").select("id").ilike("nome", `%${limpo}%`);
+    const ids = (forn ?? []).map((f) => f.id);
+    const partes = [`descricao.ilike.*${limpo}*`, `observacao.ilike.*${limpo}*`, `cidade.ilike.*${limpo}*`];
+    if (ids.length > 0) partes.push(`fornecedor_id.in.(${ids.join(",")})`);
+    q = q.or(partes.join(","));
+  }
 
   const { data, error } = await q;
   if (error) throw new Error(`Despesas: ${error.message}`);

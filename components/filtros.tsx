@@ -10,7 +10,7 @@ export type OpcaoFiltro = { valor: string; rotulo: string };
 
 export type CampoFiltro =
   | { nome: string; rotulo: string; tipo: "select"; opcoes: OpcaoFiltro[]; valor?: string }
-  | { nome: string; rotulo: string; tipo: "date" | "text"; valor?: string };
+  | { nome: string; rotulo: string; tipo: "date" | "text"; valor?: string; dica?: string };
 
 /** Barra de filtros GET: a URL é o estado — dá para mandar o link por WhatsApp. */
 export function Filtros({ campos, hrefExportar, hrefLimpar }: { campos: CampoFiltro[]; hrefExportar: string; hrefLimpar: string }) {
@@ -31,7 +31,7 @@ export function Filtros({ campos, hrefExportar, hrefLimpar }: { campos: CampoFil
               ))}
             </Select>
           ) : (
-            <Input id={`f-${c.nome}`} name={c.nome} type={c.tipo} defaultValue={c.valor ?? ""} />
+            <Input id={`f-${c.nome}`} name={c.nome} type={c.tipo} defaultValue={c.valor ?? ""} placeholder={c.tipo === "text" ? (c.dica ?? "") : undefined} />
           )}
         </div>
       ))}

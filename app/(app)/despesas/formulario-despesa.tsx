@@ -77,7 +77,9 @@ export function FormularioDespesa({
   const [valor, setValor] = useState(despesa ? (despesa.valor + despesa.desconto).toFixed(2).replace(".", ",") : "");
   // Vários pagadores: cada linha é um sócio e o que ele colocou.
   const [pagadores, setPagadores] = useState<{ socio_id: string; valor: string }[]>(
-    despesa?.pagadores?.length ? despesa.pagadores.map((p) => ({ socio_id: p.socio_id, valor: p.valor.toFixed(2).replace(".", ",") })) : [{ socio_id: "", valor: "" }],
+    despesa?.pagadores?.length
+      ? despesa.pagadores.map((p) => ({ socio_id: p.socio_id ?? "CAIXA", valor: p.valor.toFixed(2).replace(".", ",") }))
+      : [{ socio_id: "", valor: "" }],
   );
   const [desconto, setDesconto] = useState(despesa && despesa.desconto > 0 ? despesa.desconto.toFixed(2).replace(".", ",") : "");
   const [leitura, setLeitura] = useState<{ confianca: number; observacao: string; fornecedor: string | null } | null>(null);
@@ -264,7 +266,7 @@ export function FormularioDespesa({
             <Select id="pagador" name="pagador" value={pagador} onChange={(e) => setPagador(e.target.value)} className="h-12">
               <option value="CAIXA">Caixa da sociedade</option>
               <option value="SOCIOS">Cada sócio pagou a parte dele (direto ao fornecedor)</option>
-              <option value="VARIOS">Vários sócios pagaram (valores diferentes)…</option>
+              <option value="VARIOS">Mais de um pagou (sócios e/ou caixa)…</option>
               {socios.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.apelido} (do próprio bolso)
@@ -277,7 +279,10 @@ export function FormularioDespesa({
               </p>
             )}
             {pagador === "VARIOS" && (
-              <p className="text-xs text-marinho-300">Cada um entra com crédito do que colocou; o rateio continua dividindo o custo pela regra escolhida ao lado.</p>
+              <p className="text-xs text-marinho-300">
+                Cada sócio entra com crédito do que colocou e a parte do caixa sai do saldo da sociedade; o rateio continua dividindo o custo pela regra escolhida ao
+                lado.
+              </p>
             )}
           </div>
           <div className="space-y-1.5">
@@ -298,12 +303,13 @@ export function FormularioDespesa({
             {pagadores.map((p, i) => (
               <div key={i} className="grid gap-2 sm:grid-cols-[1fr_200px_auto]">
                 <Select name="pagador_socio" value={p.socio_id} onChange={(e) => mudarPagador(i, "socio_id", e.target.value)} className="h-11">
-                  <option value="">Escolha o sócio…</option>
+                  <option value="">Escolha quem pagou…</option>
                   {socios.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.apelido}
                     </option>
                   ))}
+                  <option value="CAIXA">Caixa da sociedade</option>
                 </Select>
                 <Input
                   name="pagador_valor"

@@ -21,6 +21,7 @@ export default async function PaginaDespesas({ searchParams }: { searchParams: P
   const aeronave = await aeronaveAtiva();
 
   const filtro: FiltroDespesas = {
+    q: busca.q || undefined,
     de: busca.de || undefined,
     ate: busca.ate || undefined,
     categoria: busca.categoria || undefined,
@@ -55,6 +56,7 @@ export default async function PaginaDespesas({ searchParams }: { searchParams: P
         hrefExportar={`/despesas/exportar?${query}`}
         hrefLimpar="/despesas"
         campos={[
+          { nome: "q", rotulo: "Buscar", tipo: "text", valor: busca.q, dica: "descrição, fornecedor, cidade…" },
           { nome: "de", rotulo: "De", tipo: "date", valor: busca.de },
           { nome: "ate", rotulo: "Até", tipo: "date", valor: busca.ate },
           { nome: "categoria", rotulo: "Categoria", tipo: "select", valor: busca.categoria, opcoes: categorias.map((c) => ({ valor: String(c.id), rotulo: c.nome })) },

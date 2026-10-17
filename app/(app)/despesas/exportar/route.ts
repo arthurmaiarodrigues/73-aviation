@@ -18,7 +18,7 @@ export async function GET(request: Request) {
   const p = (k: string) => url.searchParams.get(k) || undefined;
   const aeronave = await aeronaveAtiva();
   const [despesas, socios] = await Promise.all([
-    listarDespesas(aeronave.id, { de: p("de"), ate: p("ate"), categoria: p("categoria"), socio: p("socio"), criterio: p("criterio"), status: p("status") }, 5000),
+    listarDespesas(aeronave.id, { q: p("q"), de: p("de"), ate: p("ate"), categoria: p("categoria"), socio: p("socio"), criterio: p("criterio"), status: p("status") }, 5000),
     listarSocios(),
   ]);
 

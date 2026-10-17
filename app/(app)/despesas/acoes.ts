@@ -113,7 +113,7 @@ function pagadoresDoForm(form: FormData): { socio_id: string; valor: number }[] 
   const valores = form.getAll("pagador_valor").map(String);
   return socios
     .map((socio_id, i) => ({ socio_id, valor: lerNumero(valores[i]) ?? 0 }))
-    .filter((p) => UUID.test(p.socio_id) && p.valor > 0);
+    .filter((p) => (UUID.test(p.socio_id) || p.socio_id === "CAIXA") && p.valor > 0);
 }
 
 /** Itens discriminados na nota (campo `itens_json`): ficam na própria despesa, só para registro. */
