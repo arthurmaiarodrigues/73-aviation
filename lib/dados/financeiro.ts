@@ -1,6 +1,7 @@
 import "server-only";
 
 import { criarClienteServidor } from "@/lib/supabase/server";
+import { semAcento } from "@/lib/formato";
 import type { CriterioRateio, StatusDespesa } from "@/lib/tipos";
 
 export type DespesaLinha = {
@@ -38,7 +39,7 @@ export type DespesaLinha = {
 };
 
 export type FiltroDespesas = {
-  /** Texto livre: descrição, observação, cidade ou nome do fornecedor. */
+  /** Texto livre (sem acento, maiúsculas ou minúsculas): descrição, observação, cidade ou nome do fornecedor. */
   q?: string;
   de?: string;
   ate?: string;
@@ -143,15 +144,18 @@ export async function listarDespesas(aeronaveId: string, filtro: FiltroDespesas 
   if (filtro.socio === "CAIXA") q = q.is("pagador_socio_id", null);
   else if (filtro.socio) q = q.or(`pagador_socio_id.eq.${filtro.socio},socio_direto_id.eq.${filtro.socio}`);
 
-  // Busca livre: texto na despesa ou no nome do fornecedor.
+  // Busca livre: texto na despesa ou no nome do fornecedor, ignorando acento
+  // (as colunas `busca` do banco já guardam tudo em caixa alta e sem acento).
   const texto = filtro.q?.trim();
   if (texto) {
-    const limpo = texto.replace(/[%,()]/g, " ").trim();
-    const { data: forn } = await supabase.from("fornecedores").select("id").ilike("nome", `%${limpo}%`);
-    const ids = (forn ?? []).map((f) => f.id);
-    const partes = [`descricao.ilike.*${limpo}*`, `observacao.ilike.*${limpo}*`, `cidade.ilike.*${limpo}*`];
-    if (ids.length > 0) partes.push(`fornecedor_id.in.(${ids.join(",")})`);
-    q = q.or(partes.join(","));
+    const alvo = semAcento(texto).replace(/[%,().*]/g, " ").trim();
+    if (alvo) {
+      const { data: forn } = await supabase.from("fornecedores").select("id").ilike("busca", `%${alvo}%`);
+      const ids = (forn ?? []).map((f) => f.id);
+      const partes = [`busca.ilike.*${alvo}*`];
+      if (ids.length > 0) partes.push(`fornecedor_id.in.(${ids.join(",")})`);
+      q = q.or(partes.join(","));
+    }
   }
 
   const { data, error } = await q;

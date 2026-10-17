@@ -134,3 +134,8 @@ export function periodoVoo(v: { data: string; data_volta: string | null }): stri
   if (!v.data_volta || v.data_volta === v.data) return data(v.data);
   return `${data(v.data).slice(0, 5)} → ${data(v.data_volta)}`;
 }
+
+/** "Vitória" → "VITORIA": caixa alta sem acento, para comparar e procurar texto. */
+export function semAcento(texto: string): string {
+  return texto.normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase();
+}
