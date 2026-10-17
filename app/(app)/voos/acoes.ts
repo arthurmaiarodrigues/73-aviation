@@ -355,11 +355,27 @@ export async function editarVoo(_anterior: Resultado, form: FormData): Promise<R
   const horasInformadas = lerNumero(form.get("horas_informadas")) ?? pernas.soma;
   if (hInicial !== null && hFinal !== null && hFinal < hInicial) return { ok: false, mensagem: "O horímetro final tem de ser maior que o inicial." };
 
+  // Fotos do horímetro: campo vazio mantém o que já estava guardado.
+  const fotoIni = texto(form, "foto_inicial");
+  const fotoFim = texto(form, "foto_final");
+  const leituraIni = leituraJson(form, "leitura_inicial");
+  const leituraFim = leituraJson(form, "leitura_final");
+
   const supabase = await criarClienteServidor();
+  let leituraIa: Record<string, unknown> | undefined;
+  if (leituraIni || leituraFim) {
+    const { data: atual } = await supabase.from("voos").select("leitura_ia").eq("id", id).maybeSingle();
+    const anterior = (atual?.leitura_ia as Record<string, unknown> | null) ?? {};
+    leituraIa = { ...anterior, ...(leituraIni ? { inicial: leituraIni } : {}), ...(leituraFim ? { final: leituraFim } : {}) };
+  }
+
   const { error } = await supabase
     .from("voos")
     .update({
       data: texto(form, "data") ?? hoje(),
+      ...(fotoIni ? { foto_horimetro_inicial: fotoIni } : {}),
+      ...(fotoFim ? { foto_horimetro_final: fotoFim } : {}),
+      ...(leituraIa ? { leitura_ia: leituraIa } : {}),
       data_volta: (() => {
         const saida = texto(form, "data") ?? hoje();
         const chegada = texto(form, "data_volta");

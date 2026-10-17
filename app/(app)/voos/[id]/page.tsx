@@ -199,6 +199,7 @@ export default async function PaginaVoo({
               pilotos={pilotos}
               aerodromos={aerodromos}
               podeApagar={usuario.perfil === "admin"}
+              leituraAutomatica={temChave()}
             />
           </div>
         </details>

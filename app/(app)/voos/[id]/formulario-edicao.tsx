@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, Textarea } from "@/components/ui/select";
 import { Alerta } from "@/components/ui/alerta";
 import { SeletorAerodromo } from "@/components/seletor-aerodromo";
+import { FotoHorimetro, type EstadoFoto } from "@/components/foto-horimetro";
 import { ListaEscalas } from "@/components/lista-escalas";
 import { NATUREZAS, ROTULO_NATUREZA, ehUsoComum, type NaturezaVoo } from "@/lib/tipos";
 import type { VooLinha } from "@/lib/dados/voos";
@@ -35,18 +36,26 @@ export function FormularioEdicao({
   pilotos,
   aerodromos,
   podeApagar,
+  leituraAutomatica,
 }: {
   voo: VooLinha;
   socios: { id: string; apelido: string }[];
   pilotos: { id: string; nome: string }[];
   aerodromos: string[];
   podeApagar: boolean;
+  /** há chave da API para ler a foto automaticamente */
+  leituraAutomatica: boolean;
 }) {
   const [estado, acao] = useActionState(editarVoo, INICIAL);
   const [natureza, setNatureza] = useState<NaturezaVoo>(voo.natureza);
   const [data, setData] = useState(voo.data);
   const [dataVolta, setDataVolta] = useState(voo.data_volta ?? "");
   const [confirmarApagar, setConfirmarApagar] = useState(false);
+  // Foto do horímetro: o voo pode ter sido lançado só com o número digitado
+  // e ganhar a foto depois (o caminho que já existe vem junto).
+  const [fotoInicial, setFotoInicial] = useState<EstadoFoto>({ caminho: voo.foto_horimetro_inicial, leitura: null, valor: dec(voo.horimetro_inicial) });
+  const [fotoFinal, setFotoFinal] = useState<EstadoFoto>({ caminho: voo.foto_horimetro_final, leitura: null, valor: dec(voo.horimetro_final) });
+  const numero = (t: string) => { const n = Number(t.replace(/./g, "").replace(",", ".")); return Number.isFinite(n) && t.trim() ? n : null; };
   const usoComum = ehUsoComum(natureza);
 
   return (
@@ -107,14 +116,26 @@ export function FormularioEdicao({
           <SeletorAerodromo nome="origem" rotulo="Origem" opcoes={aerodromos} valorInicial={voo.origem ?? ""} />
           <SeletorAerodromo nome="destino" rotulo="Destino" opcoes={aerodromos} valorInicial={voo.destino ?? ""} />
           <ListaEscalas opcoes={aerodromos} iniciais={voo.escalas} horasIniciais={voo.horas_pernas} combustivelIniciais={voo.combustivel_pernas} />
-          <div className="space-y-1.5">
-            <Label htmlFor="horimetro_inicial">Horímetro inicial</Label>
-            <Input id="horimetro_inicial" name="horimetro_inicial" inputMode="decimal" defaultValue={dec(voo.horimetro_inicial)} className="tabular" />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="horimetro_final">Horímetro final</Label>
-            <Input id="horimetro_final" name="horimetro_final" inputMode="decimal" defaultValue={dec(voo.horimetro_final)} className="tabular" />
-          </div>
+          <FotoHorimetro
+            nome="inicial"
+            rotulo="Horímetro inicial"
+            esperado={null}
+            rotuloArquivo="HORIMETRO - INICIAL"
+            estado={fotoInicial}
+            aoMudar={setFotoInicial}
+            obrigatoria={false}
+            leituraAutomatica={leituraAutomatica}
+          />
+          <FotoHorimetro
+            nome="final"
+            rotulo="Horímetro final"
+            esperado={numero(fotoInicial.valor)}
+            rotuloArquivo="HORIMETRO - FINAL"
+            estado={fotoFinal}
+            aoMudar={setFotoFinal}
+            obrigatoria={false}
+            leituraAutomatica={leituraAutomatica}
+          />
           {voo.horimetro_inicial === null && (
             <div className="space-y-1.5">
               <Label htmlFor="horas_informadas">Horas (sem horímetro)</Label>
