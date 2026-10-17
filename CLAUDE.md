@@ -308,3 +308,11 @@ Só a `HORAS E COMBUSTÍVEL.xlsx`, aba HORIMETRO:
 - Reembolsos (17/10): o card "Quem deve ao piloto" ganhou o botão **copiar o PIX** ao lado da chave (`BotaoCopiar`, o mesmo das contas a pagar) — antes só dava para selecionar o número à mão no celular.
 - **Foto do horímetro depois do voo** (17/10): o "Editar voo" trocou os dois campos simples de horímetro pelos blocos `FotoHorimetro` (os mesmos de Registrar voo: câmera, galeria e leitura automática quando há chave). `editarVoo` grava `foto_horimetro_inicial`/`foto_horimetro_final` **só quando vem caminho novo** (campo vazio preserva a foto atual) e mescla `leitura_ia` com a anterior. `[id]/page.tsx` passa `leituraAutomatica={temChave()}`. Motivo: 22 dos 23 voos estavam sem foto (foram lançados digitando o horímetro) e não havia como anexar depois.
 - Agenda (17/10): o pedido do CAETANO de 20–23/10 ficou pendente porque foi criado em 16/10, **antes** do v34 — pela regra nova ele confirmaria na hora (ele não tinha usado nenhum direito de outubro). Liberado por script. Em outubro os direitos de SEMANA e FDS estão usados por ARTHUR, CAETANO e WANDERSON; MARCELINO ainda tem os dois.
+
+## 10n. Horários do voo (17/10/2026)
+
+- Regra do Arthur: **a revisão conta da decolagem ao pouso** — que é o que o horímetro mede. O diário passa a guardar os horários.
+- `db/schema_v41_horarios_do_voo.sql`: `voos.hora_decolagem` e `voos.hora_pouso` (`time`) + função `tempo_de_voo(decolagem, pouso)` (décimos; pouso "antes" = virou o dia). `voos.horas` continua sendo a coluna calculada de sempre (horímetro final − inicial, senão `horas_informadas`).
+- Lançar voo: par **Hora da decolagem / Hora do pouso** na ida e na volta (`hora_decolagem`, `hora_pouso`, `hora_decolagem_volta`, `hora_pouso_volta`), com o tempo calculado embaixo e aviso em laranja quando o relógio e o horímetro divergem mais de 0,2 h. Em "ida e volta num voo só", o pouso gravado é o da volta.
+- `salvarVoo`/`editarVoo` gravam os horários; **sem horímetro, as horas saem do tempo de voo** (`horas_informadas = tempoDeVoo(...)`), então entram na revisão e no rateio por uso. O voo com horário de pouso e sem horímetro já nasce CONFIRMADO.
+- Ficha do voo mostra "Decolagem" e "Pouso · X h no ar"; o Excel ganhou as colunas DECOLAGEM e POUSO. Helper único `tempoDeVoo` em lib/formato (usado na tela, na ação e na ficha).

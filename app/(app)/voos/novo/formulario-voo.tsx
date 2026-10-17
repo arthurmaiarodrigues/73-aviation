@@ -13,7 +13,7 @@ import { FotoHorimetro, type EstadoFoto } from "@/components/foto-horimetro";
 import { SeletorAerodromo } from "@/components/seletor-aerodromo";
 import { EscalasSimples } from "@/components/escalas-simples";
 import { NATUREZAS, ROTULO_NATUREZA, ehUsoComum, type NaturezaVoo, type Perfil } from "@/lib/tipos";
-import { horasHm, horimetro as fmtHorimetro } from "@/lib/formato";
+import { horasHm, horimetro as fmtHorimetro, tempoDeVoo } from "@/lib/formato";
 import { cn } from "@/lib/utils";
 import { salvarVoo, type Resultado } from "../acoes";
 
@@ -90,6 +90,11 @@ export function FormularioVoo({
   const [fotoInicial, setFotoInicial] = useState<EstadoFoto>(VAZIA);
   const [horimetroFimIda, setHorimetroFimIda] = useState("");
   const [horimetroIniVolta, setHorimetroIniVolta] = useState("");
+  // Horários do diário de bordo: é o tempo da decolagem ao pouso que conta para a revisão.
+  const [horaDecolagem, setHoraDecolagem] = useState("");
+  const [horaPouso, setHoraPouso] = useState("");
+  const [horaDecolagemVolta, setHoraDecolagemVolta] = useState("");
+  const [horaPousoVolta, setHoraPousoVolta] = useState("");
   const [fotoFinalVolta, setFotoFinalVolta] = useState<EstadoFoto>(VAZIA);
   const [origem, setOrigem] = useState(origemInicial ?? base);
   const [destino, setDestino] = useState(destinoInicial ?? "");
@@ -114,6 +119,8 @@ export function FormularioVoo({
   const hFimVolta = lerHorimetro(fotoFinalVolta.valor);
   const horasIda = hIni !== null && hFimIda !== null && hFimIda >= hIni ? Math.round((hFimIda - hIni) * 10) / 10 : null;
   const horasVolta = hIniVolta !== null && hFimVolta !== null && hFimVolta >= hIniVolta ? Math.round((hFimVolta - hIniVolta) * 10) / 10 : null;
+  const tempoIda = tempoDeVoo(horaDecolagem, horaPouso);
+  const tempoVolta = tempoDeVoo(horaDecolagemVolta, horaPousoVolta);
 
   // Total de horas já conhecido pelos horímetros — base da divisão no lançamento.
   const horasTotais =
@@ -226,6 +233,37 @@ O voo fica marcado como pendente de horímetro até o administrador conferir.
             </p>
           </div>
         )}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="hora_decolagem">Hora da decolagem</Label>
+            <Input
+              id="hora_decolagem"
+              name="hora_decolagem"
+              type="time"
+              value={horaDecolagem}
+              onChange={(e) => setHoraDecolagem(e.target.value)}
+              className="h-12 text-lg tabular"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="hora_pouso">Hora do pouso{comVolta ? ` em ${destino || "…"}` : ""}</Label>
+            <Input
+              id="hora_pouso"
+              name="hora_pouso"
+              type="time"
+              value={horaPouso}
+              onChange={(e) => setHoraPouso(e.target.value)}
+              className="h-12 text-lg tabular"
+            />
+            <p className={cn("text-xs", tempoIda !== null && horasIda !== null && Math.abs(tempoIda - horasIda) > 0.2 ? "text-atencao" : "text-marinho-300")}>
+              {tempoIda === null
+                ? "É esse tempo, da decolagem ao pouso, que conta para a revisão."
+                : horasIda !== null && Math.abs(tempoIda - horasIda) > 0.2
+                  ? `${horasHm(tempoIda)} no relógio e ${horasHm(horasIda)} no horímetro — confira.`
+                  : `${horasHm(tempoIda)} da decolagem ao pouso.`}
+            </p>
+          </div>
+        </div>
         {ultimoHorimetro !== null && !semHorimetro && (
           <p className="text-xs text-marinho-300">
             Último registrado: <strong className="tabular">{fmtHorimetro(ultimoHorimetro)}</strong>
@@ -282,6 +320,37 @@ O voo fica marcado como pendente de horímetro até o administrador conferir.
                 leituraAutomatica={leituraAutomatica}
               />
               <p className="mt-1 text-xs text-marinho-300">{horasVolta !== null ? `${horasHm(horasVolta)} de voo · total ${horasHm(Math.round(((horasIda ?? 0) + horasVolta) * 10) / 10)}` : hFimVolta !== null && hIni !== null && hFimVolta >= hIni && hFimIda === null ? `${horasHm(Math.round((hFimVolta - hIni) * 10) / 10)} no total (ida e volta)` : "Vazio = ainda vou voltar; o pouso é registrado depois pelo Início."}</p>
+            </div>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="hora_decolagem_volta">Hora da decolagem</Label>
+              <Input
+                id="hora_decolagem_volta"
+                name="hora_decolagem_volta"
+                type="time"
+                value={horaDecolagemVolta}
+                onChange={(e) => setHoraDecolagemVolta(e.target.value)}
+                className="h-12 text-lg tabular"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="hora_pouso_volta">Hora do pouso</Label>
+              <Input
+                id="hora_pouso_volta"
+                name="hora_pouso_volta"
+                type="time"
+                value={horaPousoVolta}
+                onChange={(e) => setHoraPousoVolta(e.target.value)}
+                className="h-12 text-lg tabular"
+              />
+              <p className={cn("text-xs", tempoVolta !== null && horasVolta !== null && Math.abs(tempoVolta - horasVolta) > 0.2 ? "text-atencao" : "text-marinho-300")}>
+                {tempoVolta === null
+                  ? "Da decolagem ao pouso."
+                  : horasVolta !== null && Math.abs(tempoVolta - horasVolta) > 0.2
+                    ? `${horasHm(tempoVolta)} no relógio e ${horasHm(horasVolta)} no horímetro — confira.`
+                    : `${horasHm(tempoVolta)} da decolagem ao pouso.`}
+              </p>
             </div>
           </div>
         </fieldset>

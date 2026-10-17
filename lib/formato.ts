@@ -139,3 +139,14 @@ export function periodoVoo(v: { data: string; data_volta: string | null }): stri
 export function semAcento(texto: string): string {
   return texto.normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase();
 }
+
+/** Tempo da decolagem ao pouso em décimos de hora ("09:15"→"13:06" = 3,9). Pouso "antes" = virou o dia. */
+export function tempoDeVoo(decolagem: string | null, pouso: string | null): number | null {
+  if (!decolagem || !pouso) return null;
+  const hhmm = /^\d{2}:\d{2}/;
+  if (!hhmm.test(decolagem) || !hhmm.test(pouso)) return null;
+  const min = (h: string) => Number(h.slice(0, 2)) * 60 + Number(h.slice(3, 5));
+  let diferenca = min(pouso) - min(decolagem);
+  if (diferenca < 0) diferenca += 24 * 60;
+  return Math.round((diferenca / 60) * 10) / 10;
+}

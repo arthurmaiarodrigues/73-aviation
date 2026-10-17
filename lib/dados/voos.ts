@@ -24,6 +24,9 @@ export type VooLinha = {
   horimetro_inicial: number | null;
   horimetro_final: number | null;
   horas: number;
+  /** Hora da decolagem e do pouso (HH:MM) — a revisão conta esse tempo. */
+  hora_decolagem: string | null;
+  hora_pouso: string | null;
   combustivel_inicial_l: number | null;
   combustivel_final_l: number | null;
   pousos: number;
@@ -45,14 +48,14 @@ export type FiltroVoos = {
   pendentes?: boolean;
 };
 
-const SELECT = `id, data, data_volta, socio_id, origem, destino, escalas, horas_pernas, combustivel_pernas, horimetro_pernas, pernas_concluidas, horimetro_inicial, horimetro_final, horas,
+const SELECT = `id, data, data_volta, socio_id, origem, destino, escalas, horas_pernas, combustivel_pernas, horimetro_pernas, pernas_concluidas, horimetro_inicial, horimetro_final, horas, hora_decolagem, hora_pouso,
   combustivel_inicial_l, combustivel_final_l, pousos, natureza, status, pendente_horimetro, observacao,
   foto_horimetro_inicial, foto_horimetro_final, autor_id,
   socios ( apelido ), pilotos ( nome ), voo_socios ( socio_id, horas )`;
 
 type LinhaBruta = {
   id: string; data: string; data_volta?: string | null; socio_id: string | null; origem: string | null; destino: string | null; escalas: string[] | null; horas_pernas: (string | number)[] | null; combustivel_pernas: (string | number)[] | null; horimetro_pernas?: (string | number)[] | null; pernas_concluidas?: number | null;
-  horimetro_inicial: string | null; horimetro_final: string | null; horas: string;
+  horimetro_inicial: string | null; horimetro_final: string | null; horas: string; hora_decolagem?: string | null; hora_pouso?: string | null;
   combustivel_inicial_l: string | null; combustivel_final_l: string | null; pousos: number;
   natureza: NaturezaVoo; status: "RASCUNHO" | "CONFIRMADO"; pendente_horimetro: boolean; observacao: string | null;
   foto_horimetro_inicial: string | null; foto_horimetro_final: string | null; autor_id: string | null;
@@ -83,6 +86,8 @@ function mapear(v: LinhaBruta): VooLinha {
     horimetro_inicial: n(v.horimetro_inicial),
     horimetro_final: n(v.horimetro_final),
     horas: Number(v.horas),
+    hora_decolagem: (v.hora_decolagem ?? null)?.slice(0, 5) ?? null,
+    hora_pouso: (v.hora_pouso ?? null)?.slice(0, 5) ?? null,
     combustivel_inicial_l: n(v.combustivel_inicial_l),
     combustivel_final_l: n(v.combustivel_final_l),
     pousos: v.pousos,

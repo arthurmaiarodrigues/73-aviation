@@ -8,7 +8,7 @@ import { podeLancar } from "@/lib/tipos";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { aeronaveAtiva } from "@/lib/dados/cadastros";
 import { ultimoHorimetro } from "@/lib/dados/voos";
-import { hoje, lerHorasHm, lerNumero } from "@/lib/formato";
+import { hoje, lerHorasHm, lerNumero, tempoDeVoo } from "@/lib/formato";
 import { NATUREZAS, ehUsoComum, type NaturezaVoo } from "@/lib/tipos";
 
 export type Resultado = { ok: boolean; mensagem: string };
@@ -47,6 +47,12 @@ function pernasDoForm(form: FormData, qtdEscalas: number): { horas: number[]; so
     soma: horasOk ? Math.round((horas as number[]).reduce((s, v) => s + v, 0) * 10) / 10 : null,
     combustivel: combustivel.length === qtdEscalas + 1 ? combustivel.map((v) => v ?? 0) : [],
   };
+}
+
+/** "09:15" do input time; vazio vira null. */
+function hora(form: FormData, campo: string): string | null {
+  const t = texto(form, campo);
+  return t && /^d{2}:d{2}$/.test(t) ? t : null;
 }
 
 function leituraJson(form: FormData, campo: string): unknown {
@@ -200,7 +206,10 @@ export async function salvarVoo(_anterior: Resultado, form: FormData): Promise<R
       combustivel_pernas: voltaJunta ? [] : pernas.combustivel,
       horimetro_inicial: hInicial,
       horimetro_final: hFinalVoo,
-      horas_informadas: hInicial === null ? horasInformadas : null,
+      hora_decolagem: hora(form, "hora_decolagem"),
+      hora_pouso: voltaJunta ? hora(form, "hora_pouso_volta") : hora(form, "hora_pouso"),
+      // sem horímetro, as horas vêm do tempo de voo (decolagem → pouso)
+      horas_informadas: hInicial === null ? (horasInformadas ?? (voltaJunta ? null : tempoDeVoo(hora(form, "hora_decolagem"), hora(form, "hora_pouso")))) : null,
       combustivel_inicial_l: combInicial,
       combustivel_final_l: combFinal,
       pousos: voltaJunta ? escalasVoo.length + 1 : pousos,
@@ -209,7 +218,7 @@ export async function salvarVoo(_anterior: Resultado, form: FormData): Promise<R
       foto_horimetro_inicial: texto(form, "foto_inicial"),
       foto_horimetro_final: voltaJunta ? texto(form, "foto_final_volta") : texto(form, "foto_final"),
       leitura_ia: { inicial: leituraJson(form, "leitura_inicial"), final: voltaJunta ? leituraJson(form, "leitura_final_volta") : leituraJson(form, "leitura_final") },
-      status: hFinalVoo !== null || (hInicial === null && horasInformadas !== null) ? "CONFIRMADO" : "RASCUNHO",
+      status: hFinalVoo !== null || (hInicial === null && (horasInformadas !== null || hora(form, "hora_pouso") !== null)) ? "CONFIRMADO" : "RASCUNHO",
       pendente_horimetro: hInicial === null,
       autor_id: user.id,
     })
@@ -250,6 +259,9 @@ export async function salvarVoo(_anterior: Resultado, form: FormData): Promise<R
         escalas: escalasVolta,
         horimetro_inicial: hInicialVolta,
         horimetro_final: hFinalVolta,
+        hora_decolagem: hora(form, "hora_decolagem_volta"),
+        hora_pouso: hora(form, "hora_pouso_volta"),
+        horas_informadas: hInicialVolta === null ? tempoDeVoo(hora(form, "hora_decolagem_volta"), hora(form, "hora_pouso_volta")) : null,
         pousos: escalasVolta.length + 1,
         natureza,
         foto_horimetro_final: texto(form, "foto_final_volta"),
@@ -369,10 +381,15 @@ export async function editarVoo(_anterior: Resultado, form: FormData): Promise<R
     leituraIa = { ...anterior, ...(leituraIni ? { inicial: leituraIni } : {}), ...(leituraFim ? { final: leituraFim } : {}) };
   }
 
+  const decolagem = hora(form, "hora_decolagem");
+  const pouso = hora(form, "hora_pouso");
+
   const { error } = await supabase
     .from("voos")
     .update({
       data: texto(form, "data") ?? hoje(),
+      hora_decolagem: decolagem,
+      hora_pouso: pouso,
       ...(fotoIni ? { foto_horimetro_inicial: fotoIni } : {}),
       ...(fotoFim ? { foto_horimetro_final: fotoFim } : {}),
       ...(leituraIa ? { leitura_ia: leituraIa } : {}),
@@ -390,7 +407,7 @@ export async function editarVoo(_anterior: Resultado, form: FormData): Promise<R
       combustivel_pernas: pernas.combustivel,
       horimetro_inicial: hInicial,
       horimetro_final: hFinal,
-      horas_informadas: hInicial === null ? horasInformadas : null,
+      horas_informadas: hInicial === null ? (horasInformadas ?? tempoDeVoo(decolagem, pouso)) : null,
       combustivel_inicial_l: (pernas.combustivel[0] ?? null) || lerNumero(form.get("combustivel_inicial_l")),
       combustivel_final_l: lerNumero(form.get("combustivel_final_l")),
       pousos: Math.max(0, Math.round(lerNumero(form.get("pousos")) ?? 1)),

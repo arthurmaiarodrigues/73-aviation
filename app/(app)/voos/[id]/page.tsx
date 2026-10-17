@@ -7,7 +7,7 @@ import { exigirSessao } from "@/lib/perfil";
 import { aeronaveAtiva, aerodromosRecentes, listarPilotos, listarSocios } from "@/lib/dados/cadastros";
 import { buscarVoo, trecho, urlDaFoto } from "@/lib/dados/voos";
 import { temChave } from "@/lib/horimetro/ler";
-import { data as fmtData, horas as fmtHoras, horasHm, horimetro as fmtHorimetro, litros as fmtLitros, periodoVoo } from "@/lib/formato";
+import { data as fmtData, horas as fmtHoras, horasHm, horimetro as fmtHorimetro, litros as fmtLitros, periodoVoo, tempoDeVoo } from "@/lib/formato";
 import { ROTULO_NATUREZA } from "@/lib/tipos";
 import { Alerta } from "@/components/ui/alerta";
 import { Badge } from "@/components/ui/badge";
@@ -82,6 +82,15 @@ export default async function PaginaVoo({
           <Dado rotulo="Horímetro final" valor={fmtHorimetro(voo.horimetro_final)} />
           <Dado rotulo="Horas" valor={fmtHoras(voo.horas)} destaque />
           <Dado rotulo="Pousos" valor={String(voo.pousos)} />
+          <Dado rotulo="Decolagem" valor={voo.hora_decolagem ?? "—"} />
+          <Dado
+            rotulo="Pouso"
+            valor={
+              voo.hora_pouso
+                ? `${voo.hora_pouso}${tempoDeVoo(voo.hora_decolagem, voo.hora_pouso) !== null ? ` · ${horasHm(tempoDeVoo(voo.hora_decolagem, voo.hora_pouso)!)} no ar` : ""}`
+                : "—"
+            }
+          />
           <Dado rotulo="Combustível decolagem" valor={fmtLitros(voo.combustivel_inicial_l)} />
           <Dado rotulo="Combustível pouso" valor={fmtLitros(voo.combustivel_final_l)} />
           <Dado

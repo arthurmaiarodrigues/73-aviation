@@ -143,6 +143,15 @@ export function FormularioEdicao({
             </div>
           )}
           <div className="space-y-1.5">
+            <Label htmlFor="hora_decolagem">Hora da decolagem</Label>
+            <Input id="hora_decolagem" name="hora_decolagem" type="time" defaultValue={voo.hora_decolagem ?? ""} className="tabular" />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="hora_pouso">Hora do pouso</Label>
+            <Input id="hora_pouso" name="hora_pouso" type="time" defaultValue={voo.hora_pouso ?? ""} className="tabular" />
+            <p className="text-xs text-marinho-300">É o tempo da decolagem ao pouso que conta para a revisão.</p>
+          </div>
+          <div className="space-y-1.5">
             <Label htmlFor="combustivel_inicial_l">Combustível decolagem (L)</Label>
             <Input id="combustivel_inicial_l" name="combustivel_inicial_l" inputMode="decimal" defaultValue={dec(voo.combustivel_inicial_l)} className="tabular" />
           </div>
