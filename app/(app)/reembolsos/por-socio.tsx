@@ -6,6 +6,7 @@ import { Check, Loader2, Paperclip, Printer, Undo2 } from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
+import { BotaoCopiar } from "@/components/botao-copiar";
 import { reais } from "@/lib/formato";
 import { enviarArquivo } from "@/lib/upload-cliente";
 import { marcarPagoDoSocio } from "./acoes";
@@ -80,8 +81,11 @@ export function DevidoPorSocio({
         </div>
       </div>
       {pix && (
-        <p className="text-sm">
-          PIX de {piloto.split(" ")[0]}: <strong className="select-all">{pix}</strong>
+        <p className="flex flex-wrap items-center gap-2 text-sm">
+          <span>
+            PIX de {piloto.split(" ")[0]}: <strong className="select-all">{pix}</strong>
+          </span>
+          <BotaoCopiar valor={pix} rotulo="copiar o PIX" />
         </p>
       )}
       {msg && <p className="text-xs text-marinho-300">{msg}</p>}
