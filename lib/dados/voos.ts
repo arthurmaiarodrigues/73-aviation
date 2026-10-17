@@ -146,7 +146,7 @@ export async function ultimoHorimetro(aeronaveId: string): Promise<number | null
   return data === null ? null : Number(data);
 }
 
-/** Voo em aberto (sem horímetro final) de quem está logado: "estou voando agora". */
+/** Voo em aberto: decolou e ainda não tem pouso — nem horímetro final, nem hora do pouso, nem horas informadas. */
 export async function vooEmAberto(aeronaveId: string): Promise<VooLinha | null> {
   const supabase = await criarClienteServidor();
   const { data } = await supabase
@@ -156,6 +156,7 @@ export async function vooEmAberto(aeronaveId: string): Promise<VooLinha | null> 
     .is("deleted_at", null)
     .is("horimetro_final", null)
     .is("horas_informadas", null)
+    .is("hora_pouso", null)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -174,7 +175,7 @@ export async function ondeEstaAviao(aeronaveId: string): Promise<VooLinha | null
     .select(SELECT)
     .eq("aeronave_id", aeronaveId)
     .is("deleted_at", null)
-    .or("horimetro_final.not.is.null,horas_informadas.not.is.null")
+    .or("horimetro_final.not.is.null,horas_informadas.not.is.null,hora_pouso.not.is.null")
     .order("data", { ascending: false })
     .order("horimetro_final", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false })
