@@ -13,7 +13,7 @@ import { ciclosRevisao, listarPlano, resumoManutencao } from "@/lib/dados/manute
 import { listarReembolsos } from "@/lib/dados/reembolsos";
 import { listarAnotacoes } from "@/lib/dados/anotacoes";
 import { listarContas } from "@/lib/dados/contas";
-import { ROTULO_BLOQUEIO, agendaDoDia, garantirEscolhaAberta, mesSeguinte, proximasReservas, reservasSemVoo } from "@/lib/dados/agenda";
+import { ROTULO_BLOQUEIO, agendaDoDia, garantirEscolhaAberta, mesSeguinte, pedidosPendentes, proximasReservas, reservasSemVoo } from "@/lib/dados/agenda";
 import { BotaoAcao } from "@/app/(app)/agenda/botoes";
 import { data as fmtData, horas as fmtHoras, horimetro as fmtHorimetro, hoje, inicioDoMes, mesPorExtenso, reais, trimestreDe } from "@/lib/formato";
 import { veDados, podeLancar } from "@/lib/tipos";
@@ -61,6 +61,7 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
     anotacoes,
     semVooTodas,
     reembolsosTodos,
+    pedidos,
   ] = await Promise.all([
     agendaDoDia(aeronave.id, hoje()),
     proximasReservas(aeronave.id, 5),
@@ -72,8 +73,13 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
       socioId: usuario.perfil === "socio" ? (usuario.socioId ?? undefined) : undefined,
       confirmados: usuario.perfil === "socio",
     }),
+    pedidosPendentes(aeronave.id),
   ]);
   const anotacoesAbertas = anotacoes.filter((a) => !a.resolvida_em);
+  // Pedido de outro sócio esperando a minha palavra (o sócio não abre a agenda todo dia).
+  const pedidosParaMim = usuario.socioId
+    ? pedidos.filter((x) => x.socio_id !== usuario.socioId && !x.respostas.some((r) => r.socio_id === usuario.socioId))
+    : [];
   // Reservas que terminaram sem voo: o piloto lança ou marca não realizada; o sócio dono também vê.
   const semVoo = semVooTodas.filter((r) => usuario.perfil !== "socio" || r.socio_id === usuario.socioId);
   const reembolsosAConferir = reembolsosTodos.filter((r) => r.status === "PENDENTE");
@@ -252,6 +258,27 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
               </li>
             ))}
           </ul>
+        </Alerta>
+      )}
+
+      {pedidosParaMim.length > 0 && (
+        <Alerta tom="atencao">
+          <p className="font-semibold">
+            {pedidosParaMim.length === 1 ? "1 pedido de reserva espera a sua resposta" : `${pedidosParaMim.length} pedidos de reserva esperam a sua resposta`}
+          </p>
+          <ul className="mt-1 space-y-0.5 text-sm">
+            {pedidosParaMim.map((x) => (
+              <li key={x.id}>
+                {x.socio} · {fmtData(x.inicio)}
+                {x.fim !== x.inicio ? ` – ${fmtData(x.fim)}` : ""}
+                {x.destino ? ` · ${x.destino}` : ""}
+                {x.feriado ? " · feriado (precisa do OK de todos)" : ""}
+              </li>
+            ))}
+          </ul>
+          <Link href="/agenda" className="text-sm underline">
+            responder na agenda
+          </Link>
         </Alerta>
       )}
 
