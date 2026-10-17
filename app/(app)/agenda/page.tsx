@@ -1,27 +1,24 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeftRight, ChevronLeft, ChevronRight, Lock, ScrollText } from "lucide-react";
+import { ChevronLeft, ChevronRight, Lock, ScrollText } from "lucide-react";
 
 import { exigirSessao } from "@/lib/perfil";
 import { aeronaveAtiva, aerodromosRecentes, listarSocios } from "@/lib/dados/cadastros";
 import {
-  ROTULO_BLOCO,
   ROTULO_BLOQUEIO,
-  fila,
   garantirEscolhaAberta,
   listarBloqueios,
   listarReservas,
   listarSemanas,
-  listarTrocas,
   mesAnterior,
   mesSeguinte,
   pedidosPendentes,
-  vezDeEscolher,
+  tiposDoPeriodo,
   type Bloqueio,
   type Reserva,
   type Semana,
 } from "@/lib/dados/agenda";
-import { data as fmtData, hoje, horas as fmtHoras, mesPorExtenso } from "@/lib/formato";
+import { data as fmtData, hoje, mesPorExtenso } from "@/lib/formato";
 import { cn } from "@/lib/utils";
 import { Alerta } from "@/components/ui/alerta";
 import { Badge } from "@/components/ui/badge";
@@ -29,7 +26,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BotaoAcao } from "./botoes";
 import { FormularioBloqueio, FormularioEditarReserva, FormularioIndisponivel, FormularioReserva } from "./formularios";
-import { SeletorTroca } from "./seletor-troca";
 
 export const metadata: Metadata = { title: "Agenda" };
 
@@ -56,36 +52,27 @@ export default async function PaginaAgenda({ searchParams }: { searchParams: Pro
   const semanas = await listarSemanas(aeronave.id, mes);
   const de = semanas[0]?.inicio ?? mes;
   const ate = semanas[semanas.length - 1]?.fim ?? mes;
-  const [linhasFila, vez, reservas, bloqueios, socios, aerodromos, pedidos, trocas] = await Promise.all([
-    fila(aeronave.id, mes),
-    vezDeEscolher(aeronave.id, mes),
+  const [reservas, bloqueios, socios, aerodromos, pedidos] = await Promise.all([
     listarReservas(aeronave.id, de, ate),
     listarBloqueios(aeronave.id, de, ate),
     listarSocios({ somenteAtivos: true }),
     aerodromosRecentes(aeronave.id),
     pedidosPendentes(aeronave.id),
-    listarTrocas(aeronave.id),
   ]);
 
-  const minhaVez = vez !== null && vez === socioLogado;
-  const minhaLinha = linhasFila.find((l) => l.socio_id === socioLogado);
-  const faltaSemana = Boolean(minhaLinha && !minhaLinha.semana_id);
-  const faltaFds = Boolean(minhaLinha && !minhaLinha.fds_id);
-  const possoEscolher = Boolean(minhaLinha && (faltaSemana || faltaFds) && (minhaVez || minhaLinha.pulado));
-  const livres = (tipo: Semana["tipo"]) => semanas.filter((s) => s.tipo === tipo && !s.socio_id && s.fim >= h);
-  const meusBlocos = semanas.filter((s) => s.socio_id === socioLogado && s.inicio >= h);
-  const blocosDosOutros = (tipo: Semana["tipo"]) => semanas.filter((s) => s.tipo === tipo && s.socio_id && s.socio_id !== socioLogado && s.inicio >= h);
   const opcoesSocios = admin ? socios.map((so) => ({ id: so.id, apelido: so.apelido })) : undefined;
   const podeReservar = Boolean(socioLogado) || admin;
-  const trocasParaMim = trocas.filter((t) => t.para_socio_id === socioLogado);
-  const trocasMinhas = trocas.filter((t) => t.de_socio_id === socioLogado);
+  // Direito do mês: uma semana (seg–qui) e um fim de semana (sex–dom) por sócio.
+  const doMes = reservas.filter((r) => !r.pendente && r.inicio.slice(0, 7) === mes.slice(0, 7));
+  const usou = (socioId: string, tipo: "SEMANA" | "FDS") => doMes.find((r) => r.socio_id === socioId && tiposDoPeriodo(r.inicio, r.fim).includes(tipo));
+  const direitos = socios.map((so) => ({ socio: so, semana: usou(so.id, "SEMANA"), fds: usou(so.id, "FDS"), cor: so.cor }));
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Agenda</h1>
-          <p className="text-sm text-marinho-300">Cada sócio tem por mês uma semana (seg–qui) e um fim de semana (sex–dom). Reservou num bloco livre com o direito ainda não usado? O bloco vira seu. Além disso, é pedido com o OK dos outros.</p>
+          <p className="text-sm text-marinho-300">Cada sócio tem por mês uma semana (seg–qui) e um fim de semana (sex–dom), nas datas que quiser e por ordem de chegada. Usado o direito, a próxima reserva é pedido com o OK dos outros.</p>
         </div>
         <div className="flex items-center gap-1">
           <Button asChild variant="fantasma" size="icone">
@@ -102,47 +89,14 @@ export default async function PaginaAgenda({ searchParams }: { searchParams: Pro
         </div>
       </div>
 
-      {possoEscolher && (
-        <Alerta tom="atencao">
-          <p className="font-semibold">
-            {minhaVez ? "É a sua vez de escolher." : "Você passou a vez, mas ainda pode escolher entre o que sobrou."}
-            {faltaSemana && faltaFds ? " Escolha uma semana e um fim de semana." : faltaSemana ? " Falta a sua semana (seg–qui)." : " Falta o seu fim de semana (sex–dom)."}
-          </p>
-          {minhaVez && minhaLinha?.prazo && <p className="text-xs">Prazo: {new Date(minhaLinha.prazo).toLocaleString("pt-BR", { timeZone: "America/Bahia" })}. Depois disso a vez passa para o próximo.</p>}
-          {faltaSemana && (
-            <div className="mt-2">
-              <p className="text-xs font-semibold uppercase tracking-wide">Semanas livres (seg–qui)</p>
-              <div className="mt-1 flex flex-wrap gap-2">
-                {livres("SEMANA").map((s) => (
-                  <BotaoAcao key={s.id} acao="escolher" id={s.id} rotulo={`${fmtData(s.inicio)} – ${fmtData(s.fim)}`} />
-                ))}
-                {livres("SEMANA").length === 0 && <span className="text-sm">Nenhuma semana livre sobrou.</span>}
-              </div>
-            </div>
-          )}
-          {faltaFds && (
-            <div className="mt-2">
-              <p className="text-xs font-semibold uppercase tracking-wide">Fins de semana livres (sex–dom)</p>
-              <div className="mt-1 flex flex-wrap gap-2">
-                {livres("FDS").map((s) => (
-                  <BotaoAcao key={s.id} acao="escolher" id={s.id} rotulo={`${fmtData(s.inicio)} – ${fmtData(s.fim)}`} />
-                ))}
-                {livres("FDS").length === 0 && <span className="text-sm">Nenhum fim de semana livre sobrou.</span>}
-              </div>
-            </div>
-          )}
-        </Alerta>
-      )}
-
       {/* Pedidos aguardando os sócios */}
       {pedidos.length > 0 && (
         <Card className="border-atencao">
           <CardHeader>
             <CardTitle className="text-lg">Pedidos aguardando resposta</CardTitle>
             <CardDescription>
-              Reserva além do direito do mês, ou dentro do período de outro sócio. No período de alguém, só o titular responde; se ele cancelar
-              o que tinha marcado, o período fica livre e o pedido confirma na hora. Sem resposta em 48 h e sem nada marcado no período dele,
-              também confirma. Feriado: só com o OK de todos.
+              Reserva feita depois de o sócio já ter usado o direito do mês. Qualquer &quot;preciso do avião&quot; cancela; todos concordando,
+              confirma. Sem ninguém responder em 48 h, confirma sozinha — menos em feriado, que exige o OK de todos.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -182,98 +136,44 @@ export default async function PaginaAgenda({ searchParams }: { searchParams: Pro
         </Card>
       )}
 
-      {/* Trocas */}
-      {(trocasParaMim.length > 0 || trocasMinhas.length > 0 || (admin && trocas.length > 0)) && (
-        <Card className="border-info">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <ArrowLeftRight className="size-4" /> Trocas propostas
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="divide-y divide-marinho-100 text-sm dark:divide-marinho-300">
-              {trocas.map((t) => (
-                <li key={t.id} className="flex flex-wrap items-center gap-2 py-2">
-                  <span className="font-semibold">{t.de}</span>
-                  <span>
-                    dá {fmtData(t.bloco_de.inicio)} – {fmtData(t.bloco_de.fim)} e recebe {fmtData(t.bloco_para.inicio)} – {fmtData(t.bloco_para.fim)} de
-                  </span>
-                  <span className="font-semibold">{t.para}</span>
-                  <span className="text-xs text-marinho-300">({ROTULO_BLOCO[t.bloco_de.tipo]})</span>
-                  {t.para_socio_id === socioLogado && (
-                    <>
-                      <BotaoAcao acao="aceitarTroca" id={t.id} rotulo="Aceitar" variant="secundario" />
-                      <BotaoAcao acao="recusarTroca" id={t.id} rotulo="Recusar" variant="fantasma" />
-                    </>
-                  )}
-                  {t.de_socio_id === socioLogado && <BotaoAcao acao="recusarTroca" id={t.id} rotulo="Cancelar proposta" variant="fantasma" />}
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Calendário */}
       <Calendario semanas={semanas} reservas={reservas} bloqueios={bloqueios} hoje={h} meuSocioId={socioLogado} />
 
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Fila de escolha */}
+        {/* Direito do mês */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Escolha do mês</CardTitle>
-            <CardDescription>Ordem por menos uso nos 3 meses anteriores (dias reservados + horas voadas). 48 h para escolher; quem não escolhe passa a vez.</CardDescription>
+            <CardTitle className="text-lg">Direito do mês</CardTitle>
+            <CardDescription>
+              Cada sócio marca, no mês, uma semana (seg–qui) e um fim de semana (sex–dom) — nas datas que quiser, por ordem de chegada. Usado o
+              direito, a próxima reserva vira pedido aos outros.
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            {linhasFila.length === 0 ? (
-              <p className="text-sm text-marinho-300">A escolha deste mês abre no dia 15 do mês anterior.</p>
-            ) : (
-              <ol className="space-y-2">
-                {linhasFila.map((l) => {
-                  const semana = semanas.find((s) => s.id === l.semana_id);
-                  const fds = semanas.find((s) => s.id === l.fds_id);
-                  const ehVez = vez === l.socio_id;
-                  const completo = Boolean(l.semana_id && l.fds_id);
-                  const meu = l.socio_id === socioLogado || admin;
-                  return (
-                    <li key={l.id} className="flex flex-wrap items-center gap-2 text-sm">
-                      <span className="w-5 text-right text-marinho-300">{l.ordem}.</span>
-                      <span className="size-3 rounded-full" style={{ background: l.cor }} />
-                      <span className="font-semibold">{l.apelido}</span>
-                      <span className="text-xs text-marinho-300">
-                        {l.dias_base} {l.dias_base === 1 ? "dia" : "dias"} + {fmtHoras(l.horas_base)}
-                      </span>
-                      {semana && (
-                        <Badge variant="ok">
-                          seg–qui {fmtData(semana.inicio)} – {fmtData(semana.fim)}
-                        </Badge>
-                      )}
-                      {fds && (
-                        <Badge variant="ok">
-                          sex–dom {fmtData(fds.inicio)} – {fmtData(fds.fim)}
-                        </Badge>
-                      )}
-                      {!completo && (ehVez ? <Badge variant="atencao">é a vez</Badge> : l.pulado ? <Badge variant="neutro">passou a vez</Badge> : <Badge variant="info">aguardando</Badge>)}
-                      {semana && meu && semana.fim >= h && <BotaoAcao acao="ceder" id={semana.id} rotulo="Ceder semana" variant="fantasma" confirmar="Devolver a semana ao pool?" />}
-                      {fds && meu && fds.fim >= h && <BotaoAcao acao="ceder" id={fds.id} rotulo="Ceder fim de semana" variant="fantasma" confirmar="Devolver o fim de semana ao pool?" />}
-                    </li>
-                  );
-                })}
-              </ol>
-            )}
-            {meusBlocos.length > 0 && (
-              <div className="mt-4 space-y-2 border-t border-marinho-100 pt-3 text-sm dark:border-marinho-300">
-                <p className="text-xs font-semibold uppercase tracking-wide text-marinho-300">Trocar um período meu com outro sócio</p>
-                {meusBlocos.map((b) => (
-                  <div key={b.id} className="flex flex-wrap items-center gap-2">
-                    <span>
-                      {ROTULO_BLOCO[b.tipo]} {fmtData(b.inicio)} – {fmtData(b.fim)}
-                    </span>
-                    <SeletorTroca meuBloco={b.id} opcoes={blocosDosOutros(b.tipo).map((o) => ({ id: o.id, inicio: o.inicio, fim: o.fim, socio: o.socio ?? "" }))} />
-                  </div>
-                ))}
-              </div>
-            )}
+            <ul className="space-y-2 text-sm">
+              {direitos.map((d) => (
+                <li key={d.socio.id} className="flex flex-wrap items-center gap-2">
+                  <span className="size-3 rounded-full" style={{ background: d.cor }} />
+                  <span className="font-semibold">{d.socio.apelido}</span>
+                  {d.semana ? (
+                    <Badge variant="ok">
+                      seg–qui {fmtData(d.semana.inicio)}
+                      {d.semana.fim !== d.semana.inicio ? ` – ${fmtData(d.semana.fim)}` : ""}
+                    </Badge>
+                  ) : (
+                    <Badge variant="neutro">semana livre</Badge>
+                  )}
+                  {d.fds ? (
+                    <Badge variant="ok">
+                      sex–dom {fmtData(d.fds.inicio)}
+                      {d.fds.fim !== d.fds.inicio ? ` – ${fmtData(d.fds.fim)}` : ""}
+                    </Badge>
+                  ) : (
+                    <Badge variant="neutro">fim de semana livre</Badge>
+                  )}
+                </li>
+              ))}
+            </ul>
           </CardContent>
         </Card>
 
@@ -281,7 +181,7 @@ export default async function PaginaAgenda({ searchParams }: { searchParams: Pro
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Reservas do mês</CardTitle>
-            <CardDescription>Bloco livre com o seu direito do mês ainda não usado: confirma na hora e o bloco vira seu. Direito já usado: vira pedido aos outros sócios. Até 60 dias à frente.</CardDescription>
+            <CardDescription>Com o direito do mês ainda não usado, a reserva confirma na hora. Direito já usado: vira pedido aos outros sócios. Até 60 dias à frente.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {podeReservar ? <FormularioReserva hoje={h} aerodromos={aerodromos} socios={opcoesSocios} meuSocioId={socioLogado} /> : <p className="text-sm text-marinho-300">Só sócio reserva.</p>}
@@ -365,15 +265,14 @@ export default async function PaginaAgenda({ searchParams }: { searchParams: Pro
         </CardHeader>
         <CardContent>
           <ol className="list-decimal space-y-1 pl-5 text-sm">
-            <li>Cada sócio tem por mês <strong>uma semana (seg–qui)</strong> e <strong>um fim de semana (sex–dom)</strong>, escolhidos na fila.</li>
-            <li>A ordem da fila é por <strong>menos uso</strong> nos 3 meses anteriores: dias reservados + horas voadas. Empate: quem escolheu por último fica atrás.</li>
-            <li>A escolha abre no dia 15 do mês anterior; cada um tem <strong>48 h</strong> na sua vez. Quem não escolhe passa a vez e pega o que sobrar.</li>
-            <li>Reservar dias de um bloco <strong>livre</strong> quando você ainda não usou o direito daquele tipo no mês confirma na hora — o bloco passa a ser seu (vale como a sua escolha).</li>
-            <li>Já usou o direito do mês? Reserva a mais é um <strong>pedido</strong>: os outros sócios recebem aviso. Sem ninguém dizer "preciso" em 48 h, confirma.</li>
-            <li><strong>Feriado prolongado, Natal e Ano Novo</strong> só confirmam com o "concordo" de todos os outros sócios.</li>
+            <li>Cada sócio tem por mês <strong>uma semana (seg–qui)</strong> e <strong>um fim de semana (sex–dom)</strong>. Não existe semana de ninguém: você marca as datas que quiser.</li>
+            <li><strong>Quem marca primeiro leva.</strong> Enquanto o direito daquele tipo não foi usado no mês, a reserva confirma na hora.</li>
+            <li>Um período que pega dias de seg a qui usa a <strong>semana</strong>; dias de sex a dom usam o <strong>fim de semana</strong>. Um período que pega os dois usa os dois.</li>
+            <li>Já usou o direito do mês? A reserva a mais é um <strong>pedido</strong>: os outros recebem aviso. Qualquer &quot;preciso do avião&quot; cancela; sem resposta em 48 h, confirma.</li>
+            <li><strong>Feriado prolongado, Natal e Ano Novo</strong> só confirmam com o &quot;concordo&quot; de todos os outros sócios.</li>
             <li>Reservas só até <strong>60 dias</strong> à frente e no máximo 30 dias seguidos.</li>
-            <li>Sócios podem <strong>trocar</strong> períodos entre si (semana por semana, fim de semana por fim de semana): um propõe, o outro aceita.</li>
-            <li>Bloco cedido volta ao pool; bloco não usado não acumula. Manutenção e documento vencido bloqueiam a agenda e vencem qualquer reserva.</li>
+            <li>Direito não usado no mês <strong>não acumula</strong>. Cancelar a reserva devolve o direito do mês.</li>
+            <li>Manutenção, documento vencido e piloto indisponível <strong>bloqueiam</strong> a agenda e vencem qualquer reserva.</li>
           </ol>
         </CardContent>
       </Card>
@@ -413,20 +312,6 @@ function Calendario({
   const mes = semanas[0].mes.slice(0, 7);
   const segundas = [...new Set(semanas.map((s) => (s.tipo === "SEMANA" ? s.inicio : addDias(s.inicio, -4))))].sort();
 
-  const Dono = ({ b, rotulo }: { b: Semana | undefined; rotulo: string }) => (
-    <div className="text-[11px] leading-tight">
-      <span className="text-marinho-300">{rotulo} </span>
-      {b?.socio ? (
-        <span className="inline-flex items-center gap-1 font-semibold">
-          <span className="size-2.5 rounded-full" style={{ background: b.cor ?? undefined }} /> {b.socio}
-          {b.socio_id === meuSocioId && <Badge variant="info">você</Badge>}
-        </span>
-      ) : (
-        <span className="text-marinho-300">{b?.cedida_por ? "cedido · livre" : "livre"}</span>
-      )}
-    </div>
-  );
-
   return (
     <div className="overflow-x-auto rounded-lg border border-marinho-100 dark:border-marinho-300">
       <table className="w-full min-w-[640px] border-collapse text-xs">
@@ -446,12 +331,11 @@ function Calendario({
             const fds = semanas.find((s) => s.tipo === "FDS" && s.inicio === addDias(seg, 4));
             return (
               <tr key={seg} className="border-t border-marinho-100 dark:border-marinho-300">
-                <td className="space-y-1 px-2 py-2 align-top">
-                  <Dono b={semana} rotulo="seg–qui" />
-                  <Dono b={fds} rotulo="sex–dom" />
-                  <div className="text-[10px] text-marinho-300">
+                <td className="px-2 py-2 align-top">
+                  <div className="text-[11px] font-semibold leading-tight">
                     {fmtData(seg)} – {fmtData(addDias(seg, 6))}
                   </div>
+                  <div className="text-[10px] text-marinho-300">seg–qui · sex–dom</div>
                 </td>
                 {Array.from({ length: 7 }, (_, i) => addDias(seg, i)).map((dia, i) => {
                   const bloco = i < 4 ? semana : fds;

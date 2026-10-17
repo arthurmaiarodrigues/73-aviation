@@ -13,7 +13,7 @@ import { ciclosRevisao, listarPlano, resumoManutencao } from "@/lib/dados/manute
 import { listarReembolsos } from "@/lib/dados/reembolsos";
 import { listarAnotacoes } from "@/lib/dados/anotacoes";
 import { listarContas } from "@/lib/dados/contas";
-import { ROTULO_BLOQUEIO, agendaDoDia, fila, garantirEscolhaAberta, mesSeguinte, proximasReservas, reservasSemVoo, vezDeEscolher } from "@/lib/dados/agenda";
+import { ROTULO_BLOQUEIO, agendaDoDia, garantirEscolhaAberta, mesSeguinte, proximasReservas, reservasSemVoo } from "@/lib/dados/agenda";
 import { BotaoAcao } from "@/app/(app)/agenda/botoes";
 import { data as fmtData, horas as fmtHoras, horimetro as fmtHorimetro, hoje, inicioDoMes, mesPorExtenso, reais, trimestreDe } from "@/lib/formato";
 import { veDados, podeLancar } from "@/lib/tipos";
@@ -57,10 +57,6 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
   const [
     diaHoje,
     reservasProximas,
-    vezAtual,
-    vezProxima,
-    filaAtual,
-    filaProxima,
     manutencao,
     anotacoes,
     semVooTodas,
@@ -68,10 +64,6 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
   ] = await Promise.all([
     agendaDoDia(aeronave.id, hoje()),
     proximasReservas(aeronave.id, 5),
-    vezDeEscolher(aeronave.id, mes),
-    vezDeEscolher(aeronave.id, mesProximo),
-    fila(aeronave.id, mes),
-    fila(aeronave.id, mesProximo),
     resumoManutencao(aeronave.id),
     listarAnotacoes(aeronave.id, 50),
     reservasSemVoo(aeronave.id),
@@ -91,11 +83,6 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
     (t, r) => t + (usuario.perfil === "socio" && r.socio_id === null ? (r.partes.find((x) => x.socio_id === usuario.socioId)?.valor ?? 0) : r.valor),
     0,
   );
-
-  const minhaVezEm = [vezAtual === usuario.socioId && usuario.socioId ? mes : null, vezProxima === usuario.socioId && usuario.socioId ? mesProximo : null].filter(Boolean) as string[];
-  const puladoEm = [filaAtual, filaProxima]
-    .map((f, i) => (f.find((l) => l.socio_id === usuario.socioId && l.pulado && (!l.semana_id || !l.fds_id)) ? (i === 0 ? mes : mesProximo) : null))
-    .filter(Boolean) as string[];
 
   const meuSaldo = saldos.find((s) => s.socio_id === usuario.socioId);
   // perna em curso do voo aberto (ida e volta: SNTF → X → SNTF)
@@ -313,16 +300,6 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
         </Alerta>
       )}
 
-      {(minhaVezEm.length > 0 || puladoEm.length > 0) && (
-        <Alerta tom="atencao">
-          <p className="font-semibold">
-            {minhaVezEm.length > 0 ? `É a sua vez de escolher a semana de ${minhaVezEm.map(mesPorExtenso).join(" e ")}.` : `Você passou a vez em ${puladoEm.map(mesPorExtenso).join(" e ")}, mas ainda pode escolher entre as semanas livres.`}
-          </p>
-          <Link href={`/agenda?mes=${(minhaVezEm[0] ?? puladoEm[0]).slice(0, 7)}`} className="text-sm underline">
-            escolher agora
-          </Link>
-        </Alerta>
-      )}
 
       {/* Pendências */}
       {pendentesReais.length > 0 && (

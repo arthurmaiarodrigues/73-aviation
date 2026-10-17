@@ -119,10 +119,9 @@ export async function garantirEscolhaAberta(aeronaveId: string): Promise<void> {
   const supabase = await criarClienteServidor();
   const h = hoje();
   const mesAtual = `${h.slice(0, 7)}-01`;
+  // Só garante que os blocos do calendário existem; não há mais fila de escolha.
   await supabase.rpc("abrir_escolha", { p_aeronave: aeronaveId, p_mes: mesAtual });
-  if (Number(h.slice(8, 10)) >= 15) {
-    await supabase.rpc("abrir_escolha", { p_aeronave: aeronaveId, p_mes: mesSeguinte(mesAtual) });
-  }
+  await supabase.rpc("abrir_escolha", { p_aeronave: aeronaveId, p_mes: mesSeguinte(mesAtual) });
   // Reserva que terminou sem voo lançado: avisa piloto e sócio uma vez.
   for (const r of await reservasSemVoo(aeronaveId)) {
     if (r.aviso_sem_voo_em) continue;
@@ -303,4 +302,18 @@ export async function reservasSemVoo(aeronaveId: string): Promise<ReservaSemVoo[
   const { data, error } = await supabase.rpc("reservas_sem_voo", { p_aeronave: aeronaveId });
   if (error) throw new Error(`Reservas sem voo: ${error.message}`);
   return (data ?? []) as ReservaSemVoo[];
+}
+
+/**
+ * Que direitos do mês o período usa: seg–qui conta a "semana", sex–dom
+ * conta o "fim de semana". Um período que pega os dois usa os dois.
+ * Mesma régua da função `tipos_do_periodo` no banco.
+ */
+export function tiposDoPeriodo(inicio: string, fim: string): ("SEMANA" | "FDS")[] {
+  const tipos = new Set<"SEMANA" | "FDS">();
+  for (let d = new Date(`${inicio}T12:00:00Z`); d <= new Date(`${fim}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + 1)) {
+    const diaDaSemana = d.getUTCDay(); // 0 = domingo
+    tipos.add(diaDaSemana >= 1 && diaDaSemana <= 4 ? "SEMANA" : "FDS");
+  }
+  return [...tipos];
 }
