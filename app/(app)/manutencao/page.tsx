@@ -53,7 +53,11 @@ export default async function PaginaManutencao({ searchParams }: { searchParams:
       <Card>
         <CardHeader>
           <CardTitle>Plano de manutenção</CardTitle>
-          <CardDescription>Cada item conta desde a última execução. Preencha a última execução dos itens "sem registro" para o aviso funcionar.</CardDescription>
+          <CardDescription>
+            Cada item conta desde a última execução. A revisão de 100 h é o ciclo completo e inclui a de 50 h: ao concluir a de 100 h as duas zeram, e peça ou
+            serviço da nota sem item do plano divide as horas desde a última revisão de 100 h. O TBO do motor não zera em revisão. Preencha a última execução dos
+            itens "sem registro" para o aviso funcionar.
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
