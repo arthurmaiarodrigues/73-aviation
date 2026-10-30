@@ -9,3 +9,6 @@ dados/conferencia/*.xlsx
 dados/aerodromos/*.csv
 dados/horimetro-teste/
 scripts/tmp/
+
+# relatórios gerados para os sócios
+*.pdf
