@@ -4,6 +4,7 @@ import { exigirSessao } from "@/lib/perfil";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { aeronaveAtiva, listarAerodromos, listarFornecedores, listarSocios } from "@/lib/dados/cadastros";
 import { NovoAcesso, BotaoLinkAcesso } from "./novo-acesso";
+import { AvisoDeTeste } from "./aviso-teste";
 import { ROTULO_PERFIL, type Perfil } from "@/lib/tipos";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -28,8 +29,8 @@ export default async function PaginaCadastros() {
     listarSocios(),
     listarFornecedores(),
     listarAerodromos(),
-    admin ? supabase.from("usuarios").select("id, nome, perfil, ativo").order("nome") : Promise.resolve({ data: [] as { id: string; nome: string; perfil: Perfil; ativo: boolean }[] }),
-    supabase.from("pilotos").select("id, nome, socio_id, licenca, validade_licenca, pix, ativo").order("nome"),
+    admin ? supabase.from("usuarios").select("id, nome, perfil, ativo, avisa_whatsapp").order("nome") : Promise.resolve({ data: [] as { id: string; nome: string; perfil: Perfil; ativo: boolean; avisa_whatsapp: boolean }[] }),
+    supabase.from("pilotos").select("id, nome, socio_id, licenca, validade_licenca, pix, whatsapp, ativo").order("nome"),
   ]);
 
   return (
@@ -71,7 +72,7 @@ export default async function PaginaCadastros() {
       <Card>
         <CardHeader>
           <CardTitle>Sócios</CardTitle>
-          <CardDescription>Cotas somam 100 %. Vincule cada sócio ao usuário de login para o app saber quem está voando.</CardDescription>
+          <CardDescription>Cotas somam 100 %. Vincule cada sócio ao usuário de login para o app saber quem está voando. Com o WhatsApp preenchido, os avisos do app (pedido de reserva, período liberado, voo agendado) também chegam por lá.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {socios.map((s) => (
@@ -84,6 +85,7 @@ export default async function PaginaCadastros() {
                 </span>
                 {s.ativo_ate && <Badge variant="neutro">saiu em {s.ativo_ate.split("-").reverse().join("/")}</Badge>}
                 {!s.usuario_id && admin && <Badge variant="atencao">sem login vinculado</Badge>}
+                {!s.whatsapp && admin && <Badge variant="atencao">sem WhatsApp</Badge>}
               </summary>
               {admin && (
                 <div className="mt-3">
@@ -92,6 +94,7 @@ export default async function PaginaCadastros() {
                     <Campo nome="nome" rotulo="Nome" valor={s.nome} />
                     <Campo nome="apelido" rotulo="Apelido" valor={s.apelido} />
                     <Campo nome="cpf" rotulo="CPF" valor="" />
+                    <Campo nome="whatsapp" rotulo="WhatsApp (DDD + número)" valor={s.whatsapp ?? ""} tipo="tel" />
                     <Campo nome="cota" rotulo="Cota (%)" valor={dec(s.cota)} />
                     <div className="space-y-1">
                       <Label htmlFor={`cor-${s.id}`} className="text-xs">
@@ -127,6 +130,7 @@ export default async function PaginaCadastros() {
                   <Campo nome="nome" rotulo="Nome" valor="" />
                   <Campo nome="apelido" rotulo="Apelido" valor="" />
                   <Campo nome="cota" rotulo="Cota (%)" valor="25" />
+                  <Campo nome="whatsapp" rotulo="WhatsApp (DDD + número)" valor="" tipo="tel" />
                   <Campo nome="ativo_desde" rotulo="Sócio desde" valor="" tipo="date" />
                 </FormularioAcao>
               </div>
@@ -140,12 +144,13 @@ export default async function PaginaCadastros() {
         <Card>
           <CardHeader>
             <CardTitle>Usuários</CardTitle>
-            <CardDescription>Crie o acesso aqui mesmo e mande o link para a pessoa escolher a senha.</CardDescription>
+            <CardDescription>Crie o acesso aqui mesmo e mande o link para a pessoa escolher a senha. A chave “avisa no WhatsApp” desliga os avisos de quem não quiser, sem apagar o telefone.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
             <div className="rounded-lg border border-laranja p-4">
               <NovoAcesso />
             </div>
+            <AvisoDeTeste />
             {(usuarios ?? []).map((u) => (
               <FormularioAcao key={u.id} acao={salvarUsuario} className="grid items-end gap-3 sm:grid-cols-5">
                 <input type="hidden" name="id" value={u.id} />
@@ -162,6 +167,9 @@ export default async function PaginaCadastros() {
                 </div>
                 <label className="flex items-center gap-2 pb-2 text-sm">
                   <input type="checkbox" name="ativo" defaultChecked={u.ativo} /> ativo
+                </label>
+                <label className="flex items-center gap-2 pb-2 text-sm">
+                  <input type="checkbox" name="avisa_whatsapp" defaultChecked={u.avisa_whatsapp} /> avisa no WhatsApp
                 </label>
                 <div className="space-y-1 pb-1">
                   <p className="text-xs text-marinho-300">{socios.find((s) => s.usuario_id === u.id)?.apelido ?? "não é sócio"}</p>
@@ -180,14 +188,32 @@ export default async function PaginaCadastros() {
           <CardDescription>Os pilotos que voam o avião. Remover apaga o cadastro; os voos antigos dele ficam sem piloto.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <ul className="grid gap-2 sm:grid-cols-2">
+          <ul className="grid gap-2">
             {(pilotos ?? []).map((p) => (
-              <li key={p.id} className="flex items-center gap-2 text-sm">
-                <span className="font-semibold">{p.nome}</span>
-                {p.licenca && <span className="text-marinho-300">{p.licenca}</span>}
-                {p.pix && <span className="text-xs text-marinho-300">PIX {p.pix}</span>}
-                {!p.ativo && <Badge variant="erro">inativo</Badge>}
-                {admin && <BotoesPiloto id={p.id} ativo={p.ativo} nome={p.nome} />}
+              <li key={p.id}>
+                <details className="rounded border border-marinho-100 p-3 dark:border-marinho-300">
+                  <summary className="flex cursor-pointer flex-wrap items-center gap-2 text-sm">
+                    <span className="font-semibold">{p.nome}</span>
+                    {p.licenca && <span className="text-marinho-300">{p.licenca}</span>}
+                    {p.pix && <span className="text-xs text-marinho-300">PIX {p.pix}</span>}
+                    {admin && !p.whatsapp && <Badge variant="atencao">sem WhatsApp</Badge>}
+                    {!p.ativo && <Badge variant="erro">inativo</Badge>}
+                  </summary>
+                  {admin && (
+                    <div className="mt-3 space-y-3">
+                      <FormularioAcao acao={salvarPiloto} className="grid gap-3 sm:grid-cols-4">
+                        <input type="hidden" name="id" value={p.id} />
+                        <input type="hidden" name="ativo" value={p.ativo ? "on" : "off"} />
+                        <Campo nome="nome" rotulo="Nome" valor={p.nome} />
+                        <Campo nome="licenca" rotulo="Licença (CANAC)" valor={p.licenca ?? ""} />
+                        <Campo nome="validade_licenca" rotulo="Validade" valor={p.validade_licenca ?? ""} tipo="date" />
+                        <Campo nome="pix" rotulo="Chave PIX (para reembolso)" valor={p.pix ?? ""} />
+                        <Campo nome="whatsapp" rotulo="WhatsApp (DDD + número)" valor={p.whatsapp ?? ""} tipo="tel" />
+                      </FormularioAcao>
+                      <BotoesPiloto id={p.id} ativo={p.ativo} nome={p.nome} />
+                    </div>
+                  )}
+                </details>
               </li>
             ))}
           </ul>

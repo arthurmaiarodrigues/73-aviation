@@ -3,6 +3,13 @@ import "server-only";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { data as fmtData, hoje } from "@/lib/formato";
 import { notificar } from "@/lib/push";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+/**
+ * Cliente do banco. O normal é o da sessão; o disparo diário de avisos
+ * (/api/cron/avisos) não tem sessão e passa o cliente da chave secreta.
+ */
+type Cliente = SupabaseClient<never, never, never>;
 
 /** Bloco do mês: semana (seg–qui) ou fim de semana (sex–dom). */
 export type Semana = {
@@ -115,15 +122,15 @@ export function mesAnterior(mes: string): string {
  * do dia 15, também para o mês seguinte (regra do CLAUDE.md). Idempotente,
  * roda como definer no banco — qualquer sócio que abrir a agenda dispara.
  */
-export async function garantirEscolhaAberta(aeronaveId: string): Promise<void> {
-  const supabase = await criarClienteServidor();
+export async function garantirEscolhaAberta(aeronaveId: string, cliente?: Cliente): Promise<void> {
+  const supabase = cliente ?? (await criarClienteServidor());
   const h = hoje();
   const mesAtual = `${h.slice(0, 7)}-01`;
   // Só garante que os blocos do calendário existem; não há mais fila de escolha.
   await supabase.rpc("abrir_escolha", { p_aeronave: aeronaveId, p_mes: mesAtual });
   await supabase.rpc("abrir_escolha", { p_aeronave: aeronaveId, p_mes: mesSeguinte(mesAtual) });
   // Reserva que terminou sem voo lançado: avisa piloto e sócio uma vez.
-  for (const r of await reservasSemVoo(aeronaveId)) {
+  for (const r of await reservasSemVoo(aeronaveId, supabase as Cliente)) {
     if (r.aviso_sem_voo_em) continue;
     const quando = `${fmtData(r.inicio)}${r.fim !== r.inicio ? ` a ${fmtData(r.fim)}` : ""}${r.destino ? ` → ${r.destino}` : ""}`;
     await notificar({ perfis: ["piloto"] }, { titulo: "Voo não lançado", corpo: `A reserva de ${r.apelido} (${quando}) terminou sem voo registrado. Lance o voo ou marque como não realizada.`, url: "/inicio", tag: "sem-voo" });
@@ -297,8 +304,8 @@ export async function proximasReservas(aeronaveId: string, limite = 5): Promise<
 }
 
 /** Reservas confirmadas que terminaram sem nenhum voo no período (últimos 60 dias). */
-export async function reservasSemVoo(aeronaveId: string): Promise<ReservaSemVoo[]> {
-  const supabase = await criarClienteServidor();
+export async function reservasSemVoo(aeronaveId: string, cliente?: Cliente): Promise<ReservaSemVoo[]> {
+  const supabase = cliente ?? (await criarClienteServidor());
   const { data, error } = await supabase.rpc("reservas_sem_voo", { p_aeronave: aeronaveId });
   if (error) throw new Error(`Reservas sem voo: ${error.message}`);
   return (data ?? []) as ReservaSemVoo[];

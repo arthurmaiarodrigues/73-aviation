@@ -34,7 +34,7 @@ export async function listarSocios(opcoes: { somenteAtivos?: boolean } = {}): Pr
   const supabase = await criarClienteServidor();
   let consulta = supabase
     .from("socios")
-    .select("id, nome, apelido, cota, cor, ativo_desde, ativo_ate, usuario_id")
+    .select("id, nome, apelido, cota, cor, ativo_desde, ativo_ate, usuario_id, whatsapp")
     .order("apelido");
   if (opcoes.somenteAtivos) consulta = consulta.is("ativo_ate", null);
   const { data, error } = await consulta;

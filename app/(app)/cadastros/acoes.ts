@@ -7,6 +7,8 @@ import { criarClienteServidor } from "@/lib/supabase/server";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { veValores } from "@/lib/tipos";
 import { caixaAlta, hoje, lerNumero } from "@/lib/formato";
+import { notificar } from "@/lib/push";
+import { enviarWhatsapp, whatsappConfigurado } from "@/lib/whatsapp";
 
 export type Resultado = { ok: boolean; mensagem: string };
 /** Criação de acesso devolve também o link pessoal para mandar. */
@@ -77,6 +79,7 @@ export async function salvarSocio(_a: Resultado, form: FormData): Promise<Result
     nome,
     apelido,
     cpf: texto(form, "cpf"),
+    whatsapp: texto(form, "whatsapp"),
     cota,
     cor: texto(form, "cor") ?? "#0E2846",
     ativo_desde: texto(form, "ativo_desde") ?? hoje(),
@@ -106,7 +109,7 @@ export async function salvarUsuario(_a: Resultado, form: FormData): Promise<Resu
   const supabase = await criarClienteServidor();
   const { error } = await supabase
     .from("usuarios")
-    .update({ nome: texto(form, "nome") ?? undefined, perfil, ativo: form.get("ativo") === "on" || id === adm.id })
+    .update({ nome: texto(form, "nome") ?? undefined, perfil, ativo: form.get("ativo") === "on" || id === adm.id, avisa_whatsapp: form.get("avisa_whatsapp") === "on" })
     .eq("id", id);
   if (error) return { ok: false, mensagem: error.message };
   revalidatePath("/cadastros");
@@ -125,6 +128,7 @@ export async function salvarPiloto(_a: Resultado, form: FormData): Promise<Resul
     licenca: texto(form, "licenca")?.toUpperCase() ?? null,
     validade_licenca: texto(form, "validade_licenca"),
     pix: texto(form, "pix"),
+    whatsapp: texto(form, "whatsapp"),
     ativo: form.get("ativo") !== "off",
   };
   const { error } = id && UUID.test(id) ? await supabase.from("pilotos").update(campos).eq("id", id) : await supabase.from("pilotos").insert(campos);
@@ -281,4 +285,44 @@ export async function linkDeAcesso(id: string): Promise<ResultadoAcesso> {
   const { data: magico, error: erroLink } = await admin.auth.admin.generateLink({ type: "magiclink", email: usuario.user.email });
   if (erroLink || !magico?.properties?.hashed_token) return { ok: false, mensagem: `Falha ao gerar o link: ${erroLink?.message ?? "sem token"}`, link: null };
   return { ok: true, mensagem: `Link de ${usuario.user.email} — vale 12 h.`, link: `${site}/auth/definir-senha#th=${magico.properties.hashed_token}` };
+}
+
+/**
+ * Manda para quem está logado um aviso de teste pelos dois caminhos.
+ * Serve para conferir o WhatsApp (modelo aprovado, token, telefone)
+ * sem ter de esperar um pedido de reserva de verdade.
+ */
+export async function mandarAvisoDeTeste(): Promise<Resultado> {
+  const adm = await exigirAdminAcao();
+  if (!adm.ok) return adm;
+
+  const aviso = {
+    titulo: "Teste de aviso",
+    corpo: "Se chegou esta mensagem, os avisos do app do PP-ZNM estão funcionando. Nada a fazer.",
+    url: "/inicio",
+    tag: "teste",
+  };
+  const push = await notificar({ usuarios: [adm.id] }, { ...aviso, whatsapp: false });
+  const partes = [`${push} aparelho(s) por push`];
+
+  if (!whatsappConfigurado()) {
+    partes.push("WhatsApp ainda desligado (falta o token da Meta na Vercel)");
+  } else {
+    const zap = await enviarWhatsapp([adm.id], aviso);
+    if (zap > 0) {
+      partes.push("1 mensagem de WhatsApp");
+    } else {
+      const supabase = await criarClienteServidor();
+      const { data: ultimo } = await supabase
+        .from("whatsapp_envios")
+        .select("erro, created_at")
+        .eq("usuario_id", adm.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const recente = ultimo && Date.now() - new Date(ultimo.created_at as string).getTime() < 60_000;
+      partes.push(recente && ultimo?.erro ? `WhatsApp não saiu: ${ultimo.erro}` : "WhatsApp não saiu: nenhum telefone cadastrado para o seu login (ou o aviso está desligado)");
+    }
+  }
+  return { ok: true, mensagem: `Enviado: ${partes.join(" · ")}.` };
 }

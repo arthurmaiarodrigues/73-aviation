@@ -64,6 +64,7 @@ export type Socio = {
   ativo_desde: string;
   ativo_ate: string | null;
   usuario_id: string | null;
+  whatsapp: string | null;
 };
 
 export type Aeronave = {
