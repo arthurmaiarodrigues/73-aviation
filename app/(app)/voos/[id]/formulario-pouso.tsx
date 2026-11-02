@@ -37,6 +37,7 @@ export function FormularioPouso({
   aerodromos,
   observacao,
   leituraAutomatica,
+  horaDecolagem,
 }: {
   id: string;
   /** horímetro da decolagem desta perna (o inicial do voo ou o do último pouso intermediário) */
@@ -50,6 +51,8 @@ export function FormularioPouso({
   aerodromos: string[];
   observacao: string | null;
   leituraAutomatica: boolean;
+  /** Hora da decolagem já registrada; se faltou, o formulário pede aqui. */
+  horaDecolagem?: string | null;
 }) {
   const [estado, acao] = useActionState(registrarPouso, INICIAL);
   const [foto, setFoto] = useState<EstadoFoto>({ caminho: null, leitura: null, valor: "" });
@@ -71,6 +74,17 @@ export function FormularioPouso({
       />
 
       <div className="grid gap-4 sm:grid-cols-2">
+        {!horaDecolagem && (
+          <div className="space-y-1.5">
+            <Label htmlFor="hora_decolagem">Hora da decolagem</Label>
+            <Input id="hora_decolagem" name="hora_decolagem" type="time" required className="h-12 text-lg tabular" />
+          </div>
+        )}
+        <div className="space-y-1.5">
+          <Label htmlFor="hora_pouso">Hora do pouso</Label>
+          <Input id="hora_pouso" name="hora_pouso" type="time" required className="h-12 text-lg tabular" />
+          <p className="text-xs text-marinho-300">É esse tempo, da decolagem ao pouso, que conta para a revisão.</p>
+        </div>
         <SeletorAerodromo nome="destino" rotulo="Destino" opcoes={aerodromos} valorInicial={destino ?? ""} />
         {pernasConcluidas === 0 && <ListaEscalas opcoes={aerodromos} iniciais={escalas} horasIniciais={horasPernas} combustivelIniciais={combustivelPernas} aoMudar={(n) => setPousos(String(n + 1))} />}
         <div className="space-y-1.5">

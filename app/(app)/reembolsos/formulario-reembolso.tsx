@@ -68,6 +68,15 @@ export function FormularioReembolso({
     <form key={chave} action={acao} className="space-y-5">
       <input type="hidden" name="comprovante_path" value={comprovante ?? ""} />
       {estado.mensagem && <Alerta tom={estado.ok ? "ok" : "erro"}>{estado.mensagem}</Alerta>}
+      {estado.duplicado && (
+        <label className="flex items-start gap-3 rounded-lg border border-atencao/40 bg-atencao/10 p-4 text-sm">
+          <input type="checkbox" name="mesmo_assim" className="mt-0.5 size-4" />
+          <span>
+            <strong>É outro gasto, pode lançar.</strong>
+            <span className="block text-xs text-marinho-300">Marque só se este gasto for diferente do que já está lançado; depois toque em lançar de novo.</span>
+          </span>
+        </label>
+      )}
 
       <div className="rounded-lg border border-dashed border-marinho-300 p-4">
         <label className="inline-flex h-12 cursor-pointer items-center gap-2 rounded bg-laranja px-4 text-sm font-semibold text-marinho hover:bg-laranja-700 hover:text-areia">

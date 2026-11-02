@@ -8,7 +8,7 @@ import { aeronaveAtiva } from "@/lib/dados/cadastros";
 import { caixaAlta, hoje, lerNumero } from "@/lib/formato";
 import { notificar } from "@/lib/push";
 
-export type Resultado = { ok: boolean; mensagem: string };
+export type Resultado = { ok: boolean; mensagem: string; duplicado?: boolean };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -48,9 +48,35 @@ export async function salvarReembolso(_a: Resultado, form: FormData): Promise<Re
 
   const aeronave = await aeronaveAtiva();
   const supabase = await criarClienteServidor();
+  const dataGasto = texto(form, "data") ?? hoje();
+
+  // Lançamento repetido: em novembro/2026 vários gastos entraram duas vezes
+  // (o mesmo almoço lançado dias depois, com a grafia trocada). Mesmo valor
+  // no mesmo dia, do mesmo piloto, pede confirmação — a descrição não serve
+  // de prova porque "ALMOÇO" e "ALMOCO" são o mesmo gasto.
+  if (!form.get("mesmo_assim")) {
+    const { data: igual } = await supabase
+      .from("despesas")
+      .select("descricao, data, valor")
+      .eq("reembolso_piloto_id", usuario.pilotoId)
+      .eq("data", dataGasto)
+      .eq("valor", valor)
+      .is("deleted_at", null)
+      .limit(1);
+    if ((igual ?? []).length > 0) {
+      const j = igual![0];
+      const quanto = `R$ ${Number(j.valor).toFixed(2).replace(".", ",")}`;
+      return {
+        ok: false,
+        duplicado: true,
+        mensagem: `Você já lançou "${j.descricao}" de ${quanto} em ${String(j.data).split("-").reverse().join("/")}. Se este é outro gasto, marque abaixo e lance de novo.`,
+      };
+    }
+  }
+
   const { error } = await supabase.from("despesas").insert({
     aeronave_id: aeronave.id,
-    data: texto(form, "data") ?? hoje(),
+    data: dataGasto,
     descricao: `REEMBOLSO PILOTO: ${caixaAlta(descricao)}`,
     categoria_id: categoriaId,
     valor,
@@ -84,6 +110,21 @@ export async function salvarReembolso(_a: Resultado, form: FormData): Promise<Re
   await notificar({ perfis: ["admin"] }, aviso);
   revalidar();
   return { ok: true, mensagem: "Lançado e já dividido. Os sócios foram avisados; o administrador pode ajustar a divisão depois." };
+}
+
+/**
+ * Apaga o reembolso lançado errado (soft-delete, pela RPC): o piloto que
+ * lançou, enquanto ninguém marcou pagamento, ou o administrador.
+ */
+export async function apagarReembolso(id: string): Promise<Resultado> {
+  const { user, usuario } = await usuarioDaSessao();
+  if (!user || !usuario?.ativo) return { ok: false, mensagem: "Sem sessão." };
+  if (!UUID.test(id)) return { ok: false, mensagem: "Reembolso inválido." };
+  const supabase = await criarClienteServidor();
+  const { error } = await supabase.rpc("apagar_reembolso", { p_despesa: id });
+  if (error) return { ok: false, mensagem: error.message };
+  revalidar();
+  return { ok: true, mensagem: "Apagado." };
 }
 
 /** Sócio que deve, piloto (ao receber) ou admin. */

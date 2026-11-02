@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Check, Loader2, ShieldCheck, Undo2 } from "lucide-react";
+import { Check, Loader2, ShieldCheck, Trash2, Undo2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
@@ -11,7 +11,7 @@ import { Alerta } from "@/components/ui/alerta";
 import { Cabecalho, Celula, Tabela, TabelaCabecalho, TabelaCorpo, TabelaLinha } from "@/components/ui/tabela";
 import { data as fmtData, reais } from "@/lib/formato";
 import { cn } from "@/lib/utils";
-import { confirmarVarios, marcarReembolsado } from "./acoes";
+import { apagarReembolso, confirmarVarios, marcarReembolsado } from "./acoes";
 
 export type LinhaReembolso = {
   id: string;
@@ -192,6 +192,7 @@ export function TabelaReembolsos({
                   {r.status !== "PENDENTE" && (perfil === "admin" || r.socio_id === socioId || (r.socio_id === null && socioId) || r.piloto_id === pilotoId) && (
                     <BotaoReembolsado id={r.id} reembolsado={Boolean(r.reembolsado_em)} />
                   )}
+                  {!r.reembolsado_em && (perfil === "admin" || r.piloto_id === pilotoId) && <BotaoApagar id={r.id} descricao={r.descricao} />}
                 </div>
               </Celula>
             </TabelaLinha>
@@ -199,6 +200,47 @@ export function TabelaReembolsos({
         </TabelaCorpo>
       </Tabela>
     </div>
+  );
+}
+
+/** Lançou errado (valor trocado, repetido): apaga. Vai para a lixeira. */
+function BotaoApagar({ id, descricao }: { id: string; descricao: string }) {
+  const router = useRouter();
+  const [pendente, iniciar] = useTransition();
+  const [pedindo, setPedindo] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  if (msg) return <span className="text-xs text-erro">{msg}</span>;
+  if (!pedindo) {
+    return (
+      <button type="button" onClick={() => setPedindo(true)} title={`Apagar ${descricao}`} className="text-marinho-300 hover:text-erro">
+        <Trash2 className="size-4" />
+      </button>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-2 text-xs">
+      <span className="text-marinho-300">Apagar?</span>
+      <Button
+        type="button"
+        variant="destrutivo"
+        size="pequeno"
+        disabled={pendente}
+        onClick={() =>
+          iniciar(async () => {
+            const r = await apagarReembolso(id);
+            if (!r.ok) setMsg(r.mensagem);
+            setPedindo(false);
+            router.refresh();
+          })
+        }
+      >
+        {pendente ? <Loader2 className="animate-spin" /> : "Sim"}
+      </Button>
+      <Button type="button" variant="fantasma" size="pequeno" onClick={() => setPedindo(false)}>
+        Não
+      </Button>
+    </span>
   );
 }
 

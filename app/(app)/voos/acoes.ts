@@ -138,6 +138,23 @@ export async function salvarVoo(_anterior: Resultado, form: FormData): Promise<R
     if (hFinalVolta !== null && hInicialVolta !== null && hFinalVolta - hInicialVolta > 12) return { ok: false, mensagem: "Mais de 12 h na volta? Confira os horímetros." };
     if (voltaJunta && hFinalVolta !== null && hInicial !== null && hFinalVolta < hInicial) return { ok: false, mensagem: "O horímetro final da volta tem de ser maior que o da decolagem da ida." };
   }
+  // Desde 17/10/2026 valem as horas do relógio (decolagem → pouso): é por elas
+  // que o mecânico agenda a revisão e que o custo por uso divide. Ficaram
+  // opcionais e o piloto passou a lançar só o horímetro — que corre ~20% a
+  // mais —, então três voos de outubro entraram com hora inflada.
+  const decolagem = hora(form, "hora_decolagem");
+  const pousoDoVoo = voltaJunta ? hora(form, "hora_pouso_volta") : hora(form, "hora_pouso");
+  const vooFechado = (voltaJunta ? hFinalVolta : hFinal) !== null || horasInformadas !== null;
+  if (!decolagem) {
+    return { ok: false, mensagem: "Informe a hora da decolagem: é o tempo de voo, da decolagem ao pouso, que conta para a revisão e para dividir o custo." };
+  }
+  if (vooFechado && !pousoDoVoo) {
+    return { ok: false, mensagem: "Informe a hora do pouso: é o tempo de voo, da decolagem ao pouso, que conta para a revisão e para dividir o custo." };
+  }
+  if (comVolta && !voltaJunta && (!hora(form, "hora_decolagem_volta") || !hora(form, "hora_pouso_volta"))) {
+    return { ok: false, mensagem: "Informe a hora da decolagem e a do pouso da volta." };
+  }
+
   const escalasVolta = form.getAll("escala_volta").map((v) => String(v).trim().toUpperCase()).filter((v) => ICAO.test(v));
   const hFinalVoo = voltaJunta ? hFinalVolta : hFinal;
   // Um voo só: SNTF → (escalas da ida) → destino → (escalas da volta) → SNTF
@@ -297,8 +314,14 @@ export async function registrarPouso(_anterior: Resultado, form: FormData): Prom
   const hFinal = lerNumero(form.get("horimetro_final"));
   if (hFinal === null) return { ok: false, mensagem: "Informe o horímetro final." };
 
+  // O pouso pelo Início não pedia a hora, então o voo fechava só com o
+  // horímetro e as horas saíam erradas (mais altas que o tempo voado).
+  const horaPouso = hora(form, "hora_pouso");
+  const horaDecolagem = hora(form, "hora_decolagem");
+  if (!horaPouso) return { ok: false, mensagem: "Informe a hora do pouso: é o tempo de voo que conta para a revisão." };
+
   const supabase = await criarClienteServidor();
-  const { data: voo } = await supabase.from("voos").select("horimetro_inicial, leitura_ia, destino").eq("id", id).maybeSingle();
+  const { data: voo } = await supabase.from("voos").select("horimetro_inicial, leitura_ia, destino, hora_decolagem").eq("id", id).maybeSingle();
   if (!voo) return { ok: false, mensagem: "Voo não encontrado." };
   const hInicial = voo.horimetro_inicial === null ? null : Number(voo.horimetro_inicial);
   if (hInicial !== null && hFinal < hInicial) return { ok: false, mensagem: "O horímetro final tem de ser maior que o inicial." };
@@ -318,6 +341,8 @@ export async function registrarPouso(_anterior: Resultado, form: FormData): Prom
     .update({
       horimetro_final: hFinal,
       destino,
+      hora_pouso: horaPouso,
+      ...(voo.hora_decolagem ? {} : horaDecolagem ? { hora_decolagem: horaDecolagem } : {}),
       ...(form.has("escala")
         ? (() => {
             const e = escalas(form);

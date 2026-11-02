@@ -178,6 +178,7 @@ export default async function PaginaVoo({
               aerodromos={aerodromos}
               observacao={voo.observacao}
               leituraAutomatica={temChave()}
+              horaDecolagem={voo.hora_decolagem}
             />
           </CardContent>
         </Card>

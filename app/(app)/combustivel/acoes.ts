@@ -65,6 +65,25 @@ export async function salvarMovimentoTanque(_anterior: Resultado, form: FormData
   }
 
   const supabase = await criarClienteServidor();
+
+  // Toque duplo no celular lançava o mesmo movimento duas vezes (aconteceu em
+  // 02/11/2026: duas retiradas de 224 L gravadas no mesmo segundo). Movimento
+  // idêntico do mesmo autor há poucos minutos é o mesmo lançamento.
+  const { data: jaLancado } = await supabase
+    .from("tanque_movimentos")
+    .select("id")
+    .eq("aeronave_id", aeronave.id)
+    .eq("tipo", tipo)
+    .eq("data", data)
+    .eq("litros", litros)
+    .eq("autor_id", user.id)
+    .is("deleted_at", null)
+    .gte("created_at", new Date(Date.now() - 5 * 60_000).toISOString())
+    .limit(1);
+  if ((jaLancado ?? []).length > 0) {
+    return { ok: true, mensagem: `Esse lançamento de ${String(litros).replace(".", ",")} L já havia sido feito agora mesmo — não lancei de novo.` };
+  }
+
   const { error } = await supabase.from("tanque_movimentos").insert({
     aeronave_id: aeronave.id,
     data,

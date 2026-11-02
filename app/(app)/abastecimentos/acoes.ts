@@ -43,11 +43,31 @@ export async function salvarAbastecimento(_anterior: Resultado, form: FormData):
 
   const aeronave = await aeronaveAtiva();
   const supabase = await criarClienteServidor();
+  const dataAbastecimento = texto(form, "data") ?? hoje();
+
+  // Toque duplo no celular não lança duas vezes: abastecimento idêntico do
+  // mesmo autor há poucos minutos é o mesmo lançamento — abre o que já existe.
+  const { data: jaLancado } = await supabase
+    .from("abastecimentos")
+    .select("id, despesa_id")
+    .eq("aeronave_id", aeronave.id)
+    .eq("data", dataAbastecimento)
+    .eq("litros", litros)
+    .eq("valor", valor)
+    .eq("autor_id", user.id)
+    .is("deleted_at", null)
+    .gte("created_at", new Date(Date.now() - 5 * 60_000).toISOString())
+    .limit(1);
+  if ((jaLancado ?? []).length > 0) {
+    const achado = jaLancado![0];
+    redirect(achado.despesa_id ? `/despesas/${achado.despesa_id}?salvo=1` : "/despesas");
+  }
+
   const { data, error } = await supabase
     .from("abastecimentos")
     .insert({
       aeronave_id: aeronave.id,
-      data: texto(form, "data") ?? hoje(),
+      data: dataAbastecimento,
       aerodromo,
       litros,
       valor,

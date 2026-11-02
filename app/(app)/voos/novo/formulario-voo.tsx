@@ -242,6 +242,7 @@ O voo fica marcado como pendente de horímetro até o administrador conferir.
               type="time"
               value={horaDecolagem}
               onChange={(e) => setHoraDecolagem(e.target.value)}
+              required
               className="h-12 text-lg tabular"
             />
           </div>
@@ -253,6 +254,7 @@ O voo fica marcado como pendente de horímetro até o administrador conferir.
               type="time"
               value={horaPouso}
               onChange={(e) => setHoraPouso(e.target.value)}
+              required={semHorimetro || comVolta || horimetroFimIda.trim() !== ""}
               className="h-12 text-lg tabular"
             />
             <p className={cn("text-xs", tempoIda !== null && horasIda !== null && Math.abs(tempoIda - horasIda) > 0.2 ? "text-atencao" : "text-marinho-300")}>
@@ -331,6 +333,7 @@ O voo fica marcado como pendente de horímetro até o administrador conferir.
                 type="time"
                 value={horaDecolagemVolta}
                 onChange={(e) => setHoraDecolagemVolta(e.target.value)}
+                required
                 className="h-12 text-lg tabular"
               />
             </div>
@@ -342,6 +345,7 @@ O voo fica marcado como pendente de horímetro até o administrador conferir.
                 type="time"
                 value={horaPousoVolta}
                 onChange={(e) => setHoraPousoVolta(e.target.value)}
+                required
                 className="h-12 text-lg tabular"
               />
               <p className={cn("text-xs", tempoVolta !== null && horasVolta !== null && Math.abs(tempoVolta - horasVolta) > 0.2 ? "text-atencao" : "text-marinho-300")}>
