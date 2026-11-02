@@ -10,13 +10,21 @@ import { garantirEscolhaAberta } from "@/lib/dados/agenda";
  *
  * Antes isso só rodava quando alguém abria o app — quem não abrisse
  * não era avisado. Sem sessão aqui, então vai pela chave secreta.
- * Protegido pelo CRON_SECRET que a Vercel manda no cabeçalho.
+ *
+ * Trancada pelo CRON_SECRET, que a Vercel manda no cabeçalho quando a
+ * variável existe. Sem a variável a rota recusa tudo (é uma rota
+ * pública que mexe em reservas: aberta, qualquer um dispararia) — então
+ * o disparo diário só funciona depois de criar CRON_SECRET na Vercel.
  */
 export const dynamic = "force-dynamic";
 
 export async function GET(pedido: Request) {
   const segredo = process.env.CRON_SECRET?.trim();
-  if (segredo && pedido.headers.get("authorization") !== `Bearer ${segredo}`) {
+  if (!segredo) {
+    console.error("cron/avisos: falta CRON_SECRET na Vercel — disparo diário recusado.");
+    return Response.json({ ok: false, erro: "CRON_SECRET não configurado" }, { status: 503 });
+  }
+  if (pedido.headers.get("authorization") !== `Bearer ${segredo}`) {
     return Response.json({ ok: false, erro: "não autorizado" }, { status: 401 });
   }
   try {
