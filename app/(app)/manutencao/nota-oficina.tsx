@@ -1,5 +1,7 @@
 "use client";
 
+import { ColarArquivo } from "@/components/anexar-arquivo";
+
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Loader2, Paperclip, Plus, Save } from "lucide-react";
@@ -115,6 +117,7 @@ export function LeitorNotaOficina({ manutencaoId, plano }: { manutencaoId: strin
           {lendo ? "Lendo a nota…" : enviando ? "Enviando…" : linhas.length > 0 ? "Trocar a nota" : "Ler a nota da oficina (foto, galeria ou PDF)"}
           <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => tratarArquivo(e.target.files?.[0])} disabled={enviando || lendo} />
         </label>
+        <ColarArquivo onArquivo={tratarArquivo} desativado={enviando || lendo} />
         {leitura && (
           <span className="text-xs text-marinho-300">
             {leitura.fornecedor ?? "nota"} · {linhas.length} {linhas.length === 1 ? "item" : "itens"}

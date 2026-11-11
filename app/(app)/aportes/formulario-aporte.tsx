@@ -1,5 +1,7 @@
 "use client";
 
+import { ColarArquivo } from "@/components/anexar-arquivo";
+
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Loader2, Paperclip, PiggyBank, Trash2 } from "lucide-react";
@@ -115,6 +117,7 @@ export function FormularioAporte({ socios, hoje, socioLogadoId }: { socios: { id
             {lendo ? "Lendo…" : comprovante ? "Anexado" : "Foto ou PDF"}
             <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => tratarComprovante(e.target.files?.[0])} disabled={enviando || lendo} />
           </label>
+          <ColarArquivo onArquivo={tratarComprovante} desativado={enviando || lendo} />
           {leitura && <p className="text-xs text-marinho-300">lido do comprovante ({Math.round(leitura.confianca * 100)} %) — confira os campos</p>}
           {aviso && <p className="text-xs text-atencao">{aviso}</p>}
           {leitura?.observacao && <p className="text-xs text-atencao">{leitura.observacao}</p>}

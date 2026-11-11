@@ -3,6 +3,8 @@
 import { useRef, useState } from "react";
 import { Camera, Loader2, RefreshCw } from "lucide-react";
 
+import { ZonaArquivo } from "@/components/anexar-arquivo";
+
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -98,6 +100,9 @@ export function FotoHorimetro({
   const diferenca = esperado !== null && Number.isFinite(valorNumero) && estado.valor ? Math.round((valorNumero - esperado) * 10) / 10 : null;
 
   return (
+    // Vários blocos na tela (inicial, final, volta): cada um recebe o arquivo
+    // arrastado para cima dele, ou o print colado com ele focado.
+    <ZonaArquivo onArquivo={tratarArquivo} desativado={fase !== "parado"} aceita="image/*">
     <div className="space-y-3 rounded-lg border border-marinho-100 bg-areia-200 p-4 dark:border-marinho-300 dark:bg-marinho-700">
       <div className="flex items-center justify-between">
         <Label className="text-base font-semibold">{rotulo}</Label>
@@ -189,5 +194,6 @@ export function FotoHorimetro({
         )}
       </div>
     </div>
+    </ZonaArquivo>
   );
 }

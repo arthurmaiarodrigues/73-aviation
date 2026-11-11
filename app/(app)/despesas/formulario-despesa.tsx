@@ -1,5 +1,7 @@
 "use client";
 
+import { ColarArquivo } from "@/components/anexar-arquivo";
+
 import { useActionState, useEffect, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Loader2, Paperclip, Save, Trash2 } from "lucide-react";
@@ -234,6 +236,7 @@ export function FormularioDespesa({
                 {lendo ? "Lendo o comprovante…" : enviando ? "Enviando…" : comprovante ? "Trocar comprovante" : "Anexar comprovante (foto, galeria ou PDF)"}
                 <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => tratarComprovante(e.target.files?.[0])} disabled={enviando || lendo} />
               </label>
+              <ColarArquivo onArquivo={tratarComprovante} desativado={enviando || lendo} />
               {comprovante && !lendo && <span className="text-xs text-ok">anexado</span>}
               {leitura && (
                 <span className={`text-xs ${leitura.confianca >= 0.8 ? "text-ok" : "text-atencao"}`}>
@@ -448,6 +451,7 @@ export function FormularioDespesa({
               {comprovante ? "Trocar comprovante" : "Foto ou PDF"}
               <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => tratarComprovante(e.target.files?.[0])} disabled={enviando} />
             </label>
+            <ColarArquivo onArquivo={tratarComprovante} desativado={enviando} />
             {comprovante && <span className="text-xs text-ok">anexado</span>}
             {erroArquivo && <span className="text-xs text-erro">{erroArquivo}</span>}
           </div>

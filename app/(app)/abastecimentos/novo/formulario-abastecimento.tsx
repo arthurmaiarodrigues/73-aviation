@@ -1,5 +1,7 @@
 "use client";
 
+import { ColarArquivo } from "@/components/anexar-arquivo";
+
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Fuel, Loader2, Paperclip } from "lucide-react";
@@ -101,6 +103,7 @@ export function FormularioAbastecimento({
             {lendo ? "Lendo a nota…" : enviando ? "Enviando…" : comprovante ? "Trocar nota" : "Foto da nota do combustível"}
             <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => tratarComprovante(e.target.files?.[0])} disabled={enviando || lendo} />
           </label>
+          <ColarArquivo onArquivo={tratarComprovante} desativado={enviando || lendo} />
           {comprovante && !lendo && <span className="text-xs text-ok">anexada</span>}
           {leitura && <span className={`text-xs ${leitura.confianca >= 0.8 ? "text-ok" : "text-atencao"}`}>lida da foto ({Math.round(leitura.confianca * 100)} %) — confira litros e valor</span>}
         </div>

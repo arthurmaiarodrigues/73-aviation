@@ -1,5 +1,7 @@
 "use client";
 
+import { ColarArquivo } from "@/components/anexar-arquivo";
+
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Loader2, Paperclip, Save } from "lucide-react";
@@ -126,6 +128,7 @@ export function EditarMovimento({
           {comprovante ? "Trocar o comprovante" : "Trocar o comprovante (foto, galeria ou PDF)"}
           <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => anexar(e.target.files?.[0])} disabled={enviando} />
         </label>
+        <ColarArquivo onArquivo={anexar} desativado={enviando} />
         {erro && <span className="text-xs text-erro">{erro}</span>}
         <span className="ml-auto">
           <Botao />

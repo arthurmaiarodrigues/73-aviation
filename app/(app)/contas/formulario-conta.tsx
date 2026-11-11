@@ -1,5 +1,7 @@
 "use client";
 
+import { ColarArquivo } from "@/components/anexar-arquivo";
+
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { FileText, Loader2, Paperclip } from "lucide-react";
@@ -146,6 +148,7 @@ export function FormularioConta({
             {lendo ? "Lendo o boleto…" : enviando ? "Enviando…" : boleto ? "Trocar o boleto" : "Anexar o boleto (foto, galeria ou PDF)"}
             <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => tratarArquivo(e.target.files?.[0])} disabled={enviando || lendo} />
           </label>
+          <ColarArquivo onArquivo={tratarArquivo} desativado={enviando || lendo} />
           {boleto && !lendo && <span className="text-xs text-ok">anexado</span>}
           {leitura && (
             <span className="flex flex-wrap items-center gap-2 text-xs text-marinho-300">

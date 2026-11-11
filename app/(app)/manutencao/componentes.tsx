@@ -1,5 +1,7 @@
 "use client";
 
+import { ColarArquivo } from "@/components/anexar-arquivo";
+
 import { useActionState, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import { CheckCircle2, Loader2, Paperclip, Plus, Save, Trash2 } from "lucide-react";
@@ -371,6 +373,7 @@ export function FormularioDocumento() {
             {arquivo ? "Anexado" : "PDF ou foto"}
             <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => tratar(e.target.files?.[0])} disabled={enviando} />
           </label>
+          <ColarArquivo onArquivo={tratar} desativado={enviando} />
           {erro && <p className="text-xs text-erro">{erro}</p>}
         </div>
       </div>

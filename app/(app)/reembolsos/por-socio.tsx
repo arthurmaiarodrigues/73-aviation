@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Check, Loader2, Paperclip, Printer, Undo2 } from "lucide-react";
+
+import { ZonaArquivo } from "@/components/anexar-arquivo";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -108,6 +110,8 @@ export function DevidoPorSocio({
               )}
               <span className="ml-auto flex items-center gap-2">
                 {l.devido > 0 && meu && (
+                  // uma linha por sócio: arrastar o PIX para cima do botão (ou colar com ele focado)
+                  <ZonaArquivo onArquivo={(f) => pagarComComprovante(l.socio_id, f)} desativado={pendente || enviando !== null} className="inline-block">
                   <label className="inline-flex h-8 cursor-pointer items-center gap-1 rounded border border-marinho-100 px-2 text-xs font-semibold hover:border-laranja dark:border-marinho-300">
                     {enviando === l.socio_id ? <Loader2 className="size-3 animate-spin" /> : <Paperclip className="size-3" />}
                     {enviando === l.socio_id ? "enviando…" : "Paguei + comprovante"}
@@ -119,6 +123,7 @@ export function DevidoPorSocio({
                       onChange={(e) => pagarComComprovante(l.socio_id, e.target.files?.[0])}
                     />
                   </label>
+                  </ZonaArquivo>
                 )}
                 {l.devido > 0 && (podeMarcar || meu) && (
                   <Button type="button" variant="secundario" size="pequeno" disabled={pendente} onClick={() => acao(l.socio_id, false)}>

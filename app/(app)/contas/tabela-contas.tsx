@@ -15,6 +15,7 @@ import { enviarArquivo } from "@/lib/upload-cliente";
 import { BotaoCopiar } from "@/components/botao-copiar";
 import { data as fmtData, reais } from "@/lib/formato";
 import { cn } from "@/lib/utils";
+import { ColarArquivo } from "@/components/anexar-arquivo";
 import type { ContaPagar, NotaCandidata } from "@/lib/dados/contas";
 import { apagarConta, ligarNota, marcarPaga, sugestoesDaConta } from "./acoes";
 
@@ -255,6 +256,13 @@ function Pagamento({
     );
   }
 
+  async function anexarComprovante(arquivo: File | undefined) {
+    if (!arquivo) return;
+    const r = await enviarArquivo(arquivo, "comprovantes", "PAGAMENTO - CONTA");
+    if (r.ok) setComprovante(r.caminho);
+    else aoResponder({ ok: false, texto: r.mensagem });
+  }
+
   if (!aberto) {
     return (
       <Button type="button" size="pequeno" variant="secundario" onClick={() => setAberto(true)}>
@@ -276,19 +284,10 @@ function Pagamento({
       </Select>
       <label className="cursor-pointer text-xs font-semibold text-laranja-700">
         {comprovante ? "trocar" : "comprovante"}
-        <input
-          type="file"
-          accept="image/*,application/pdf"
-          className="hidden"
-          onChange={async (e) => {
-            const arquivo = e.target.files?.[0];
-            if (!arquivo) return;
-            const r = await enviarArquivo(arquivo, "comprovantes", "PAGAMENTO - CONTA");
-            if (r.ok) setComprovante(r.caminho);
-            else aoResponder({ ok: false, texto: r.mensagem });
-          }}
-        />
+        <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => anexarComprovante(e.target.files?.[0])} />
       </label>
+      {/* painel aberto agora: o print colado ou arrastado vai para este pagamento */}
+      <ColarArquivo onArquivo={anexarComprovante} className="md:hidden" />
       <Button
         type="button"
         size="pequeno"

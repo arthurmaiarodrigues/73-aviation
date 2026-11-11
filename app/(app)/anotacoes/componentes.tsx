@@ -1,5 +1,7 @@
 "use client";
 
+import { ColarArquivo } from "@/components/anexar-arquivo";
+
 import { useActionState, useEffect, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import { Camera, Check, Loader2, NotebookPen, Trash2, Undo2 } from "lucide-react";
@@ -80,6 +82,7 @@ export function FormularioAnotacao({ hoje, horimetro }: { hoje: string; horimetr
           {enviando ? "Enviando…" : foto ? "Trocar foto" : "Anexar foto (câmera ou galeria)"}
           <input type="file" accept="image/*" className="hidden" onChange={(e) => tratarFoto(e.target.files?.[0])} disabled={enviando} />
         </label>
+        <ColarArquivo onArquivo={tratarFoto} desativado={enviando} aceita="image/*" />
         {foto && <span className="text-xs text-ok">foto anexada</span>}
         {erro && <span className="text-xs text-erro">{erro}</span>}
       </div>

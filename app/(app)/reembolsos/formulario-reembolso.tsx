@@ -1,5 +1,7 @@
 "use client";
 
+import { ColarArquivo } from "@/components/anexar-arquivo";
+
 import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Loader2, Paperclip, Receipt } from "lucide-react";
@@ -84,6 +86,7 @@ export function FormularioReembolso({
           {enviando ? "Enviando…" : comprovante ? "Trocar nota" : "Anexar nota (foto, galeria ou PDF)"}
           <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => tratarComprovante(e.target.files?.[0])} disabled={enviando} />
         </label>
+        <ColarArquivo onArquivo={tratarComprovante} desativado={enviando} />
         {comprovante && <span className="ml-3 text-xs text-ok">anexada</span>}
         {erro && <p className="mt-2 text-xs text-erro">{erro}</p>}
       </div>
