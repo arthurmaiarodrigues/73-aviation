@@ -13,7 +13,7 @@ export type CampoFiltro =
   | { nome: string; rotulo: string; tipo: "date" | "text"; valor?: string; dica?: string };
 
 /** Barra de filtros GET: a URL é o estado — dá para mandar o link por WhatsApp. */
-export function Filtros({ campos, hrefExportar, hrefLimpar }: { campos: CampoFiltro[]; hrefExportar: string; hrefLimpar: string }) {
+export function Filtros({ campos, hrefExportar, hrefLimpar }: { campos: CampoFiltro[]; hrefExportar?: string; hrefLimpar: string }) {
   return (
     <form method="get" className="flex flex-wrap items-end gap-3 rounded-lg border border-marinho-100 bg-areia-200 p-4 dark:border-marinho-300 dark:bg-marinho-700">
       {campos.map((c) => (
@@ -42,11 +42,13 @@ export function Filtros({ campos, hrefExportar, hrefLimpar }: { campos: CampoFil
         <Button asChild variant="fantasma">
           <Link href={hrefLimpar}>Limpar</Link>
         </Button>
-        <Button asChild variant="secundario">
-          <a href={hrefExportar}>
-            <Download /> Excel
-          </a>
-        </Button>
+        {hrefExportar && (
+          <Button asChild variant="secundario">
+            <a href={hrefExportar}>
+              <Download /> Excel
+            </a>
+          </Button>
+        )}
       </div>
     </form>
   );

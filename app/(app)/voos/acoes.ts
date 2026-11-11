@@ -138,21 +138,27 @@ export async function salvarVoo(_anterior: Resultado, form: FormData): Promise<R
     if (hFinalVolta !== null && hInicialVolta !== null && hFinalVolta - hInicialVolta > 12) return { ok: false, mensagem: "Mais de 12 h na volta? Confira os horímetros." };
     if (voltaJunta && hFinalVolta !== null && hInicial !== null && hFinalVolta < hInicial) return { ok: false, mensagem: "O horímetro final da volta tem de ser maior que o da decolagem da ida." };
   }
-  // Desde 17/10/2026 valem as horas do relógio (decolagem → pouso): é por elas
-  // que o mecânico agenda a revisão e que o custo por uso divide. Ficaram
-  // opcionais e o piloto passou a lançar só o horímetro — que corre ~20% a
-  // mais —, então três voos de outubro entraram com hora inflada.
+  // Valem as horas do relógio (decolagem → pouso): é por elas que o mecânico
+  // agenda a revisão e que o custo por uso divide. Mas só dá para exigir o
+  // horário do trecho que JÁ pousou — quem lança "Decolei" ainda não sabe a
+  // hora do pouso, e exigir travava o lançamento (02–11/11/2026).
   const decolagem = hora(form, "hora_decolagem");
-  const pousoDoVoo = voltaJunta ? hora(form, "hora_pouso_volta") : hora(form, "hora_pouso");
-  const vooFechado = (voltaJunta ? hFinalVolta : hFinal) !== null || horasInformadas !== null;
-  if (!decolagem) {
-    return { ok: false, mensagem: "Informe a hora da decolagem: é o tempo de voo, da decolagem ao pouso, que conta para a revisão e para dividir o custo." };
-  }
-  if (vooFechado && !pousoDoVoo) {
-    return { ok: false, mensagem: "Informe a hora do pouso: é o tempo de voo, da decolagem ao pouso, que conta para a revisão e para dividir o custo." };
-  }
-  if (comVolta && !voltaJunta && (!hora(form, "hora_decolagem_volta") || !hora(form, "hora_pouso_volta"))) {
-    return { ok: false, mensagem: "Informe a hora da decolagem e a do pouso da volta." };
+  const semHorimetroVoo = hInicial === null;        // voo antigo: as horas são digitadas
+  const idaFechada = hFinal !== null;
+  const voltaFechada = comVolta && hFinalVolta !== null;
+  if (!semHorimetroVoo) {
+    if (!decolagem) {
+      return { ok: false, mensagem: "Informe a hora da decolagem: é o tempo de voo, da decolagem ao pouso, que conta para a revisão e para dividir o custo." };
+    }
+    if (idaFechada && !hora(form, "hora_pouso")) {
+      return { ok: false, mensagem: "Informe a hora do pouso: é o tempo de voo, da decolagem ao pouso, que conta para a revisão e para dividir o custo." };
+    }
+    if (voltaJunta && voltaFechada && !hora(form, "hora_pouso_volta")) {
+      return { ok: false, mensagem: "Informe a hora do pouso da volta: é o tempo de voo que conta para a revisão." };
+    }
+    if (comVolta && !voltaJunta && voltaFechada && (!hora(form, "hora_decolagem_volta") || !hora(form, "hora_pouso_volta"))) {
+      return { ok: false, mensagem: "Informe a hora da decolagem e a do pouso da volta." };
+    }
   }
 
   const escalasVolta = form.getAll("escala_volta").map((v) => String(v).trim().toUpperCase()).filter((v) => ICAO.test(v));

@@ -1,6 +1,23 @@
 import "server-only";
 
 import { criarClienteServidor } from "@/lib/supabase/server";
+import { semAcento } from "@/lib/formato";
+
+/** Filtros da tela /reembolsos (somam ao recorte do perfil). */
+export type FiltroReembolsos = {
+  socioId?: string;
+  pendentes?: boolean;
+  confirmados?: boolean;
+  /** Texto livre: descrição, cidade, observação — sem acento. */
+  q?: string;
+  de?: string;
+  ate?: string;
+  /** id do sócio (só os dele, DIRETO) ou TODOS (os de todos os sócios). */
+  socio?: string;
+  /** A_PAGAR ou PAGO. */
+  situacao?: string;
+  categoria?: string;
+};
 
 /**
  * Reembolso ao piloto: despesa que o piloto pagou do bolso por conta de um
@@ -47,7 +64,7 @@ type Bruta = {
   reembolso_pagamentos: { socio_id: string; pago_em: string; comprovante_path: string | null }[] | null;
 };
 
-export async function listarReembolsos(aeronaveId: string, filtro: { socioId?: string; pendentes?: boolean; confirmados?: boolean } = {}, limite = 300): Promise<Reembolso[]> {
+export async function listarReembolsos(aeronaveId: string, filtro: FiltroReembolsos = {}, limite = 300): Promise<Reembolso[]> {
   const supabase = await criarClienteServidor();
   let q = supabase
     .from("despesas")
@@ -63,6 +80,16 @@ export async function listarReembolsos(aeronaveId: string, filtro: { socioId?: s
   if (filtro.pendentes) q = q.is("reembolsado_em", null);
   // o sócio só vê depois que o admin confere a divisão
   if (filtro.confirmados) q = q.neq("status", "PENDENTE");
+  if (filtro.de) q = q.gte("data", filtro.de);
+  if (filtro.ate) q = q.lte("data", filtro.ate);
+  if (filtro.categoria) q = q.eq("categoria_id", Number(filtro.categoria));
+  if (filtro.socio === "TODOS") q = q.is("socio_direto_id", null);
+  else if (filtro.socio) q = q.eq("socio_direto_id", filtro.socio);
+  if (filtro.situacao === "A_PAGAR") q = q.is("reembolsado_em", null);
+  else if (filtro.situacao === "PAGO") q = q.filter("reembolsado_em", "not.is", "null");
+  // `despesas.busca` = descrição + observação + cidade, caixa alta e sem acento
+  const alvo = filtro.q ? semAcento(filtro.q.trim()).replace(/[%,().*]/g, " ").trim() : "";
+  if (alvo) q = q.filter("busca", "ilike", `%${alvo}%`);
   const { data, error } = await q;
   if (error) throw new Error(`Reembolsos: ${error.message}`);
   return ((data ?? []) as unknown as Bruta[]).map((d) => ({

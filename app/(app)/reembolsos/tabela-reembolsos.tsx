@@ -29,6 +29,8 @@ export type LinhaReembolso = {
   status: "PENDENTE" | "APROVADA" | "RATEADA";
   reembolsado_em: string | null;
   partes: { socio_id: string; valor: number }[];
+  /** Quantos sócios já marcaram que pagaram a parte deles. */
+  pagos: number;
   nota: string | null;
 };
 
@@ -192,7 +194,7 @@ export function TabelaReembolsos({
                   {r.status !== "PENDENTE" && (perfil === "admin" || r.socio_id === socioId || (r.socio_id === null && socioId) || r.piloto_id === pilotoId) && (
                     <BotaoReembolsado id={r.id} reembolsado={Boolean(r.reembolsado_em)} />
                   )}
-                  {!r.reembolsado_em && (perfil === "admin" || r.piloto_id === pilotoId) && <BotaoApagar id={r.id} descricao={r.descricao} />}
+                  {(perfil === "admin" || (r.piloto_id === pilotoId && r.pagos === 0)) && <BotaoApagar id={r.id} descricao={r.descricao} pagos={r.pagos} />}
                 </div>
               </Celula>
             </TabelaLinha>
@@ -204,7 +206,7 @@ export function TabelaReembolsos({
 }
 
 /** Lançou errado (valor trocado, repetido): apaga. Vai para a lixeira. */
-function BotaoApagar({ id, descricao }: { id: string; descricao: string }) {
+function BotaoApagar({ id, descricao, pagos }: { id: string; descricao: string; pagos: number }) {
   const router = useRouter();
   const [pendente, iniciar] = useTransition();
   const [pedindo, setPedindo] = useState(false);
@@ -220,7 +222,9 @@ function BotaoApagar({ id, descricao }: { id: string; descricao: string }) {
   }
   return (
     <span className="inline-flex items-center gap-2 text-xs">
-      <span className="text-marinho-300">Apagar?</span>
+      <span className="text-marinho-300">
+        {pagos > 0 ? `Já tem pagamento marcado (${pagos} sócio${pagos === 1 ? "" : "s"}). Apagar mesmo assim?` : "Apagar?"}
+      </span>
       <Button
         type="button"
         variant="destrutivo"

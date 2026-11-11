@@ -6,6 +6,7 @@ import { urlsDosComprovantes } from "@/lib/dados/financeiro";
 import { devidoPorSocio, listarReembolsos } from "@/lib/dados/reembolsos";
 import { hoje, reais } from "@/lib/formato";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { Filtros } from "@/components/filtros";
 import { FormularioReembolso } from "./formulario-reembolso";
 import { TabelaReembolsos } from "./tabela-reembolsos";
 import { DevidoPorSocio } from "./por-socio";
@@ -16,16 +17,23 @@ export const metadata: Metadata = { title: "Reembolsos" };
  * Piloto: lança o que pagou do bolso e acompanha. Sócio: vê o que deve ao
  * piloto e marca quando pagar. Admin: vê tudo.
  */
-export default async function PaginaReembolsos() {
+export default async function PaginaReembolsos({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
+  const sp = await searchParams;
   const usuario = await exigirSessao();
   const aeronave = await aeronaveAtiva();
   const piloto = usuario.perfil === "piloto";
-  const [reembolsos, socios, categorias] = await Promise.all([
-    listarReembolsos(aeronave.id, usuario.perfil === "socio" && usuario.socioId ? { socioId: usuario.socioId, confirmados: true } : {}),
+  const recorte = usuario.perfil === "socio" && usuario.socioId ? { socioId: usuario.socioId, confirmados: true } : {};
+  const filtro = { q: sp.q, de: sp.de, ate: sp.ate, socio: sp.socio, situacao: sp.situacao, categoria: sp.categoria };
+  const filtrando = Object.values(filtro).some(Boolean);
+  const [reembolsos, filtrados, socios, categorias] = await Promise.all([
+    listarReembolsos(aeronave.id, recorte),
+    // a tabela obedece aos filtros; os cards de cima continuam com tudo
+    filtrando ? listarReembolsos(aeronave.id, { ...recorte, ...filtro }) : Promise.resolve(null),
     listarSocios({ somenteAtivos: true }),
-    piloto ? listarCategorias() : Promise.resolve([]),
+    listarCategorias(),
   ]);
-  const urls = await urlsDosComprovantes(reembolsos.map((r) => r.comprovante_path));
+  const lista = filtrados ?? reembolsos;
+  const urls = await urlsDosComprovantes(lista.map((r) => r.comprovante_path));
   // comprovante do PIX de cada sócio (o mais recente)
   const pagamentos = confirmadosDe(reembolsos);
   const urlsPix = await urlsDosComprovantes(socios.map((s) => pagamentos.find((c) => c.socio_id === s.id && c.caminho)?.caminho ?? null));
@@ -95,8 +103,37 @@ export default async function PaginaReembolsos() {
         />
       )}
 
+      <Filtros
+        hrefLimpar="/reembolsos"
+        campos={[
+          { nome: "q", rotulo: "Buscar", tipo: "text", valor: sp.q, dica: "almoço, uber, cidade…" },
+          { nome: "de", rotulo: "De", tipo: "date", valor: sp.de },
+          { nome: "ate", rotulo: "Até", tipo: "date", valor: sp.ate },
+          {
+            nome: "socio",
+            rotulo: "Por conta de",
+            tipo: "select",
+            valor: sp.socio,
+            opcoes: [{ valor: "TODOS", rotulo: "Todos os sócios" }, ...socios.map((s) => ({ valor: s.id, rotulo: `Só ${s.apelido}` }))],
+          },
+          {
+            nome: "situacao",
+            rotulo: "Situação",
+            tipo: "select",
+            valor: sp.situacao,
+            opcoes: [{ valor: "A_PAGAR", rotulo: "A pagar" }, { valor: "PAGO", rotulo: "Pago" }],
+          },
+          { nome: "categoria", rotulo: "Categoria", tipo: "select", valor: sp.categoria, opcoes: categorias.map((c) => ({ valor: String(c.id), rotulo: c.nome })) },
+        ]}
+      />
+      {filtrando && (
+        <p className="-mt-4 text-sm text-marinho-300">
+          {lista.length === 0 ? "Nada encontrado com esses filtros." : `${lista.length} lançamento${lista.length === 1 ? "" : "s"} · ${reais(lista.reduce((s, r) => s + r.valor, 0))}`}
+        </p>
+      )}
+
       <TabelaReembolsos
-        itens={reembolsos.map((r, i) => ({
+        itens={lista.map((r, i) => ({
           id: r.id,
           data: r.data,
           descricao: r.descricao.replace(/^REEMBOLSO PILOTO: /, ""),
@@ -112,6 +149,7 @@ export default async function PaginaReembolsos() {
           status: r.status,
           reembolsado_em: r.reembolsado_em,
           partes: r.partes,
+          pagos: r.pagos.length,
           nota: urls[i] ?? null,
         }))}
         perfil={usuario.perfil}
