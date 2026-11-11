@@ -73,3 +73,14 @@ export function lerLinhaDigitavel(texto: string | null | undefined): LinhaLida |
     valor: centavos > 0 ? centavos / 100 : null,
   };
 }
+
+/**
+ * A linha digitável em grupos, do jeito que vem impressa no boleto. Fica
+ * aqui (e não no BotaoCopiar, que é de tela) para a ficha da conta, que
+ * roda no servidor, poder chamar.
+ */
+export function linhaFormatada(digitos: string): string {
+  const d = digitos.replace(/\D/g, "");
+  if (d.length !== 47) return d;
+  return `${d.slice(0, 5)}.${d.slice(5, 10)} ${d.slice(10, 15)}.${d.slice(15, 21)} ${d.slice(21, 26)}.${d.slice(26, 32)} ${d[32]} ${d.slice(33)}`;
+}

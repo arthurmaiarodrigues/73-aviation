@@ -14,6 +14,7 @@ import { listarReembolsos } from "@/lib/dados/reembolsos";
 import { listarAnotacoes } from "@/lib/dados/anotacoes";
 import { listarContas } from "@/lib/dados/contas";
 import { ROTULO_BLOQUEIO, agendaDoDia, garantirEscolhaAberta, mesSeguinte, pedidosPendentes, proximasReservas, reservasSemVoo } from "@/lib/dados/agenda";
+import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { BotaoAcao } from "@/app/(app)/agenda/botoes";
 import { data as fmtData, horas as fmtHoras, horimetro as fmtHorimetro, hoje, inicioDoMes, mesPorExtenso, reais, trimestreDe } from "@/lib/formato";
 import { veDados, podeLancar } from "@/lib/tipos";
@@ -51,7 +52,10 @@ export default async function PaginaInicio({ searchParams }: { searchParams: Pro
 
   // Abrir a escolha do mês, avisar reserva sem voo e resolver pedidos não é
   // coisa que a tela precise esperar: roda depois de responder (Next after).
-  after(() => garantirEscolhaAberta(aeronave.id));
+  // Dentro do after() não dá para ler os cookies da sessão: usa a chave do
+  // servidor, como o disparo agendado (/api/cron/avisos) — as RPCs da agenda
+  // são security definer.
+  after(() => garantirEscolhaAberta(aeronave.id, criarClienteAdmin() as unknown as Parameters<typeof garantirEscolhaAberta>[1]));
 
   const mesProximo = mesSeguinte(mes);
   const [

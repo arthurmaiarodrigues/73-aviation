@@ -10,7 +10,8 @@ import { podeLancar } from "@/lib/tipos";
 import { urlDoComprovante } from "@/lib/dados/financeiro";
 import { data as fmtData, hoje, reais } from "@/lib/formato";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BotaoCopiar, linhaFormatada } from "@/components/botao-copiar";
+import { BotaoCopiar } from "@/components/botao-copiar";
+import { linhaFormatada } from "@/lib/boleto/linha";
 import { FormularioConta } from "../formulario-conta";
 
 export const metadata: Metadata = { title: "Conta a pagar" };
