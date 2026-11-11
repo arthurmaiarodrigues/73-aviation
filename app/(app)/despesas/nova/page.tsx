@@ -27,7 +27,7 @@ export default async function PaginaNovaDespesa() {
           socios={socios.map((s) => ({ id: s.id, apelido: s.apelido, cota: s.cota }))}
           categorias={categorias}
           fornecedores={fornecedores}
-          voosRecentes={voos.map((v) => ({ id: v.id, data: v.data, socio_id: v.socio_id, socio: v.socio, origem: v.origem, destino: v.destino }))}
+          voosRecentes={voos.map((v) => ({ id: v.id, data: v.data, data_volta: v.data_volta, socio_id: v.socio_id, socio: v.socio, origem: v.origem, destino: v.destino, escalas: v.escalas, dividido: v.divisao.length > 0 }))}
           hoje={hoje()}
           socioLogadoId={usuario.socioId}
           podeApagar={false}

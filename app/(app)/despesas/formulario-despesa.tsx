@@ -13,12 +13,31 @@ import { Badge } from "@/components/ui/badge";
 import { enviarArquivo } from "@/lib/upload-cliente";
 import { CRITERIOS, ROTULO_CRITERIO, type CriterioRateio } from "@/lib/tipos";
 import { data as fmtData, reais } from "@/lib/formato";
+import { casarVoo } from "@/lib/casar-voo";
 import type { DespesaLinha } from "@/lib/dados/financeiro";
 import { apagarDespesa, criarFornecedor, editarDespesa, salvarDespesa, type Resultado } from "./acoes";
 
 const INICIAL: Resultado = { ok: true, mensagem: "" };
 
-export type VooResumo = { id: string; data: string; socio_id: string | null; socio: string | null; origem: string | null; destino: string | null };
+export type VooResumo = {
+  id: string;
+  data: string;
+  data_volta?: string | null;
+  socio_id: string | null;
+  socio: string | null;
+  origem: string | null;
+  destino: string | null;
+  escalas?: string[];
+  dividido?: boolean;
+};
+
+type ItemNota = { descricao: string; valor: string; voo_id: string };
+
+/** "03/09 SNTF → SBSV · ARTHUR" — o voo no seletor de cada item. */
+function rotuloVoo(v: VooResumo): string {
+  const quem = v.dividido ? "DIVIDIDO" : (v.socio ?? "SOCIEDADE");
+  return `${fmtData(v.data).slice(0, 5)} ${v.origem ?? "?"} → ${v.destino ?? "?"} · ${quem}`;
+}
 
 /** Categorias em que o custo é de quem estava com o avião naquele dia. */
 const CATEGORIAS_DO_VOO = ["TAXAS DE POUSO E NAVEGAÇÃO", "HANGAR"];
@@ -83,9 +102,25 @@ export function FormularioDespesa({
   );
   const [desconto, setDesconto] = useState(despesa && despesa.desconto > 0 ? despesa.desconto.toFixed(2).replace(".", ",") : "");
   const [leitura, setLeitura] = useState<{ confianca: number; observacao: string; fornecedor: string | null } | null>(null);
-  const [itens, setItens] = useState<{ descricao: string; valor: string }[]>((despesa?.itens ?? []).map((i) => ({ descricao: i.descricao, valor: i.valor.toFixed(2).replace(".", ",") })));
+  const [itens, setItens] = useState<ItemNota[]>((despesa?.itens ?? []).map((i) => ({ descricao: i.descricao, valor: i.valor.toFixed(2).replace(".", ","), voo_id: i.voo_id ?? "" })));
   const numero = (t: string) => Number(t.replace(/\./g, "").replace(",", ".")) || 0;
   const somaItens = itens.reduce((t, i) => t + numero(i.valor), 0);
+  const itensDeVoo = itens.filter((i) => i.voo_id);
+  const somaDeVoo = itensDeVoo.reduce((t, i) => t + numero(i.valor), 0);
+  // quanto vai para cada um só pelos itens ligados a voo (prévia; o banco faz a conta final)
+  const previaPorVoo = useMemo(() => {
+    const mapa = new Map<string, number>();
+    for (const i of itens) {
+      if (!i.voo_id) continue;
+      const v = voosRecentes.find((x) => x.id === i.voo_id);
+      const quem = !v ? "?" : v.dividido ? "dividido entre os do voo" : (v.socio ?? "todos (voo da sociedade)");
+      mapa.set(quem, (mapa.get(quem) ?? 0) + numero(i.valor));
+    }
+    return [...mapa.entries()].sort((a, b) => b[1] - a[1]);
+  }, [itens, voosRecentes]);
+  /** Liga cada item ao voo da data/aeródromo que ele cita (só os ainda sem voo). */
+  const acharVoos = (lista: ItemNota[], dataNota: string) =>
+    lista.map((i) => (i.voo_id ? i : { ...i, voo_id: casarVoo(i.descricao, voosRecentes, dataNota) ?? "" }));
   const descontoNumero = numero(desconto);
   const valorNota = numero(valor);
   const valorPago = Math.round(Math.max(0, valorNota - descontoNumero) * 100) / 100;
@@ -107,8 +142,13 @@ export function FormularioDespesa({
     return candidatos[0]?.v ?? null;
   }, [categoriaNome, data, voosRecentes]);
 
+  const temItemDeVoo = itens.some((i) => i.voo_id);
   useEffect(() => {
     if (edicao) return;
+    if (temItemDeVoo) {
+      setSugestao(null);
+      return;
+    }
     if (!vooDoDia) {
       setSugestao(null);
       return;
@@ -121,7 +161,7 @@ export function FormularioDespesa({
       setCriterio("IGUAL");
       setSugestao(`Voo de ${fmtData(vooDoDia.data)} era da sociedade: rateio igual.`);
     }
-  }, [vooDoDia, edicao]);
+  }, [vooDoDia, edicao, temItemDeVoo]);
 
   async function tratarComprovante(arquivo: File | undefined) {
     if (!arquivo) return;
@@ -150,7 +190,12 @@ export function FormularioDespesa({
       if (lido.descricao) setDescricao(lido.descricao);
       const cat = categorias.find((c) => c.nome === lido.categoria);
       if (cat) setCategoriaId(String(cat.id));
-      setItens((lido.itens ?? []).map((i) => ({ descricao: i.descricao, valor: i.valor.toFixed(2).replace(".", ",") })));
+      const lidos = acharVoos(
+        (lido.itens ?? []).map((i) => ({ descricao: i.descricao, valor: i.valor.toFixed(2).replace(".", ","), voo_id: "" })),
+        lido.data ?? data,
+      );
+      setItens(lidos);
+      if (lidos.some((i) => i.voo_id)) setCriterio("IGUAL");
       if (lido.fornecedor) {
         const existente = listaFornecedores.find((f) => f.nome === lido.fornecedor || f.nome.startsWith(lido.fornecedor!.split(" ")[0]) && lido.fornecedor!.split(" ").length > 1 && f.nome.includes(lido.fornecedor!.split(" ")[1]));
         if (existente) setFornecedorId(existente.id);
@@ -409,25 +454,70 @@ export function FormularioDespesa({
         </div>
         )}
 
-        {/* Itens discriminados na nota: ficam na despesa, para registro; o rateio é do total. */}
+        {/* Itens da nota: ligados a um voo, cobram de quem voou; o resto segue o rateio escolhido. */}
         <div className="space-y-2 rounded-lg border border-marinho-100 p-4 dark:border-marinho-300">
-          <input type="hidden" name="itens_json" value={JSON.stringify(itens.map((i) => ({ descricao: i.descricao, valor: numero(i.valor) })))} />
+          <input type="hidden" name="itens_json" value={JSON.stringify(itens.map((i) => ({ descricao: i.descricao, valor: numero(i.valor), ...(i.voo_id ? { voo_id: i.voo_id } : {}) })))} />
           <div className="flex items-center justify-between">
             <Label>Itens da nota {itens.length > 0 && <span className="text-marinho-300">({itens.length})</span>}</Label>
-            <Button type="button" variant="fantasma" size="pequeno" onClick={() => setItens((l) => [...l, { descricao: "", valor: "" }])}>
-              + item
-            </Button>
+            <span className="flex gap-1">
+              {itens.length > 0 && voosRecentes.length > 0 && itens.some((i) => !i.voo_id) && (
+                <Button type="button" variant="fantasma" size="pequeno" onClick={() => setItens((l) => acharVoos(l, data))}>
+                  achar os voos pela data
+                </Button>
+              )}
+              <Button type="button" variant="fantasma" size="pequeno" onClick={() => setItens((l) => [...l, { descricao: "", valor: "", voo_id: "" }])}>
+                + item
+              </Button>
+            </span>
           </div>
           {itens.length === 0 && <p className="text-xs text-marinho-300">A foto da nota preenche os itens sozinha quando ela discrimina mais de um. Opcional.</p>}
           {itens.map((i, idx) => (
-            <div key={idx} className="grid grid-cols-[1fr_7rem_auto] gap-2">
+            <div key={idx} className="grid grid-cols-[1fr_7rem_auto] gap-2 border-b border-marinho-100 pb-2 last:border-0 dark:border-marinho-300">
               <Input value={i.descricao} onChange={(e) => setItens((l) => l.map((x, j) => (j === idx ? { ...x, descricao: e.target.value } : x)))} placeholder="item" className="uppercase" aria-label="Item" />
               <Input value={i.valor} onChange={(e) => setItens((l) => l.map((x, j) => (j === idx ? { ...x, valor: e.target.value } : x)))} inputMode="decimal" placeholder="0,00" className="tabular" aria-label="Valor do item" />
               <Button type="button" variant="fantasma" size="pequeno" onClick={() => setItens((l) => l.filter((_, j) => j !== idx))} aria-label="Tirar item">
                 tirar
               </Button>
+              {voosRecentes.length > 0 && (
+                <Select
+                  value={i.voo_id}
+                  onChange={(e) => setItens((l) => l.map((x, j) => (j === idx ? { ...x, voo_id: e.target.value } : x)))}
+                  aria-label="Voo do item"
+                  className={i.voo_id ? "col-span-3 h-9 text-sm" : "col-span-3 h-9 text-sm text-marinho-300"}
+                >
+                  <option value="">sem voo — segue o rateio da despesa</option>
+                  {voosRecentes.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {rotuloVoo(v)}
+                    </option>
+                  ))}
+                </Select>
+              )}
             </div>
           ))}
+          {itensDeVoo.length > 0 && (
+            <div className="rounded-md bg-areia-200 p-3 text-sm dark:bg-marinho-700">
+              <p>
+                <strong>
+                  {itensDeVoo.length} de {itens.length} itens
+                </strong>{" "}
+                cobrados de quem estava em cada voo ({reais(somaDeVoo)}):
+              </p>
+              <ul className="mt-1 space-y-0.5">
+                {previaPorVoo.map(([quem, total]) => (
+                  <li key={quem} className="flex justify-between gap-3">
+                    <span>{quem}</span>
+                    <span className="tabular">{reais(total)}</span>
+                  </li>
+                ))}
+              </ul>
+              {valorNota - somaDeVoo > 0.004 && (
+                <p className="mt-1 text-marinho-300">
+                  O resto ({reais(Math.max(0, valorNota - somaDeVoo))}) segue o rateio escolhido acima ({ROTULO_CRITERIO[criterio].toLowerCase()}).
+                </p>
+              )}
+            </div>
+          )}
           {itens.length > 0 && (
             <div className="text-right text-sm">
               <p className={Math.abs(somaItens - valorNota) > 0.01 ? "text-atencao" : "text-marinho-300"}>

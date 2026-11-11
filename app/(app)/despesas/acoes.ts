@@ -59,7 +59,7 @@ type Campos = {
   periodo_fim: string | null;
   comprovante_path: string | null;
   observacao: string | null;
-  itens: { descricao: string; valor: number }[];
+  itens: { descricao: string; valor: number; voo_id?: string }[];
 };
 
 function lerCampos(form: FormData): { ok: true; campos: Campos; manuais: { socio_id: string; percentual: number }[] } | { ok: false; mensagem: string } {
@@ -116,14 +116,21 @@ function pagadoresDoForm(form: FormData): { socio_id: string; valor: number }[] 
     .filter((p) => (UUID.test(p.socio_id) || p.socio_id === "CAIXA") && p.valor > 0);
 }
 
-/** Itens discriminados na nota (campo `itens_json`): ficam na própria despesa, só para registro. */
-function itensDaNota(form: FormData): { descricao: string; valor: number }[] {
+/**
+ * Itens discriminados na nota (campo `itens_json`). Item com `voo_id` é
+ * cobrado de quem estava naquele voo (o banco faz a conta, schema_v47).
+ */
+function itensDaNota(form: FormData): { descricao: string; valor: number; voo_id?: string }[] {
   const bruto = texto(form, "itens_json");
   if (!bruto) return [];
   try {
-    const lista = JSON.parse(bruto) as { descricao?: string; valor?: number }[];
+    const lista = JSON.parse(bruto) as { descricao?: string; valor?: number; voo_id?: string | null }[];
     return lista
-      .map((i) => ({ descricao: String(i.descricao ?? "").trim().toUpperCase().slice(0, 120), valor: Math.round(Number(i.valor ?? 0) * 100) / 100 }))
+      .map((i) => ({
+        descricao: String(i.descricao ?? "").trim().toUpperCase().slice(0, 120),
+        valor: Math.round(Number(i.valor ?? 0) * 100) / 100,
+        ...(typeof i.voo_id === "string" && UUID.test(i.voo_id) ? { voo_id: i.voo_id } : {}),
+      }))
       .filter((i) => i.descricao && Number.isFinite(i.valor) && i.valor > 0)
       .slice(0, 100);
   } catch {

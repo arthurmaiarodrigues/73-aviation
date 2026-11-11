@@ -44,6 +44,13 @@ export default async function PaginaDespesa({
   ]);
 
   const podeEditar = usuario.perfil === "admin" || despesa.autor_id === usuario.id;
+  /** Item ligado a um voo: de quem é cobrado (schema_v47). */
+  const quemPagaItem = (vooId: string) => {
+    const v = voos.find((x) => x.id === vooId);
+    if (!v) return "voo ligado (apagado ou antigo)";
+    const quem = v.divisao.length > 0 ? "quem estava no voo (dividido)" : (v.socio ?? "todos (voo da sociedade)");
+    return `voo de ${fmtData(v.data)} ${v.origem ?? "?"} → ${v.destino ?? "?"} · cobrado de ${quem}`;
+  };
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -75,7 +82,10 @@ export default async function PaginaDespesa({
             <ul className="divide-y divide-marinho-100 text-sm dark:divide-marinho-300">
               {despesa.itens.map((i, idx) => (
                 <li key={idx} className="flex items-center justify-between gap-3 py-1.5">
-                  <span>{i.descricao}</span>
+                  <span>
+                    {i.descricao}
+                    {i.voo_id && <span className="block text-xs text-marinho-300">{quemPagaItem(i.voo_id)}</span>}
+                  </span>
                   <span className="flex items-baseline gap-3">
                     <span className={cn("tabular", comDesconto ? "text-marinho-300 line-through" : "font-semibold")}>{reais(i.valor)}</span>
                     {comDesconto && <span className="tabular font-semibold">{reais(comDesconto[idx])}</span>}
@@ -155,7 +165,7 @@ export default async function PaginaDespesa({
               socios={socios.map((s) => ({ id: s.id, apelido: s.apelido, cota: s.cota }))}
               categorias={categorias}
               fornecedores={fornecedores}
-              voosRecentes={voos.map((v) => ({ id: v.id, data: v.data, socio_id: v.socio_id, socio: v.socio, origem: v.origem, destino: v.destino }))}
+              voosRecentes={voos.map((v) => ({ id: v.id, data: v.data, data_volta: v.data_volta, socio_id: v.socio_id, socio: v.socio, origem: v.origem, destino: v.destino, escalas: v.escalas, dividido: v.divisao.length > 0 }))}
               hoje={hoje()}
               socioLogadoId={usuario.socioId}
               podeApagar={usuario.perfil === "admin"}

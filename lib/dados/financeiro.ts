@@ -31,8 +31,8 @@ export type DespesaLinha = {
   autor_id: string | null;
   /** Compra para o tanque do hangar: rateio por litros retirados desde a compra anterior. */
   tanque: "COMPRA" | "RETIRADA" | null;
-  /** Linhas da nota, quando discriminada (registro; o rateio é da despesa inteira). */
-  itens: { descricao: string; valor: number }[];
+  /** Linhas da nota. Item com voo_id é cobrado de quem estava no voo (schema_v47); o resto segue o critério. */
+  itens: { descricao: string; valor: number; voo_id: string | null }[];
   rateios: { socio_id: string; apelido: string; percentual: number; valor: number; horas_base: number | null; litros_base: number | null }[];
   /** Quando mais de um pagou, o que cada um colocou (socio_id nulo = caixa da sociedade). */
   pagadores: { socio_id: string | null; apelido: string; valor: number }[];
@@ -65,7 +65,7 @@ type Bruta = {
   categorias_despesa: { nome: string } | null; fornecedores: { nome: string } | null;
   pagador: { apelido: string } | null; direto: { apelido: string } | null;
   tanque?: "COMPRA" | "RETIRADA" | null;
-  itens?: { descricao: string; valor: number }[] | null;
+  itens?: { descricao: string; valor: number; voo_id?: string | null }[] | null;
   rateios: { socio_id: string; percentual: string; valor: string; horas_base: string | null; litros_base?: string | null; socios: { apelido: string } | null }[];
   despesa_pagadores?: { socio_id: string | null; valor: string; socios: { apelido: string } | null }[] | null;
 };
@@ -92,7 +92,7 @@ function mapear(d: Bruta): DespesaLinha {
           : "CAIXA"),
     criterio: d.criterio,
     tanque: d.tanque ?? null,
-    itens: Array.isArray(d.itens) ? d.itens.map((i) => ({ descricao: String(i.descricao), valor: Number(i.valor) })) : [],
+    itens: Array.isArray(d.itens) ? d.itens.map((i) => ({ descricao: String(i.descricao), valor: Number(i.valor), voo_id: i.voo_id ?? null })) : [],
     socio_direto_id: d.socio_direto_id,
     socio_direto: d.direto?.apelido ?? null,
     periodo_inicio: d.periodo_inicio,
