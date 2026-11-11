@@ -45,11 +45,21 @@ export function DivisaoVoo({
   inicial: { socio_id: string | null; horas: number }[];
 }) {
   const [estado, acao] = useActionState(definirDivisao, INICIAL);
-  const [partes, setPartes] = useState<{ chave: number; socio: string; horas: string }[]>(
+  const [partes, setPartes] = useState<
+    { chave: number; socio: string; horas: string }[]
+  >(
     inicial.length > 0
-      ? inicial.map((p, i) => ({ chave: i, socio: p.socio_id ?? "SOCIEDADE", horas: String(p.horas).replace(".", ",") }))
+      ? inicial.map((p, i) => ({
+          chave: i,
+          socio: p.socio_id ?? "SOCIEDADE",
+          horas: String(p.horas).replace(".", ","),
+        }))
       : [
-          { chave: 0, socio: socioResponsavel ?? "SOCIEDADE", horas: String(horasVoo).replace(".", ",") },
+          {
+            chave: 0,
+            socio: socioResponsavel ?? "SOCIEDADE",
+            horas: String(horasVoo).replace(".", ","),
+          },
           { chave: 1, socio: "", horas: "" },
         ],
   );
@@ -59,84 +69,133 @@ export function DivisaoVoo({
     const n = Number(v.replace(".", "").replace(",", "."));
     return Number.isFinite(n) ? n : 0;
   };
-  const soma = Math.round(partes.reduce((s, p) => s + (p.socio ? numero(p.horas) : 0), 0) * 10) / 10;
+  const soma =
+    Math.round(
+      partes.reduce((s, p) => s + (p.socio ? numero(p.horas) : 0), 0) * 10,
+    ) / 10;
   const falta = Math.round((horasVoo - soma) * 10) / 10;
   const preenchidas = partes.filter((p) => p.socio && numero(p.horas) > 0);
 
   return (
-    <form action={acao} className="space-y-4">
-      <input type="hidden" name="id" value={id} />
-      {estado.mensagem && <Alerta tom={estado.ok ? "ok" : "erro"}>{estado.mensagem}</Alerta>}
-      <p className="text-sm text-marinho-300">
-        Voo de <strong className="text-marinho dark:text-areia">{fmtHoras(horasVoo)}</strong>. Reparta as horas entre quem usou; &quot;Sociedade&quot; divide igual entre os quatro.
-      </p>
+    <>
+      <form action={acao} className="space-y-4">
+        <input type="hidden" name="id" value={id} />
+        {estado.mensagem && (
+          <Alerta tom={estado.ok ? "ok" : "erro"}>{estado.mensagem}</Alerta>
+        )}
+        <p className="text-sm text-marinho-300">
+          Voo de{" "}
+          <strong className="text-marinho dark:text-areia">
+            {fmtHoras(horasVoo)}
+          </strong>
+          . Reparta as horas entre quem usou; &quot;Sociedade&quot; divide igual
+          entre os quatro.
+        </p>
 
-      <div className="space-y-3">
-        {partes.map((p, i) => (
-          <div key={p.chave} className="flex items-end gap-2">
-            <div className="flex-1 space-y-1.5">
-              {i === 0 && <Label>Sócio</Label>}
-              <Select
-                value={p.socio}
-                onChange={(e) => setPartes((l) => l.map((x, j) => (j === i ? { ...x, socio: e.target.value } : x)))}
-                name={p.socio ? "parte_socio" : undefined}
-                className="h-12"
+        <div className="space-y-3">
+          {partes.map((p, i) => (
+            <div key={p.chave} className="flex items-end gap-2">
+              <div className="flex-1 space-y-1.5">
+                {i === 0 && <Label>Sócio</Label>}
+                <Select
+                  value={p.socio}
+                  onChange={(e) =>
+                    setPartes((l) =>
+                      l.map((x, j) =>
+                        j === i ? { ...x, socio: e.target.value } : x,
+                      ),
+                    )
+                  }
+                  name={p.socio ? "parte_socio" : undefined}
+                  className="h-12"
+                >
+                  <option value="">—</option>
+                  <option value="SOCIEDADE">SOCIEDADE (todos)</option>
+                  {socios.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.apelido}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+              <div className="w-28 space-y-1.5">
+                {i === 0 && <Label>Horas</Label>}
+                <Input
+                  inputMode="decimal"
+                  placeholder="0,0"
+                  value={p.horas}
+                  name={p.socio ? "parte_horas" : undefined}
+                  onChange={(e) =>
+                    setPartes((l) =>
+                      l.map((x, j) =>
+                        j === i ? { ...x, horas: e.target.value } : x,
+                      ),
+                    )
+                  }
+                  className="h-12 tabular"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => setPartes((l) => l.filter((_, j) => j !== i))}
+                title="Tirar"
+                className="mb-3 text-marinho-300 hover:text-erro"
               >
-                <option value="">—</option>
-                <option value="SOCIEDADE">SOCIEDADE (todos)</option>
-                {socios.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.apelido}
-                  </option>
-                ))}
-              </Select>
+                <X className="size-5" />
+              </button>
             </div>
-            <div className="w-28 space-y-1.5">
-              {i === 0 && <Label>Horas</Label>}
-              <Input
-                inputMode="decimal"
-                placeholder="0,0"
-                value={p.horas}
-                name={p.socio ? "parte_horas" : undefined}
-                onChange={(e) => setPartes((l) => l.map((x, j) => (j === i ? { ...x, horas: e.target.value } : x)))}
-                className="h-12 tabular"
-              />
-            </div>
-            <button
-              type="button"
-              onClick={() => setPartes((l) => l.filter((_, j) => j !== i))}
-              title="Tirar"
-              className="mb-3 text-marinho-300 hover:text-erro"
-            >
-              <X className="size-5" />
-            </button>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          onClick={() => {
-            setPartes((l) => [...l, { chave: proxima, socio: "", horas: falta > 0 ? String(falta).replace(".", ",") : "" }]);
-            setProxima((n) => n + 1);
-          }}
-          className="inline-flex items-center gap-1 text-sm font-semibold text-laranja-700"
-        >
-          <Plus className="size-4" /> outro sócio
-        </button>
-        <span className={cn("text-sm", falta === 0 ? "text-ok" : "text-atencao")}>
-          {preenchidas.length === 0
-            ? "Sem divisão: o voo fica todo do sócio responsável."
-            : falta === 0
-              ? `Fecha certinho: ${fmtHoras(soma)}`
-              : falta > 0
-                ? `Faltam ${fmtHoras(falta)} para fechar as ${fmtHoras(horasVoo)}`
-                : `Passou ${fmtHoras(-falta)} das ${fmtHoras(horasVoo)}`}
-        </span>
-      </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => {
+              setPartes((l) => [
+                ...l,
+                {
+                  chave: proxima,
+                  socio: "",
+                  horas: falta > 0 ? String(falta).replace(".", ",") : "",
+                },
+              ]);
+              setProxima((n) => n + 1);
+            }}
+            className="inline-flex items-center gap-1 text-sm font-semibold text-laranja-700"
+          >
+            <Plus className="size-4" /> outro sócio
+          </button>
+          <span
+            className={cn("text-sm", falta === 0 ? "text-ok" : "text-atencao")}
+          >
+            {preenchidas.length === 0
+              ? "Sem divisão: o voo fica todo do sócio responsável."
+              : falta === 0
+                ? `Fecha certinho: ${fmtHoras(soma)}`
+                : falta > 0
+                  ? `Faltam ${fmtHoras(falta)} para fechar as ${fmtHoras(horasVoo)}`
+                  : `Passou ${fmtHoras(-falta)} das ${fmtHoras(horasVoo)}`}
+          </span>
+        </div>
 
-      <Botao vazio={preenchidas.length === 0} />
-    </form>
+        <div className="flex flex-wrap items-center gap-3">
+          <Botao vazio={preenchidas.length === 0} />
+          {inicial.length > 0 && (
+            // Atalho: envia o formulário de baixo, que só tem o id — divisão vazia,
+            // o voo volta a ser todo do sócio responsável.
+            <Button type="submit" variant="secundario" form={`desfazer-${id}`}>
+              Desfazer a divisão (voo todo de{" "}
+              {socios.find((s) => s.id === socioResponsavel)?.apelido ??
+                "SOCIEDADE"}
+              )
+            </Button>
+          )}
+        </div>
+      </form>
+      {/* só o id: divisão vazia */}
+      <form id={`desfazer-${id}`} action={acao} className="hidden">
+        <input type="hidden" name="id" value={id} />
+      </form>
+    </>
   );
 }
