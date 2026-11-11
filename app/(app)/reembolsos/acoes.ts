@@ -41,7 +41,10 @@ export async function salvarReembolso(_a: Resultado, form: FormData): Promise<Re
   // TODOS_IGUAL: uniforme, salário, CVA, homologação, revisão obrigatória.
   // TODOS_HORAS: manutenção e peças — divide conforme as horas voadas.
   const porHoras = socioId === "TODOS_HORAS";
-  const deTodos = porHoras || socioId === "TODOS" || socioId === "TODOS_IGUAL";
+  // VOO:<id>: voo dividido — vai para quem estava nele, na divisão do voo (v49).
+  const vooId = socioId?.startsWith("VOO:") ? socioId.slice(4) : null;
+  if (vooId && !UUID.test(vooId)) return { ok: false, mensagem: "Voo inválido." };
+  const deTodos = porHoras || !!vooId || socioId === "TODOS" || socioId === "TODOS_IGUAL";
   if (!deTodos && (!socioId || !UUID.test(socioId))) return { ok: false, mensagem: "Escolha quem deve reembolsar." };
   if (!Number.isInteger(categoriaId)) return { ok: false, mensagem: "Escolha a categoria." };
   if (!cidade) return { ok: false, mensagem: "Informe a cidade onde você gastou." };
@@ -89,6 +92,7 @@ export async function salvarReembolso(_a: Resultado, form: FormData): Promise<Re
     // Entra valendo: o administrador ajusta a divisão depois, se precisar.
     status: "APROVADA",
     pago_pelos_socios: deTodos,
+    ...(vooId ? { rateio_pelo_voo: true, voo_id: vooId } : {}),
     observacao: texto(form, "observacao") ? caixaAlta(texto(form, "observacao")!) : null,
     autor_id: user.id,
   });
@@ -96,7 +100,7 @@ export async function salvarReembolso(_a: Resultado, form: FormData): Promise<Re
 
   // Já vale: avisa quem vai pagar (o sócio, ou todos) e o administrador.
   const valorTexto = `R$ ${valor.toFixed(2).replace(".", ",")}`;
-  const divisao = deTodos ? (porHoras ? ", dividido pelas horas voadas" : ", dividido em partes iguais") : "";
+  const divisao = vooId ? ", dividido entre os sócios do voo" : deTodos ? (porHoras ? ", dividido pelas horas voadas" : ", dividido em partes iguais") : "";
   const alvo = deTodos
     ? await supabase.from("socios").select("usuario_id").is("ativo_ate", null).not("usuario_id", "is", null).then((r) => (r.data ?? []).map((s) => s.usuario_id as string))
     : await supabase.from("socios").select("usuario_id").eq("id", socioId!).maybeSingle().then((r) => (r.data?.usuario_id ? [r.data.usuario_id as string] : []));

@@ -27,6 +27,8 @@ export type DespesaLinha = {
   status: StatusDespesa;
   comprovante_path: string | null;
   voo_id: string | null;
+  /** Rateio "pelo voo" (v49): vai para quem estava no voo `voo_id`, na divisão dele. */
+  rateio_pelo_voo: boolean;
   observacao: string | null;
   autor_id: string | null;
   /** Compra para o tanque do hangar: rateio por litros retirados desde a compra anterior. */
@@ -50,7 +52,7 @@ export type FiltroDespesas = {
 };
 
 const SELECT = `id, data, descricao, categoria_id, fornecedor_id, valor, desconto, pagador_socio_id, pago_pelos_socios, criterio, socio_direto_id,
-  periodo_inicio, periodo_fim, status, comprovante_path, voo_id, observacao, autor_id, tanque, itens,
+  periodo_inicio, periodo_fim, status, comprovante_path, voo_id, rateio_pelo_voo, observacao, autor_id, tanque, itens,
   categorias_despesa ( nome ), fornecedores ( nome ),
   pagador:socios!despesas_pagador_socio_id_fkey ( apelido ),
   direto:socios!despesas_socio_direto_id_fkey ( apelido ),
@@ -61,7 +63,7 @@ type Bruta = {
   id: string; data: string; descricao: string; categoria_id: number; fornecedor_id: string | null; valor: string; desconto?: string | null;
   pagador_socio_id: string | null; pago_pelos_socios: boolean; criterio: CriterioRateio; socio_direto_id: string | null;
   periodo_inicio: string | null; periodo_fim: string | null; status: StatusDespesa; comprovante_path: string | null;
-  voo_id: string | null; observacao: string | null; autor_id: string | null;
+  voo_id: string | null; rateio_pelo_voo?: boolean | null; observacao: string | null; autor_id: string | null;
   categorias_despesa: { nome: string } | null; fornecedores: { nome: string } | null;
   pagador: { apelido: string } | null; direto: { apelido: string } | null;
   tanque?: "COMPRA" | "RETIRADA" | null;
@@ -100,6 +102,7 @@ function mapear(d: Bruta): DespesaLinha {
     status: d.status,
     comprovante_path: d.comprovante_path,
     voo_id: d.voo_id,
+    rateio_pelo_voo: d.rateio_pelo_voo === true,
     observacao: d.observacao,
     autor_id: d.autor_id,
     pagadores: (d.despesa_pagadores ?? [])

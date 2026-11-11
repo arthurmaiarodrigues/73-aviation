@@ -48,7 +48,10 @@ export default async function PaginaDespesa({
   const quemPagaItem = (vooId: string) => {
     const v = voos.find((x) => x.id === vooId);
     if (!v) return "voo ligado (apagado ou antigo)";
-    const quem = v.divisao.length > 0 ? "quem estava no voo (dividido)" : (v.socio ?? "todos (voo da sociedade)");
+    const quem =
+      v.divisao.length > 0
+        ? v.divisaoHoras.map((d) => `${socios.find((s) => s.id === d.socio_id)?.apelido ?? "sociedade"} ${fmtHoras(d.horas)}`).join(" · ")
+        : (v.socio ?? "todos (voo da sociedade)");
     return `voo de ${fmtData(v.data)} ${v.origem ?? "?"} → ${v.destino ?? "?"} · cobrado de ${quem}`;
   };
 
@@ -114,7 +117,7 @@ export default async function PaginaDespesa({
             )}
           </CardTitle>
           <span className="text-sm text-marinho-300">
-            {despesa.tanque === "COMPRA" ? (despesa.rateios.some((r) => r.litros_base) ? "Por litros retirados do tanque desde a compra anterior" : "Igual — estoque inicial do tanque") : ROTULO_CRITERIO[despesa.criterio]}
+            {despesa.tanque === "COMPRA" ? (despesa.rateios.some((r) => r.litros_base) ? "Por litros retirados do tanque desde a compra anterior" : "Igual — estoque inicial do tanque") : despesa.rateio_pelo_voo && despesa.voo_id ? `Pelo voo — ${quemPagaItem(despesa.voo_id)}` : ROTULO_CRITERIO[despesa.criterio]}
             {despesa.socio_direto ? ` — ${despesa.socio_direto}` : ""}
           </span>
         </CardHeader>

@@ -60,6 +60,10 @@ type Campos = {
   comprovante_path: string | null;
   observacao: string | null;
   itens: { descricao: string; valor: number; voo_id?: string }[];
+  /** Rateio "pelo voo" (v49): a despesa vai para quem estava no voo, na divisão dele. */
+  rateio_pelo_voo: boolean;
+  /** Só vai junto quando é pelo voo — fora disso não mexe no voo já ligado. */
+  voo_id?: string;
 };
 
 function lerCampos(form: FormData): { ok: true; campos: Campos; manuais: { socio_id: string; percentual: number }[] } | { ok: false; mensagem: string } {
@@ -71,7 +75,12 @@ function lerCampos(form: FormData): { ok: true; campos: Campos; manuais: { socio
   if (desconto > 0 && valor <= 0) return { ok: false, mensagem: "O desconto não pode ser maior que o valor da nota." };
   const categoria_id = Number(texto(form, "categoria_id"));
   if (!Number.isInteger(categoria_id)) return { ok: false, mensagem: "Escolha a categoria." };
-  const criterio = (texto(form, "criterio") ?? "IGUAL") as CriterioRateio;
+  // "Pelo voo" é IGUAL no banco + rateio_pelo_voo: o que não casar com o voo segue igual.
+  const pedido = texto(form, "criterio") ?? "IGUAL";
+  const peloVoo = pedido === "PELO_VOO";
+  const vooRateio = peloVoo ? uuid(form, "voo_rateio") : null;
+  if (peloVoo && !vooRateio) return { ok: false, mensagem: "Rateio pelo voo: escolha o voo." };
+  const criterio = (peloVoo ? "IGUAL" : pedido) as CriterioRateio;
   if (!CRITERIOS.includes(criterio)) return { ok: false, mensagem: "Critério de rateio inválido." };
   const socio_direto_id = uuid(form, "socio_direto_id");
   if (criterio === "DIRETO" && !socio_direto_id) return { ok: false, mensagem: "Rateio direto: escolha o sócio." };
@@ -103,6 +112,8 @@ function lerCampos(form: FormData): { ok: true; campos: Campos; manuais: { socio
       comprovante_path: texto(form, "comprovante_path"),
       observacao: texto(form, "observacao"),
       itens: itensDaNota(form),
+      rateio_pelo_voo: peloVoo,
+      ...(vooRateio ? { voo_id: vooRateio } : {}),
     },
   };
 }

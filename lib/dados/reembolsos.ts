@@ -42,6 +42,8 @@ export type Reembolso = {
   /** PENDENTE só existe em lançamentos antigos: hoje o reembolso já nasce valendo. */
   status: "PENDENTE" | "APROVADA" | "RATEADA";
   criterio: "IGUAL" | "POR_HORAS" | "DIRETO" | "MANUAL";
+  /** Dividido entre quem estava num voo (v49): a parte de cada um sai do rateio. */
+  peloVoo: boolean;
   /** Quanto cabe a cada sócio (vazio enquanto o admin não confirma). */
   partes: { socio_id: string; valor: number }[];
   /** Sócios que já pagaram a parte deles ao piloto. */
@@ -51,14 +53,15 @@ export type Reembolso = {
   pix: string | null;
 };
 
-const SELECT = `id, data, descricao, valor, socio_direto_id, reembolso_piloto_id, comprovante_path, observacao, cidade, reembolsado_em, status, criterio,
-  categorias_despesa ( nome ), socios!despesas_socio_direto_id_fkey ( apelido ), pilotos ( nome, pix ), rateios ( socio_id, valor ),
+const SELECT = `id, data, descricao, valor, socio_direto_id, reembolso_piloto_id, comprovante_path, observacao, cidade, reembolsado_em, status, criterio, rateio_pelo_voo,
+  voos ( data, origem, destino ), categorias_despesa ( nome ), socios!despesas_socio_direto_id_fkey ( apelido ), pilotos ( nome, pix ), rateios ( socio_id, valor ),
   reembolso_pagamentos ( socio_id, pago_em, comprovante_path )`;
 
 type Bruta = {
   id: string; data: string; descricao: string; valor: string | number; socio_direto_id: string | null; reembolso_piloto_id: string;
   comprovante_path: string | null; observacao: string | null; cidade: string | null; reembolsado_em: string | null;
   status: "PENDENTE" | "APROVADA" | "RATEADA"; criterio: "IGUAL" | "POR_HORAS" | "DIRETO" | "MANUAL";
+  rateio_pelo_voo?: boolean | null; voos?: { data: string; origem: string | null; destino: string | null } | null;
   categorias_despesa: { nome: string } | null; socios: { apelido: string } | null; pilotos: { nome: string; pix: string | null } | null;
   rateios: { socio_id: string; valor: string | number }[] | null;
   reembolso_pagamentos: { socio_id: string; pago_em: string; comprovante_path: string | null }[] | null;
@@ -99,7 +102,14 @@ export async function listarReembolsos(aeronaveId: string, filtro: FiltroReembol
     categoria: d.categorias_despesa?.nome ?? "",
     valor: Number(d.valor),
     socio_id: d.socio_direto_id,
-    socio: d.socio_direto_id === null ? (d.criterio === "POR_HORAS" ? "Todos (pelas horas)" : "Todos") : (d.socios?.apelido ?? ""),
+    socio:
+      d.socio_direto_id !== null
+        ? (d.socios?.apelido ?? "")
+        : d.rateio_pelo_voo && d.voos
+          ? `Voo de ${d.voos.data.slice(8, 10)}/${d.voos.data.slice(5, 7)} (${d.voos.origem ?? "?"} → ${d.voos.destino ?? "?"})`
+          : d.criterio === "POR_HORAS"
+            ? "Todos (pelas horas)"
+            : "Todos",
     piloto_id: d.reembolso_piloto_id,
     piloto: d.pilotos?.nome ?? "",
     comprovante_path: d.comprovante_path,
@@ -108,6 +118,7 @@ export async function listarReembolsos(aeronaveId: string, filtro: FiltroReembol
     reembolsado_em: d.reembolsado_em,
     status: d.status,
     criterio: d.criterio,
+    peloVoo: d.rateio_pelo_voo === true,
     partes: (d.rateios ?? []).map((r) => ({ socio_id: r.socio_id, valor: Number(r.valor) })),
     pagos: (d.reembolso_pagamentos ?? []).map((p) => p.socio_id),
     comprovantesPagos: (d.reembolso_pagamentos ?? []).map((p) => ({ socio_id: p.socio_id, caminho: p.comprovante_path })),

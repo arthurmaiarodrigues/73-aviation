@@ -2,34 +2,32 @@
 
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { Loader2, Plus, Users, X } from "lucide-react";
+import { Loader2, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
 import { Alerta } from "@/components/ui/alerta";
 import { horas as fmtHoras } from "@/lib/formato";
-import { cn } from "@/lib/utils";
 import { definirDivisao, type Resultado } from "../acoes";
+import { DivisaoLancamento } from "../novo/divisao-lancamento";
 
 const INICIAL: Resultado = { ok: true, mensagem: "" };
 
-function Botao({ vazio }: { vazio: boolean }) {
+function Botao({ impedido }: { impedido: boolean }) {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" size="campo" disabled={pending}>
+    <Button type="submit" size="campo" disabled={pending || impedido}>
       {pending ? <Loader2 className="animate-spin" /> : <Users />}
-      {pending ? "Salvando…" : vazio ? "Desfazer a divisão" : "Salvar divisão"}
+      {pending ? "Salvando…" : "Salvar divisão"}
     </Button>
   );
 }
 
 /**
- * Divide as horas do voo: uma parte para cada sócio, e a "SOCIEDADE" para
- * o que é de todos (dividido igual). A soma tem de fechar com as horas do
- * voo — o que muda aqui muda o % de uso, o fundo de reserva, o combustível
- * e os rateios por horas.
+ * Divide o voo entre quem estava nele: marcados em partes iguais, ou pela
+ * proporção das horas de cada um; "SOCIEDADE" é a parte de todos (pela cota).
+ * É proporção (schema_v49) — vale para o tempo de voo, mesmo que o diário o
+ * corrija depois. Muda o % de uso, o fundo, o combustível, os rateios por
+ * horas e as despesas ligadas ao voo (taxas, retiradas do tanque, reembolsos).
  */
 export function DivisaoVoo({
   id,
@@ -45,149 +43,33 @@ export function DivisaoVoo({
   inicial: { socio_id: string | null; horas: number }[];
 }) {
   const [estado, acao] = useActionState(definirDivisao, INICIAL);
-  const [partes, setPartes] = useState<
-    { chave: number; socio: string; horas: string }[]
-  >(
-    inicial.length > 0
-      ? inicial.map((p, i) => ({
-          chave: i,
-          socio: p.socio_id ?? "SOCIEDADE",
-          horas: String(p.horas).replace(".", ","),
-        }))
-      : [
-          {
-            chave: 0,
-            socio: socioResponsavel ?? "SOCIEDADE",
-            horas: String(horasVoo).replace(".", ","),
-          },
-          { chave: 1, socio: "", horas: "" },
-        ],
-  );
-  const [proxima, setProxima] = useState(partes.length);
-
-  const numero = (v: string) => {
-    const n = Number(v.replace(".", "").replace(",", "."));
-    return Number.isFinite(n) ? n : 0;
-  };
-  const soma =
-    Math.round(
-      partes.reduce((s, p) => s + (p.socio ? numero(p.horas) : 0), 0) * 10,
-    ) / 10;
-  const falta = Math.round((horasVoo - soma) * 10) / 10;
-  const preenchidas = partes.filter((p) => p.socio && numero(p.horas) > 0);
+  const [impedimento, setImpedimento] = useState<string | null>(null);
 
   return (
     <>
       <form action={acao} className="space-y-4">
         <input type="hidden" name="id" value={id} />
-        {estado.mensagem && (
-          <Alerta tom={estado.ok ? "ok" : "erro"}>{estado.mensagem}</Alerta>
-        )}
+        {estado.mensagem && <Alerta tom={estado.ok ? "ok" : "erro"}>{estado.mensagem}</Alerta>}
         <p className="text-sm text-marinho-300">
-          Voo de{" "}
-          <strong className="text-marinho dark:text-areia">
-            {fmtHoras(horasVoo)}
-          </strong>
-          . Reparta as horas entre quem usou; &quot;Sociedade&quot; divide igual
-          entre os quatro.
+          Voo de <strong className="text-marinho dark:text-areia">{fmtHoras(horasVoo)}</strong>. A divisão vale também para as
+          taxas, as retiradas do tanque e os reembolsos ligados a este voo.
         </p>
 
-        <div className="space-y-3">
-          {partes.map((p, i) => (
-            <div key={p.chave} className="flex items-end gap-2">
-              <div className="flex-1 space-y-1.5">
-                {i === 0 && <Label>Sócio</Label>}
-                <Select
-                  value={p.socio}
-                  onChange={(e) =>
-                    setPartes((l) =>
-                      l.map((x, j) =>
-                        j === i ? { ...x, socio: e.target.value } : x,
-                      ),
-                    )
-                  }
-                  name={p.socio ? "parte_socio" : undefined}
-                  className="h-12"
-                >
-                  <option value="">—</option>
-                  <option value="SOCIEDADE">SOCIEDADE (todos)</option>
-                  {socios.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.apelido}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-              <div className="w-28 space-y-1.5">
-                {i === 0 && <Label>Horas</Label>}
-                <Input
-                  inputMode="decimal"
-                  placeholder="0,0"
-                  value={p.horas}
-                  name={p.socio ? "parte_horas" : undefined}
-                  onChange={(e) =>
-                    setPartes((l) =>
-                      l.map((x, j) =>
-                        j === i ? { ...x, horas: e.target.value } : x,
-                      ),
-                    )
-                  }
-                  className="h-12 tabular"
-                />
-              </div>
-              <button
-                type="button"
-                onClick={() => setPartes((l) => l.filter((_, j) => j !== i))}
-                title="Tirar"
-                className="mb-3 text-marinho-300 hover:text-erro"
-              >
-                <X className="size-5" />
-              </button>
-            </div>
-          ))}
-        </div>
+        <DivisaoLancamento
+          socios={socios}
+          socioInicial={socioResponsavel}
+          inicial={inicial}
+          horasDoVoo={horasVoo}
+          onSituacao={setImpedimento}
+        />
 
         <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={() => {
-              setPartes((l) => [
-                ...l,
-                {
-                  chave: proxima,
-                  socio: "",
-                  horas: falta > 0 ? String(falta).replace(".", ",") : "",
-                },
-              ]);
-              setProxima((n) => n + 1);
-            }}
-            className="inline-flex items-center gap-1 text-sm font-semibold text-laranja-700"
-          >
-            <Plus className="size-4" /> outro sócio
-          </button>
-          <span
-            className={cn("text-sm", falta === 0 ? "text-ok" : "text-atencao")}
-          >
-            {preenchidas.length === 0
-              ? "Sem divisão: o voo fica todo do sócio responsável."
-              : falta === 0
-                ? `Fecha certinho: ${fmtHoras(soma)}`
-                : falta > 0
-                  ? `Faltam ${fmtHoras(falta)} para fechar as ${fmtHoras(horasVoo)}`
-                  : `Passou ${fmtHoras(-falta)} das ${fmtHoras(horasVoo)}`}
-          </span>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <Botao vazio={preenchidas.length === 0} />
+          <Botao impedido={!!impedimento} />
           {inicial.length > 0 && (
-            // Atalho: envia o formulário de baixo, que só tem o id — divisão vazia,
+            // Envia o formulário de baixo, que só tem o id — divisão vazia,
             // o voo volta a ser todo do sócio responsável.
             <Button type="submit" variant="secundario" form={`desfazer-${id}`}>
-              Desfazer a divisão (voo todo de{" "}
-              {socios.find((s) => s.id === socioResponsavel)?.apelido ??
-                "SOCIEDADE"}
-              )
+              Desfazer a divisão (voo todo de {socios.find((s) => s.id === socioResponsavel)?.apelido ?? "SOCIEDADE"})
             </Button>
           )}
         </div>

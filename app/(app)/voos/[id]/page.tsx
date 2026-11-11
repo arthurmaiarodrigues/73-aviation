@@ -63,7 +63,7 @@ export default async function PaginaVoo({
         </div>
         <p className="mt-1 text-sm text-marinho-300">
           {voo.divisao.length > 0
-            ? voo.divisao.map((d) => `${socios.find((s) => s.id === d.socio_id)?.apelido ?? "Sociedade"} ${fmtHoras(d.horas)}`).join(" · ")
+            ? voo.divisaoHoras.map((d) => `${socios.find((s) => s.id === d.socio_id)?.apelido ?? "Sociedade"} ${fmtHoras(d.horas)}`).join(" · ")
             : (voo.socio ?? "Sociedade")}{" "}
           · {ROTULO_NATUREZA[voo.natureza]}
           {voo.piloto ? ` · piloto ${voo.piloto}` : ""}

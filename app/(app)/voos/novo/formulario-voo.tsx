@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { ChevronDown, Loader2, PlaneLanding, PlaneTakeoff, Plus, X } from "lucide-react";
+import { ChevronDown, Loader2, PlaneLanding, PlaneTakeoff } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,7 @@ import { NATUREZAS, ROTULO_NATUREZA, ehUsoComum, type NaturezaVoo, type Perfil }
 import { horasHm, horimetro as fmtHorimetro, tempoDeVoo } from "@/lib/formato";
 import { cn } from "@/lib/utils";
 import { salvarVoo, type Resultado } from "../acoes";
+import { DivisaoLancamento } from "./divisao-lancamento";
 
 const INICIAL: Resultado = { ok: true, mensagem: "" };
 const VAZIA: EstadoFoto = { caminho: null, leitura: null, valor: "" };
@@ -105,11 +106,8 @@ export function FormularioVoo({
   const [qtdEscalas, setQtdEscalas] = useState(0);
   const [socioSel, setSocioSel] = useState(socioLogadoId ?? "");
   const dividir = socioSel === "DIVIDIR";
-  const [partes, setPartes] = useState<{ chave: number; socio: string; horas: string }[]>([
-    { chave: 0, socio: socioLogadoId ?? "", horas: "" },
-    { chave: 1, socio: "", horas: "" },
-  ]);
-  const [proximaParte, setProximaParte] = useState(2);
+  // divisão no lançamento: o que ainda impede salvar (null = ok)
+  const [erroDivisao, setErroDivisao] = useState<string | null>(null);
   const [detalhes, setDetalhes] = useState(false);
 
   const usoComum = ehUsoComum(natureza);
@@ -122,17 +120,8 @@ export function FormularioVoo({
   const tempoIda = tempoDeVoo(horaDecolagem, horaPouso);
   const tempoVolta = tempoDeVoo(horaDecolagemVolta, horaPousoVolta);
 
-  // Total de horas já conhecido pelos horímetros — base da divisão no lançamento.
-  const horasTotais =
-    hIni !== null && hFimVolta !== null && comVolta && hFimIda === null
-      ? Math.round((hFimVolta - hIni) * 10) / 10
-      : Math.round(((horasIda ?? 0) + (comVolta ? (horasVolta ?? 0) : 0)) * 10) / 10;
-  const numeroHoras = (v: string) => {
-    const n = Number(v.replace(".", "").replace(",", "."));
-    return Number.isFinite(n) ? n : 0;
-  };
-  const somaPartes = Math.round(partes.reduce((t, p) => t + (p.socio ? numeroHoras(p.horas) : 0), 0) * 10) / 10;
-  const faltaPartes = Math.round((horasTotais - somaPartes) * 10) / 10;
+  // Tempo de voo já conhecido (relógio) — só para a prévia da divisão.
+  const horasDoVoo = Math.round(((tempoIda ?? 0) + (comVolta ? (tempoVolta ?? 0) : 0)) * 10) / 10;
 
   const aberto = comVolta ? hFimVolta === null : hFimIda === null;
   const rotuloBotao = semHorimetro ? "Registrar voo antigo" : aberto ? (comVolta ? "Registrar ida e decolei na volta" : "Decolei") : comVolta ? "Registrar ida e volta" : "Registrar voo";
@@ -388,56 +377,13 @@ O voo fica marcado como pendente de horímetro até o administrador conferir.
               ))}
               <option value="DIVIDIR">DIVIDIR ENTRE SÓCIOS…</option>
             </Select>
-            {dividir && horasTotais <= 0 && (
-              <p className="text-xs text-atencao">Informe os horímetros para dividir as horas — ou divida depois, na ficha do voo.</p>
-            )}
-            {dividir && horasTotais > 0 && (
-              <div className="space-y-2 rounded-lg border border-marinho-100 p-3 dark:border-marinho-300">
-                {partes.map((p, i) => (
-                  <div key={p.chave} className="flex items-center gap-2">
-                    <Select
-                      value={p.socio}
-                      name={p.socio ? "parte_socio" : undefined}
-                      onChange={(e) => setPartes((l) => l.map((x, j) => (j === i ? { ...x, socio: e.target.value } : x)))}
-                      className="h-11 flex-1"
-                    >
-                      <option value="">—</option>
-                      <option value="SOCIEDADE">SOCIEDADE (todos)</option>
-                      {socios.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.apelido}
-                        </option>
-                      ))}
-                    </Select>
-                    <Input
-                      inputMode="decimal"
-                      placeholder="0,0"
-                      value={p.horas}
-                      name={p.socio ? "parte_horas" : undefined}
-                      onChange={(e) => setPartes((l) => l.map((x, j) => (j === i ? { ...x, horas: e.target.value } : x)))}
-                      className="h-11 w-24 tabular"
-                    />
-                    <button type="button" onClick={() => setPartes((l) => l.filter((_, j) => j !== i))} title="Tirar" className="text-marinho-300 hover:text-erro">
-                      <X className="size-5" />
-                    </button>
-                  </div>
-                ))}
-                <div className="flex flex-wrap items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPartes((l) => [...l, { chave: proximaParte, socio: "", horas: faltaPartes > 0 ? String(faltaPartes).replace(".", ",") : "" }]);
-                      setProximaParte((n) => n + 1);
-                    }}
-                    className="inline-flex items-center gap-1 text-sm font-semibold text-laranja-700"
-                  >
-                    <Plus className="size-4" /> outro sócio
-                  </button>
-                  <span className={cn("text-xs", faltaPartes === 0 ? "text-ok" : "text-atencao")}>
-                    {faltaPartes === 0 ? `fecha certinho: ${horasHm(somaPartes)}` : faltaPartes > 0 ? `faltam ${horasHm(faltaPartes)} das ${horasHm(horasTotais)}` : `passou ${horasHm(-faltaPartes)} das ${horasHm(horasTotais)}`}
-                  </span>
-                </div>
-              </div>
+            {dividir && (
+              <DivisaoLancamento
+                socios={socios.map((s) => ({ id: s.id, apelido: s.apelido }))}
+                socioInicial={socioLogadoId ?? null}
+                horasDoVoo={horasDoVoo}
+                onSituacao={setErroDivisao}
+              />
             )}
           </>
         )}
@@ -505,15 +451,7 @@ O voo fica marcado como pendente de horímetro até o administrador conferir.
 
       <Botao
         rotulo={rotuloBotao}
-        impedido={
-          dividir && horasTotais > 0 && faltaPartes !== 0
-            ? faltaPartes > 0
-              ? `A divisão está incompleta: faltam ${horasHm(faltaPartes)} das ${horasHm(horasTotais)}. Acerte as horas de cada sócio (use SOCIEDADE para a parte de todos).`
-              : `A divisão passou ${horasHm(-faltaPartes)} das ${horasHm(horasTotais)}. Acerte as horas de cada sócio.`
-            : dividir && horasTotais <= 0
-              ? "Para dividir as horas, informe o horímetro da decolagem e o do pouso — ou escolha um sócio e divida depois, na ficha do voo."
-              : undefined
-        }
+        impedido={dividir && erroDivisao ? erroDivisao : undefined}
       />
     </form>
   );

@@ -105,7 +105,7 @@ export default async function PaginaVoos({ searchParams }: { searchParams: Promi
                 </Celula>
                 <Celula>
                   {v.divisao.length > 0 ? (
-                    <span className="text-marinho-300" title={v.divisao.map((d) => `${socios.find((s) => s.id === d.socio_id)?.apelido ?? "Sociedade"} ${d.horas} h`).join(" · ")}>
+                    <span className="text-marinho-300" title={v.divisaoHoras.map((d) => `${socios.find((s) => s.id === d.socio_id)?.apelido ?? "Sociedade"} ${d.horas} h`).join(" · ")}>
                       dividido
                     </span>
                   ) : (

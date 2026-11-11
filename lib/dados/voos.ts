@@ -10,8 +10,10 @@ export type VooLinha = {
   data_volta: string | null;
   socio_id: string | null;
   socio: string | null;
-  /** Voo repartido: horas de cada sócio (socio_id null = parte da sociedade). */
+  /** Voo repartido: peso de cada um como gravado (socio_id null = parte da sociedade). É proporção (v49). */
   divisao: { socio_id: string | null; horas: number }[];
+  /** A mesma divisão em horas deste voo (peso / soma × horas) — para mostrar. */
+  divisaoHoras: { socio_id: string | null; horas: number }[];
   piloto: string | null;
   origem: string | null;
   destino: string | null;
@@ -67,6 +69,16 @@ function n(v: string | null): number | null {
   return v === null ? null : Number(v);
 }
 
+/** Pesos da divisão → horas do voo (um décimo; a sobra vai para a maior parte). Sem horas, mostra os pesos. */
+function emHoras(partes: { socio_id: string | null; horas: number }[], horasVoo: number) {
+  const total = partes.reduce((t, p) => t + p.horas, 0);
+  if (partes.length === 0 || total <= 0 || horasVoo <= 0) return [...partes].sort((a, b) => b.horas - a.horas);
+  const r = partes.map((p) => ({ socio_id: p.socio_id, horas: Math.round((p.horas / total) * horasVoo * 10) / 10 })).sort((a, b) => b.horas - a.horas);
+  const sobra = Math.round((horasVoo - r.reduce((t, p) => t + p.horas, 0)) * 10) / 10;
+  r[0].horas = Math.round((r[0].horas + sobra) * 10) / 10;
+  return r;
+}
+
 function mapear(v: LinhaBruta): VooLinha {
   return {
     id: v.id,
@@ -75,6 +87,7 @@ function mapear(v: LinhaBruta): VooLinha {
     socio_id: v.socio_id,
     socio: v.socios?.apelido ?? null,
     divisao: (v.voo_socios ?? []).map((d) => ({ socio_id: d.socio_id, horas: Number(d.horas) })).sort((a, b) => b.horas - a.horas),
+    divisaoHoras: emHoras((v.voo_socios ?? []).map((d) => ({ socio_id: d.socio_id, horas: Number(d.horas) })), Number(v.horas ?? 0)),
     piloto: v.pilotos?.nome ?? null,
     origem: v.origem,
     destino: v.destino,

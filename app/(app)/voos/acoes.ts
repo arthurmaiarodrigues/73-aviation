@@ -171,23 +171,9 @@ export async function salvarVoo(_anterior: Resultado, form: FormData): Promise<R
   const combFinal = lerNumero(form.get("combustivel_final_l"));
   const pousos = Math.max(0, Math.round(lerNumero(form.get("pousos")) ?? 1));
 
-  // A divisão tem de fechar com as horas do voo — senão o resto ficaria sem dono.
-  const horasPrevistas =
-    hInicial !== null && (voltaJunta ? hFinalVolta : hFinal) !== null
-      ? Math.round(((voltaJunta ? hFinalVolta! : hFinal!) - hInicial) * 10) / 10 +
-        (comVolta && !voltaJunta && hInicialVolta !== null && hFinalVolta !== null ? Math.round((hFinalVolta - hInicialVolta) * 10) / 10 : 0)
-      : (horasInformadas ?? 0);
-  if (partesForm.length > 0) {
-    const somaPartes = Math.round(partesForm.reduce((t, p) => t + p.horas, 0) * 10) / 10;
-    if (horasPrevistas <= 0) {
-      return { ok: false, mensagem: "Para dividir as horas, informe o horímetro da decolagem e o do pouso." };
-    }
-    if (Math.abs(somaPartes - horasPrevistas) > 0.05) {
-      return {
-        ok: false,
-        mensagem: `A divisão soma ${somaPartes.toFixed(1).replace(".", ",")} h e o voo tem ${horasPrevistas.toFixed(1).replace(".", ",")} h. Acerte as horas de cada sócio (use SOCIEDADE para a parte de todos).`,
-      };
-    }
+  // A divisão é proporção (v49): não precisa fechar com as horas do voo.
+  if (texto(form, "socio_id") === "DIVIDIR" && partesForm.length === 0) {
+    return { ok: false, mensagem: "Marque quem estava no voo para dividir." };
   }
 
   const supabase = await criarClienteServidor();
@@ -251,23 +237,18 @@ export async function salvarVoo(_anterior: Resultado, form: FormData): Promise<R
   if (error) return { ok: false, mensagem: traduzir(error.message) };
 
   let avisoDivisao = "";
-  const aplicarDivisao = async (vooId: string, horasDoVoo: number, total: number) => {
-    if (partesForm.length === 0 || horasDoVoo <= 0 || total <= 0) return;
-    const proporcao = horasDoVoo / total;
-    const partes = partesForm.map((p) => ({ socio_id: p.socio_id, horas: Math.round(p.horas * proporcao * 10) / 10 })).filter((p) => p.horas > 0);
-    const soma = Math.round(partes.reduce((t, p) => t + p.horas, 0) * 10) / 10;
-    if (partes.length > 0 && soma !== horasDoVoo) {
-      // o arredondamento sobra (ou falta) na maior parte
-      const maior = partes.reduce((a, b) => (b.horas > a.horas ? b : a));
-      maior.horas = Math.round((maior.horas + (horasDoVoo - soma)) * 10) / 10;
-    }
-    const { error: erroDivisao } = await supabase.rpc("definir_divisao_voo", { p_voo: vooId, p_partes: partes.filter((p) => p.horas > 0) });
+  // A divisão é proporção (schema_v49): os pesos vão como vieram (1 cada =
+  // partes iguais; ou as horas de cada um) e valem para o tempo de voo, que
+  // pode nem existir ainda (voo em aberto). Ida e volta separadas: a mesma
+  // proporção nos dois.
+  const aplicarDivisao = async (vooId: string) => {
+    if (partesForm.length === 0) return;
+    // um só marcado = voo dele, sem divisão
+    if (partesForm.length === 1 && partesForm[0].socio_id !== null) return;
+    const { error: erroDivisao } = await supabase.rpc("definir_divisao_voo", { p_voo: vooId, p_partes: partesForm });
     if (erroDivisao) avisoDivisao = erroDivisao.message.replace(/^.*?(?:ERROR|error):\s*/, "");
   };
-  const horasCriado = hInicial !== null && hFinalVoo !== null ? Math.round((hFinalVoo - hInicial) * 10) / 10 : (horasInformadas ?? 0);
-  const horasVoltaCriada = comVolta && !voltaJunta && hInicialVolta !== null && hFinalVolta !== null ? Math.round((hFinalVolta - hInicialVolta) * 10) / 10 : 0;
-  const horasTotaisCriadas = Math.round((horasCriado + horasVoltaCriada) * 10) / 10;
-  await aplicarDivisao(criado.id, horasCriado, horasTotaisCriadas);
+  await aplicarDivisao(criado.id);
 
   if (comVolta && !voltaJunta) {
     const { data: volta, error: erroVolta } = await supabase
@@ -295,7 +276,7 @@ export async function salvarVoo(_anterior: Resultado, form: FormData): Promise<R
       .select("id")
       .single();
     if (erroVolta) return { ok: false, mensagem: `A ida foi gravada, mas a volta não: ${traduzir(erroVolta.message)}. Registre a volta como "só um trecho".` };
-    await aplicarDivisao(volta.id, horasVoltaCriada, horasTotaisCriadas);
+    await aplicarDivisao(volta.id);
     revalidatePath("/voos");
     revalidatePath("/inicio");
     const sufixoVolta = avisoDivisao ? `&divisao=${encodeURIComponent(avisoDivisao)}` : "";

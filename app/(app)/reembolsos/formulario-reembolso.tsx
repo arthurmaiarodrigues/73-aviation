@@ -32,12 +32,15 @@ export function FormularioReembolso({
   categorias,
   hoje,
   cidadeInicial,
+  voosDivididos = [],
 }: {
   socios: { id: string; apelido: string }[];
   categorias: { id: number; nome: string }[];
   hoje: string;
   /** Última cidade usada: quase sempre é a mesma viagem. */
   cidadeInicial?: string | null;
+  /** Voos divididos entre sócios: o gasto vai para quem estava no voo, na divisão dele. */
+  voosDivididos?: { id: string; rotulo: string }[];
 }) {
   const [estado, acao] = useActionState(salvarReembolso, INICIAL);
   const [comprovante, setComprovante] = useState<string | null>(null);
@@ -121,9 +124,20 @@ export function FormularioReembolso({
                 {s.apelido}
               </option>
             ))}
+            {voosDivididos.length > 0 && (
+              <optgroup label="Voo dividido — quem estava nele">
+                {voosDivididos.map((v) => (
+                  <option key={v.id} value={`VOO:${v.id}`}>
+                    {v.rotulo}
+                  </option>
+                ))}
+              </optgroup>
+            )}
           </Select>
           <p className="text-xs text-marinho-300">
-            {socio === "TODOS_IGUAL"
+            {socio.startsWith("VOO:")
+              ? "Gasto de um voo dividido (taxa, pouso, hangar da viagem): cada sócio do voo paga a parte dele a você, na divisão do voo."
+              : socio === "TODOS_IGUAL"
               ? "Uniforme, salário, CVA, homologação IFR, revisão obrigatória: a sociedade devolve pelo caixa e cada sócio paga 1/4."
               : socio === "TODOS_HORAS"
                 ? "Manutenção e peças: a sociedade devolve pelo caixa e cada sócio paga conforme as horas que voou (o administrador pode ajustar o período)."

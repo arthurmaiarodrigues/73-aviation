@@ -4,6 +4,7 @@ import { exigirSessao } from "@/lib/perfil";
 import { aeronaveAtiva, listarCategorias, listarSocios } from "@/lib/dados/cadastros";
 import { urlsDosComprovantes } from "@/lib/dados/financeiro";
 import { devidoPorSocio, listarReembolsos } from "@/lib/dados/reembolsos";
+import { listarVoos } from "@/lib/dados/voos";
 import { hoje, reais } from "@/lib/formato";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Filtros } from "@/components/filtros";
@@ -25,12 +26,14 @@ export default async function PaginaReembolsos({ searchParams }: { searchParams:
   const recorte = usuario.perfil === "socio" && usuario.socioId ? { socioId: usuario.socioId, confirmados: true } : {};
   const filtro = { q: sp.q, de: sp.de, ate: sp.ate, socio: sp.socio, situacao: sp.situacao, categoria: sp.categoria };
   const filtrando = Object.values(filtro).some(Boolean);
-  const [reembolsos, filtrados, socios, categorias] = await Promise.all([
+  const [reembolsos, filtrados, socios, categorias, voos] = await Promise.all([
     listarReembolsos(aeronave.id, recorte),
     // a tabela obedece aos filtros; os cards de cima continuam com tudo
     filtrando ? listarReembolsos(aeronave.id, { ...recorte, ...filtro }) : Promise.resolve(null),
     listarSocios({ somenteAtivos: true }),
     listarCategorias(),
+    // só o piloto lança: voos divididos recentes, para "os sócios do voo de tal dia"
+    usuario.perfil === "piloto" ? listarVoos(aeronave.id, {}, 40) : Promise.resolve([]),
   ]);
   const lista = filtrados ?? reembolsos;
   const urls = await urlsDosComprovantes(lista.map((r) => r.comprovante_path));
@@ -88,6 +91,14 @@ export default async function PaginaReembolsos({ searchParams }: { searchParams:
           categorias={categorias.map((c) => ({ id: c.id, nome: c.nome }))}
           hoje={hoje()}
           cidadeInicial={reembolsos[0]?.cidade ?? null}
+          voosDivididos={voos
+            .filter((v) => v.divisao.length > 0)
+            .map((v) => ({
+              id: v.id,
+              rotulo: `${v.data.slice(8, 10)}/${v.data.slice(5, 7)} ${v.origem ?? "?"} → ${v.destino ?? "?"} · ${v.divisaoHoras
+                .map((d) => socios.find((s) => s.id === d.socio_id)?.apelido ?? "SOCIEDADE")
+                .join(" + ")}`,
+            }))}
         />
       )}
       {piloto && !usuario.pilotoId && <p className="text-sm text-atencao">Seu login ainda não está ligado a um piloto do cadastro — peça ao administrador.</p>}
@@ -146,6 +157,7 @@ export default async function PaginaReembolsos({ searchParams }: { searchParams:
           piloto: r.piloto,
           piloto_id: r.piloto_id,
           criterio: r.criterio,
+          peloVoo: r.peloVoo,
           status: r.status,
           reembolsado_em: r.reembolsado_em,
           partes: r.partes,

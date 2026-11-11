@@ -41,6 +41,10 @@ function rotuloVoo(v: VooResumo): string {
   return `${fmtData(v.data).slice(0, 5)} ${v.origem ?? "?"} → ${v.destino ?? "?"} · ${quem}`;
 }
 
+/** Critério da tela: os do banco + "pelo voo" (IGUAL + rateio_pelo_voo no banco). */
+type CriterioTela = CriterioRateio | "PELO_VOO";
+const rotuloCriterio = (c: CriterioTela) => (c === "PELO_VOO" ? "Pelo voo (quem estava nele)" : ROTULO_CRITERIO[c]);
+
 /** Categorias em que o custo é de quem estava com o avião naquele dia. */
 const CATEGORIAS_DO_VOO = ["TAXAS DE POUSO E NAVEGAÇÃO", "HANGAR"];
 
@@ -78,7 +82,8 @@ export function FormularioDespesa({
 
   const [data, setData] = useState(despesa?.data ?? hoje);
   const [categoriaId, setCategoriaId] = useState(String(despesa?.categoria_id ?? categorias[0]?.id ?? ""));
-  const [criterio, setCriterio] = useState<CriterioRateio>(despesa?.criterio ?? "IGUAL");
+  const [criterio, setCriterio] = useState<CriterioTela>(despesa?.rateio_pelo_voo ? "PELO_VOO" : (despesa?.criterio ?? "IGUAL"));
+  const [vooRateio, setVooRateio] = useState(despesa?.rateio_pelo_voo ? (despesa.voo_id ?? "") : "");
   const [socioDireto, setSocioDireto] = useState(despesa?.socio_direto_id ?? "");
   const [pagador, setPagador] = useState(
     despesa
@@ -155,14 +160,11 @@ export function FormularioDespesa({
       setSugestao(null);
       return;
     }
-    if (vooDoDia.socio_id) {
-      setCriterio("DIRETO");
-      setSocioDireto(vooDoDia.socio_id);
-      setSugestao(`Voo de ${fmtData(vooDoDia.data)} (${vooDoDia.origem ?? "?"} → ${vooDoDia.destino ?? "?"}) era de ${vooDoDia.socio}: rateio direto a ele.`);
-    } else {
-      setCriterio("IGUAL");
-      setSugestao(`Voo de ${fmtData(vooDoDia.data)} era da sociedade: rateio igual.`);
-    }
+    // Pelo voo: segue a divisão dele (um sócio, vários ou a sociedade).
+    setCriterio("PELO_VOO");
+    setVooRateio(vooDoDia.id);
+    const quem = vooDoDia.dividido ? "dividido entre sócios" : vooDoDia.socio_id ? `de ${vooDoDia.socio}` : "da sociedade";
+    setSugestao(`Voo de ${fmtData(vooDoDia.data)} (${vooDoDia.origem ?? "?"} → ${vooDoDia.destino ?? "?"}), ${quem}: a despesa vai para quem estava nele.`);
   }, [vooDoDia, edicao, temItemDeVoo]);
 
   async function tratarComprovante(arquivo: File | undefined) {
@@ -335,12 +337,13 @@ export function FormularioDespesa({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="criterio">Rateio</Label>
-            <Select id="criterio" name="criterio" value={criterio} onChange={(e) => setCriterio(e.target.value as CriterioRateio)} className="h-12">
+            <Select id="criterio" name="criterio" value={criterio} onChange={(e) => setCriterio(e.target.value as CriterioTela)} className="h-12">
               {CRITERIOS.map((c) => (
                 <option key={c} value={c}>
                   {ROTULO_CRITERIO[c]}
                 </option>
               ))}
+              {voosRecentes.length > 0 && <option value="PELO_VOO">{rotuloCriterio("PELO_VOO")}</option>}
             </Select>
           </div>
         </div>
@@ -393,6 +396,24 @@ export function FormularioDespesa({
         )}
 
         {sugestao && <Alerta tom="info">{sugestao}</Alerta>}
+
+        {criterio === "PELO_VOO" && (
+          <div className="space-y-1.5">
+            <Label htmlFor="voo_rateio">Voo</Label>
+            <Select id="voo_rateio" name="voo_rateio" value={vooRateio} onChange={(e) => setVooRateio(e.target.value)} required className="h-12">
+              <option value="">Escolha o voo…</option>
+              {voosRecentes.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {rotuloVoo(v)}
+                </option>
+              ))}
+            </Select>
+            <p className="text-xs text-marinho-300">
+              Vai para quem estava no voo: o sócio dele, a divisão entre sócios, ou todos pela cota quando é da sociedade.
+              {temItemDeVoo && " Itens ligados a outro voo seguem o voo deles; o resto, dividido igual."}
+            </p>
+          </div>
+        )}
 
         {criterio === "DIRETO" && (
           <div className="space-y-1.5">
@@ -517,7 +538,7 @@ export function FormularioDespesa({
               </ul>
               {valorNota - somaDeVoo > 0.004 && (
                 <p className="mt-1 text-marinho-300">
-                  O resto ({reais(Math.max(0, valorNota - somaDeVoo))}) segue o rateio escolhido acima ({ROTULO_CRITERIO[criterio].toLowerCase()}).
+                  O resto ({reais(Math.max(0, valorNota - somaDeVoo))}) segue o rateio escolhido acima ({(criterio === "PELO_VOO" ? ROTULO_CRITERIO.IGUAL : rotuloCriterio(criterio)).toLowerCase()}).
                 </p>
               )}
             </div>

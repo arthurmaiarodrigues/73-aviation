@@ -26,6 +26,7 @@ export type LinhaReembolso = {
   piloto: string;
   piloto_id: string;
   criterio: "IGUAL" | "POR_HORAS" | "DIRETO" | "MANUAL";
+  peloVoo?: boolean;
   status: "PENDENTE" | "APROVADA" | "RATEADA";
   reembolsado_em: string | null;
   partes: { socio_id: string; valor: number }[];
@@ -170,7 +171,7 @@ export function TabelaReembolsos({
                     {r.socio}
                     {r.socio_id === null && r.partes.length > 0 && (
                       <span className="block text-xs text-marinho-300">
-                        {r.criterio === "POR_HORAS"
+                        {r.criterio === "POR_HORAS" || r.peloVoo
                           ? r.partes.map((p) => `${socios.find((s) => s.id === p.socio_id)?.apelido ?? "?"} ${reais(p.valor)}`).join(" · ")
                           : `${reais(r.partes[0].valor)} cada`}
                       </span>
