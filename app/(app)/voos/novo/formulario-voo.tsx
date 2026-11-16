@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ChevronDown, Loader2, PlaneLanding, PlaneTakeoff } from "lucide-react";
 
@@ -27,11 +27,14 @@ function lerHorimetro(v: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-function Botao({ rotulo, impedido }: { rotulo: string; impedido?: string }) {
+function Botao({ rotulo, impedido, erro, aviso }: { rotulo: string; impedido?: string; erro?: string | null; aviso?: string | null }) {
   const { pending } = useFormStatus();
   return (
     <>
       {impedido && <Alerta tom="atencao">{impedido}</Alerta>}
+      {/* A recusa aparece junto do botão: no celular o topo do formulário fica fora da vista. */}
+      {!pending && erro && <Alerta tom="erro">{erro}</Alerta>}
+      {aviso && <Alerta tom="atencao">{aviso}</Alerta>}
     <Button type="submit" size="campo" disabled={pending || Boolean(impedido)}>
       {pending ? <Loader2 className="animate-spin" /> : rotulo.startsWith("Decolei") ? <PlaneTakeoff /> : <PlaneLanding />}
       {pending ? "Salvando…" : rotulo}
@@ -109,6 +112,13 @@ export function FormularioVoo({
   // divisão no lançamento: o que ainda impede salvar (null = ok)
   const [erroDivisao, setErroDivisao] = useState<string | null>(null);
   const [detalhes, setDetalhes] = useState(false);
+  // Campo obrigatório vazio: o navegador barra o envio; aqui diz qual é.
+  const [faltando, setFaltando] = useState<string | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  const erroServidor = !estado.ok && estado.mensagem ? estado.mensagem : null;
+  useEffect(() => {
+    if (erroServidor) formRef.current?.querySelector("[data-erro-voo]")?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [estado, erroServidor]);
 
   const usoComum = ehUsoComum(natureza);
   const hIni = lerHorimetro(fotoInicial.valor);
@@ -127,8 +137,19 @@ export function FormularioVoo({
   const rotuloBotao = semHorimetro ? "Registrar voo antigo" : aberto ? (comVolta ? "Registrar ida e decolei na volta" : "Decolei") : comVolta ? "Registrar ida e volta" : "Registrar voo";
 
   return (
-    <form action={acao} className="space-y-6">
-      {!estado.ok && estado.mensagem && <Alerta tom="erro">{estado.mensagem}</Alerta>}
+    <form
+      ref={formRef}
+      action={acao}
+      className="space-y-6"
+      onInvalidCapture={(e) => {
+        const campo = e.target as HTMLInputElement;
+        const rotulo = campo.id ? formRef.current?.querySelector(`label[for="${campo.id}"]`)?.textContent : null;
+        setFaltando(rotulo ? `Falta preencher: ${rotulo}.` : "Falta preencher um campo obrigatório.");
+      }}
+      onChange={() => setFaltando(null)}
+      onSubmitCapture={() => setFaltando(null)}
+    >
+      {erroServidor && <Alerta tom="erro">{erroServidor}</Alerta>}
       <input type="hidden" name="volta" value={comVolta && !semHorimetro ? "on" : ""} />
       <input type="hidden" name="pousos" value={detalhes ? pousos : String(qtdEscalas + 1)} />
 
@@ -449,10 +470,9 @@ O voo fica marcado como pendente de horímetro até o administrador conferir.
         </div>
       </div>
 
-      <Botao
-        rotulo={rotuloBotao}
-        impedido={dividir && erroDivisao ? erroDivisao : undefined}
-      />
+      <div data-erro-voo className="space-y-3">
+        <Botao rotulo={rotuloBotao} impedido={dividir && erroDivisao ? erroDivisao : undefined} erro={erroServidor} aviso={faltando} />
+      </div>
     </form>
   );
 }

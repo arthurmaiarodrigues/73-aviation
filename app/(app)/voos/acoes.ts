@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { usuarioDaSessao } from "@/lib/perfil";
+import { notificar } from "@/lib/push";
 import { podeLancar } from "@/lib/tipos";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { aeronaveAtiva } from "@/lib/dados/cadastros";
@@ -79,7 +80,24 @@ function traduzir(mensagem: string): string {
  * voando"). Se o horímetro inicial não bate com o último registrado, o
  * buraco vira um voo pendente `SOCIEDADE` para o admin resolver — nada se perde.
  */
-export async function salvarVoo(_anterior: Resultado, form: FormData): Promise<Resultado> {
+export async function salvarVoo(anterior: Resultado, form: FormData): Promise<Resultado> {
+  const r = await salvarVooInterno(anterior, form);
+  // Voo recusado ao piloto: o administrador fica sabendo na hora, com o
+  // motivo (em 11/2026 o piloto ficou dias sem conseguir lançar e ninguém
+  // via a mensagem). O redirect do sucesso passa direto pelo await.
+  if (!r.ok) {
+    const { usuario } = await usuarioDaSessao();
+    if (usuario?.perfil === "piloto") {
+      await notificar(
+        { perfis: ["admin"] },
+        { titulo: "Voo não salvo", corpo: `${usuario.nome.split(" ")[0]} tentou lançar o voo de ${String(form.get("data") ?? "").split("-").reverse().join("/")}: ${r.mensagem}`, url: "/voos", tag: "voo-recusado" },
+      );
+    }
+  }
+  return r;
+}
+
+async function salvarVooInterno(_anterior: Resultado, form: FormData): Promise<Resultado> {
   const { user, usuario } = await usuarioDaSessao();
   if (!user || !usuario?.ativo) return { ok: false, mensagem: "Sem sessão." };
   if (!podeLancar(usuario.perfil)) return { ok: false, mensagem: "Espectador não lança nem edita." };
