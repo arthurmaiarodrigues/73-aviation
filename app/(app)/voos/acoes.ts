@@ -53,7 +53,7 @@ function pernasDoForm(form: FormData, qtdEscalas: number): { horas: number[]; so
 /** "09:15" do input time; vazio vira null. */
 function hora(form: FormData, campo: string): string | null {
   const t = texto(form, campo);
-  return t && /^d{2}:d{2}$/.test(t) ? t : null;
+  return t && /^\d{2}:\d{2}(:\d{2})?$/.test(t) ? t.slice(0, 5) : null;
 }
 
 function leituraJson(form: FormData, campo: string): unknown {
